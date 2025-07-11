@@ -12,3 +12,32 @@
 .qbo-modal {
     z-index: 100000 !important;
 }
+
+/* Recurring Invoices Table */
+.invoice-row {
+    border-bottom: 1px solid #ddd;
+}
+
+.invoice-row td {
+    padding: 12px 8px;
+    vertical-align: middle;
+}
+
+.student-column {
+    text-align: center;
+    width: 60px;
+}
+
+.student-column .dashicons {
+    font-size: 16px;
+}
+
+.status-active {
+    color: #00a32a;
+    font-weight: 600;
+}
+
+.status-inactive {
+    color: #d63638;
+    font-weight: 600;
+}

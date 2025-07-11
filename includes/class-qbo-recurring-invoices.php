@@ -139,12 +139,12 @@ class QBO_Recurring_Invoices {
         echo '<table class="wp-list-table widefat fixed striped">';
         echo '<thead>';
         echo '<tr>';
-        echo '<th scope="col">Name</th>';
         echo '<th scope="col">Customer</th>';
         echo '<th scope="col">Amount</th>';
         echo '<th scope="col">Frequency</th>';
         echo '<th scope="col">Next Date</th>';
         echo '<th scope="col">Previous Date</th>';
+        echo '<th scope="col">Student</th>';
         echo '<th scope="col">Status</th>';
         echo '<th scope="col">Actions</th>';
         echo '</tr>';
@@ -167,9 +167,6 @@ class QBO_Recurring_Invoices {
         // Extract the actual invoice data
         $invoice_data = isset($invoice['Invoice']) ? $invoice['Invoice'] : array();
         $recurring_info = isset($invoice_data['RecurringInfo']) ? $invoice_data['RecurringInfo'] : array();
-        
-        // Get name from RecurringInfo
-        $name = isset($recurring_info['Name']) ? esc_html($recurring_info['Name']) : 'N/A';
         
         // Get customer name from CustomerRef
         $customer_name = 'N/A';
@@ -211,17 +208,35 @@ class QBO_Recurring_Invoices {
             $previous_date = date('M j, Y', strtotime($recurring_info['ScheduleInfo']['PreviousDate']));
         }
         
-        // Get status from RecurringInfo
-        $status = isset($recurring_info['Active']) && $recurring_info['Active'] ? 'Active' : 'Inactive';
+        // Get status from RecurringInfo - also mark as inactive if no next date
+        $has_next_date = isset($recurring_info['ScheduleInfo']['NextDate']) && !empty($recurring_info['ScheduleInfo']['NextDate']);
+        $is_qbo_active = isset($recurring_info['Active']) && $recurring_info['Active'];
+        
+        // Mark as inactive if either QBO says inactive OR there's no next date
+        $status = ($is_qbo_active && $has_next_date) ? 'Active' : 'Inactive';
         $status_class = strtolower($status);
         
+        // Get team information for this customer
+        $team_info = $this->get_customer_team_info($invoice_data);
+        
         echo '<tr class="invoice-row status-row-' . $status_class . '">';
-        echo '<td><strong>' . $name . '</strong></td>';
         echo '<td>' . esc_html($customer_name) . '</td>';
         echo '<td>' . $amount . '</td>';
         echo '<td>' . esc_html($frequency) . '</td>';
         echo '<td>' . $next_date . '</td>';
         echo '<td>' . $previous_date . '</td>';
+        echo '<td class="student-column">';
+        if (!empty($team_info)) {
+            $team_links = array();
+            foreach ($team_info as $team) {
+                $team_url = admin_url('admin.php?page=qbo-teams&action=view&team_id=' . $team->id);
+                $team_links[] = '<a href="' . esc_url($team_url) . '" title="View Team ' . esc_attr($team->team_number) . ' - ' . esc_attr($team->team_name) . '">' . esc_html($team->team_number) . '</a>';
+            }
+            echo implode(', ', $team_links);
+        } else {
+            echo '<span class="dashicons dashicons-minus" style="color: #ddd;" title="No team association"></span>';
+        }
+        echo '</td>';
         echo '<td><span class="status-' . $status_class . '">' . $status . '</span></td>';
         echo '<td>';
         echo '<button type="button" class="button button-small view-details" data-id="' . esc_attr($invoice_data['Id']) . '" title="View Details"><span class="dashicons dashicons-visibility"></span></button> ';
@@ -247,6 +262,35 @@ class QBO_Recurring_Invoices {
         return 'Customer ID: ' . $customer_id;
     }
     
+    /**
+     * Get team information for a customer's students
+     */
+    private function get_customer_team_info($invoice_data) {
+        global $wpdb;
+        
+        // Get customer ID from invoice data
+        if (!isset($invoice_data['CustomerRef']['value'])) {
+            return array();
+        }
+        
+        $customer_qbo_id = $invoice_data['CustomerRef']['value'];
+        
+        // Query to get team information for this customer's students
+        $table_students = $wpdb->prefix . 'gears_students';
+        $table_teams = $wpdb->prefix . 'gears_teams';
+        
+        $results = $wpdb->get_results($wpdb->prepare(
+            "SELECT DISTINCT t.id, t.team_number, t.team_name 
+             FROM $table_students s 
+             JOIN $table_teams t ON s.team_id = t.id 
+             WHERE s.customer_id = %s AND s.team_id IS NOT NULL
+             ORDER BY t.team_number",
+            $customer_qbo_id
+        ));
+        
+        return $results ? $results : array();
+    }
+
     /**
      * AJAX handler for getting recurring invoices
      */
@@ -681,8 +725,45 @@ class QBO_Recurring_Invoices {
         ?>
         <script type="text/javascript">
         jQuery(document).ready(function($) {
+            // Cookie helper functions
+            function setCookie(name, value, days) {
+                var expires = "";
+                if (days) {
+                    var date = new Date();
+                    date.setTime(date.getTime() + (days * 24 * 60 * 60 * 1000));
+                    expires = "; expires=" + date.toUTCString();
+                }
+                document.cookie = name + "=" + (value || "") + expires + "; path=/";
+            }
+            
+            function getCookie(name) {
+                var nameEQ = name + "=";
+                var ca = document.cookie.split(';');
+                for(var i = 0; i < ca.length; i++) {
+                    var c = ca[i];
+                    while (c.charAt(0) == ' ') c = c.substring(1, c.length);
+                    if (c.indexOf(nameEQ) == 0) return c.substring(nameEQ.length, c.length);
+                }
+                return null;
+            }
+            
             // Load recurring invoices on page load
             loadRecurringInvoices();
+            
+            // Apply saved state after loading invoices
+            function applySavedState() {
+                var hideInactive = getCookie('qbo_hide_inactive_invoices');
+                if (hideInactive === 'true') {
+                    $('.status-row-inactive').hide();
+                    $('#hide-inactive-invoices').hide();
+                    $('#show-inactive-invoices').show();
+                } else {
+                    $('.status-row-inactive').show();
+                    $('#hide-inactive-invoices').show();
+                    $('#show-inactive-invoices').hide();
+                }
+                updateInvoiceCount();
+            }
             
             // Refresh button
             $('#refresh-recurring-invoices').on('click', function() {
@@ -707,6 +788,7 @@ class QBO_Recurring_Invoices {
                 $('.status-row-inactive').hide();
                 $(this).hide();
                 $('#show-inactive-invoices').show();
+                setCookie('qbo_hide_inactive_invoices', 'true', 30); // Save for 30 days
                 updateInvoiceCount();
             });
             
@@ -715,6 +797,7 @@ class QBO_Recurring_Invoices {
                 $('.status-row-inactive').show();
                 $(this).hide();
                 $('#hide-inactive-invoices').show();
+                setCookie('qbo_hide_inactive_invoices', 'false', 30); // Save for 30 days
                 updateInvoiceCount();
             });
             
@@ -838,7 +921,10 @@ class QBO_Recurring_Invoices {
                 }, function(response) {
                     if (response.success) {
                         $('#recurring-invoices-content').html(response.data);
-                        updateInvoiceCount();
+                        // Apply saved state after content is loaded
+                        setTimeout(function() {
+                            applySavedState();
+                        }, 100);
                     } else {
                         $('#recurring-invoices-content').html('<div class="notice notice-error"><p>Failed to load recurring invoices.</p></div>');
                     }
@@ -895,10 +981,15 @@ class QBO_Recurring_Invoices {
                 $('.qbo-modal').remove();
                 
                 // Extract current values from the details content or row
-                var currentName = row.find('td:first strong').text();
-                var currentAmount = row.find('td:nth-child(3)').text().replace('$', '').replace(',', '');
-                var currentFrequency = row.find('td:nth-child(4)').text();
-                var currentCustomer = row.find('td:nth-child(2)').text();
+                var currentName = '';
+                var nameMatch = detailsContent.match(/<h3>(.*?)<\/h3>/);
+                if (nameMatch) {
+                    currentName = nameMatch[1].replace(/&lt;/g, '<').replace(/&gt;/g, '>').replace(/&amp;/g, '&');
+                }
+                
+                var currentAmount = row.find('td:nth-child(2)').text().replace('$', '').replace(',', '');
+                var currentFrequency = row.find('td:nth-child(3)').text();
+                var currentCustomer = row.find('td:nth-child(1)').text();
                 
                 // Parse frequency to get interval type and number
                 var intervalType = 'Monthly';
@@ -914,7 +1005,7 @@ class QBO_Recurring_Invoices {
                 }
                 
                 // Get current next date from row
-                var currentNextDate = row.find('td:nth-child(5)').text();
+                var currentNextDate = row.find('td:nth-child(4)').text();
                 var nextDateValue = '';
                 if (currentNextDate !== 'N/A') {
                     // Convert "Dec 15, 2024" format to "2024-12-15"

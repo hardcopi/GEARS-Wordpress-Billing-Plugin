@@ -1907,14 +1907,17 @@ class QBO_Teams {
                 
                 // Get parent name from customer data
                 $display_name = isset($customer_info['DisplayName']) ? $customer_info['DisplayName'] : '';
+                $company_name = isset($customer_info['CompanyName']) ? $customer_info['CompanyName'] : '';
                 $first_name = isset($customer_info['GivenName']) ? $customer_info['GivenName'] : '';
                 $last_name = isset($customer_info['FamilyName']) ? $customer_info['FamilyName'] : '';
                 
-                // Construct parent name - prefer GivenName/FamilyName, fallback to DisplayName
-                if (!empty($first_name) || !empty($last_name)) {
-                    $parent_name = trim($first_name . ' ' . $last_name);
-                } elseif (!empty($display_name)) {
+                // Construct parent name - prefer DisplayName, then CompanyName, fallback to GivenName/FamilyName
+                if (!empty($display_name)) {
                     $parent_name = $display_name;
+                } elseif (!empty($company_name)) {
+                    $parent_name = $company_name;
+                } elseif (!empty($first_name) || !empty($last_name)) {
+                    $parent_name = trim($first_name . ' ' . $last_name);
                 } else {
                     $parent_name = 'Unknown Customer';
                 }
