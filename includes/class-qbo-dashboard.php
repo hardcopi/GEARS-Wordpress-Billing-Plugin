@@ -32,9 +32,9 @@ class QBO_Dashboard {
                         <?php $this->render_recent_activity(); ?>
                     </div>
                     <div class="postbox-container" style="width: 49%; float: left;">
+                        <?php $this->render_quick_actions(); ?>
                         <?php $this->render_system_info(); ?>
                         <?php $this->render_mentors_and_teams(); ?>
-                        <?php $this->render_quick_actions(); ?>
                     </div>
                 </div>
             </div>
