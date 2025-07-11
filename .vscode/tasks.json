@@ -1,0 +1,13 @@
+{
+	"version": "2.0.0",
+	"tasks": [
+		{
+			"label": "Start WordPress Development Server",
+			"type": "shell",
+			"command": "php -S localhost:8080 -t .",
+			"group": "test",
+			"isBackground": true,
+			"problemMatcher": []
+		}
+	]
+}

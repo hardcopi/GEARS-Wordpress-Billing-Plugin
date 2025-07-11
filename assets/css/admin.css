@@ -1,0 +1,14 @@
+/**
+ * Admin CSS for QBO Recurring Billing Plugin
+ */
+
+/* Additional styling for better plugin page appearance */
+.qbo-admin-page {
+    padding-bottom: 50px;
+}
+
+/* Ensure modals and overlays work properly without footer interference */
+.gears-modal-overlay,
+.qbo-modal {
+    z-index: 100000 !important;
+}

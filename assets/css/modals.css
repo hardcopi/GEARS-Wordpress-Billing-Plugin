@@ -1,0 +1,214 @@
+/* QBO Recurring Billing - Shared Modal Styles */
+
+/* Modal overlay styles */
+.gears-modal-overlay {
+    display: none;
+    position: fixed !important;
+    z-index: 99999 !important;
+    left: 0;
+    top: 0;
+    width: 100vw;
+    height: 100vh;
+    background: rgba(0, 0, 0, 0.4) !important;
+}
+
+.gears-modal-overlay.active {
+    display: block !important;
+}
+
+/* Modal container */
+.gears-modal {
+    background: #fff;
+    border-radius: 8px;
+    max-width: 600px;
+    margin: 5% auto;
+    padding: 20px;
+    position: relative;
+    box-shadow: 0 4px 32px rgba(0, 0, 0, 0.18);
+    max-height: 80vh;
+    overflow-y: auto;
+    z-index: 100000 !important;
+}
+
+/* Modal close button */
+.gears-modal-close {
+    position: absolute;
+    top: 10px;
+    right: 15px;
+    font-size: 28px;
+    color: #888;
+    cursor: pointer;
+    font-weight: bold;
+    background: none;
+    border: none;
+    padding: 0;
+    line-height: 1;
+    transition: color 0.2s ease;
+}
+
+.gears-modal-close:hover {
+    color: #d63638;
+}
+
+/* Modal form styling for consistent appearance */
+.gears-modal .form-row {
+    margin-bottom: 20px;
+    display: flex;
+    flex-direction: column;
+}
+
+.gears-modal .form-row label {
+    font-weight: 600;
+    margin-bottom: 5px;
+    color: #23282d;
+}
+
+.gears-modal .form-input {
+    width: 100%;
+    padding: 8px 12px;
+    border: 1px solid #ddd;
+    border-radius: 4px;
+    font-size: 14px;
+    transition: border-color 0.2s ease;
+}
+
+.gears-modal .form-input:focus {
+    outline: none;
+    border-color: #007cba;
+    box-shadow: 0 0 0 1px #007cba;
+}
+
+.gears-modal textarea.form-input {
+    min-height: 80px;
+    resize: vertical;
+}
+
+.gears-modal select.form-input {
+    height: 40px;
+}
+
+.gears-modal .form-actions {
+    display: flex;
+    gap: 10px;
+    justify-content: flex-end;
+    margin-top: 20px;
+    padding-top: 20px;
+    border-top: 1px solid #eee;
+}
+
+.gears-modal .form-actions .button {
+    min-width: 100px;
+}
+
+.gears-modal .form-actions .button:first-child {
+    margin-right: auto;
+}
+
+/* File input styling */
+.gears-modal input[type="file"].form-input {
+    padding: 6px;
+    border: 2px dashed #ddd;
+    background: #fafafa;
+    cursor: pointer;
+}
+
+.gears-modal input[type="file"].form-input:hover {
+    border-color: #007cba;
+    background: #f0f8ff;
+}
+
+/* Required field indicator */
+.gears-modal label span[style*="color: red"] {
+    color: #d63638 !important;
+    font-weight: bold;
+}
+
+/* Preview containers for images */
+.gears-modal div[id*="preview"] img {
+    max-width: 150px;
+    height: auto;
+    border: 1px solid #ddd;
+    border-radius: 4px;
+    margin-top: 10px;
+}
+
+/* WordPress form table styling inside modals */
+.gears-modal .form-table {
+    width: 100%;
+    border-collapse: collapse;
+}
+
+.gears-modal .form-table th {
+    width: 30%;
+    text-align: left;
+    font-weight: 600;
+    padding: 15px 10px 15px 0;
+    vertical-align: top;
+    color: #23282d;
+}
+
+.gears-modal .form-table td {
+    padding: 15px 0;
+    vertical-align: top;
+}
+
+.gears-modal .form-table input[type="text"],
+.gears-modal .form-table input[type="email"],
+.gears-modal .form-table input[type="url"],
+.gears-modal .form-table input[type="file"],
+.gears-modal .form-table select,
+.gears-modal .form-table textarea {
+    width: 100%;
+    padding: 8px 12px;
+    border: 1px solid #ddd;
+    border-radius: 4px;
+    font-size: 14px;
+    transition: border-color 0.2s ease;
+}
+
+.gears-modal .form-table input[type="text"]:focus,
+.gears-modal .form-table input[type="email"]:focus,
+.gears-modal .form-table input[type="url"]:focus,
+.gears-modal .form-table select:focus,
+.gears-modal .form-table textarea:focus {
+    outline: none;
+    border-color: #007cba;
+    box-shadow: 0 0 0 1px #007cba;
+}
+
+.gears-modal .form-table textarea {
+    min-height: 80px;
+    resize: vertical;
+}
+
+/* Submit section styling */
+.gears-modal .submit {
+    text-align: right;
+    margin-top: 20px;
+    padding-top: 20px;
+    border-top: 1px solid #eee;
+}
+
+.gears-modal .submit .button {
+    margin-left: 10px;
+}
+
+/* Responsive adjustments */
+@media (max-width: 768px) {
+    .gears-modal {
+        margin: 2% auto;
+        max-width: 95%;
+        max-height: 90vh;
+    }
+    
+    .gears-modal .form-table th,
+    .gears-modal .form-table td {
+        display: block;
+        width: 100%;
+        padding: 8px 0;
+    }
+    
+    .gears-modal .form-table th {
+        margin-bottom: 5px;
+    }
+}
