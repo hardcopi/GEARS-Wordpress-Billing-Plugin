@@ -2552,10 +2552,10 @@ class QBO_Teams {
                                     html += '<td>' + gradeDisplay + '</td>';
                                     html += '<td>' + (student.first_year_first || 'N/A') + '</td>';
                                     html += '<td>' + student.parent_name + '</td>';
-                                    html += '<td>$' + parseFloat(student.balance).toFixed(2) + '</td>';
+                                    html += '<td nowrap>$' + parseFloat(student.balance).toFixed(2) + '</td>';
                                     // Add status column with styling
                                     var statusClass = student.status === 'Active' ? 'status-active' : 'status-inactive';
-                                    html += '<td><span class="status-badge ' + statusClass + '">' + student.status + '</span></td>';
+                                    html += '<td nowrap><span class="status-badge ' + statusClass + '">' + student.status + '</span></td>';
                                     html += '<td nowrap>';
                                     if (student.customer_id) {
                                         html += '<a href="' + qboCustomerListVars.invoicesPageUrl + '&member_id=' + encodeURIComponent(student.customer_id) + '" class="button button-small view-student-invoices">' +
@@ -2592,7 +2592,7 @@ class QBO_Teams {
                                     htmlA += '<td>$' + parseFloat(student.balance).toFixed(2) + '</td>';
                                     // Add status column with styling
                                     var statusClass = student.status === 'Active' ? 'status-active' : 'status-inactive';
-                                    htmlA += '<td><span class="status-badge ' + statusClass + '">' + student.status + '</span></td>';
+                                    htmlA += '<td nowrap><span class="status-badge ' + statusClass + '">' + student.status + '</span></td>';
                                     htmlA += '<td>';
                                     if (student.customer_id) {
                                         htmlA += '<a href="' + qboCustomerListVars.invoicesPageUrl + '&member_id=' + encodeURIComponent(student.customer_id) + '" class="button button-small view-student-invoices">' +

@@ -110,6 +110,28 @@ class QBO_Dashboard {
             background: #005a87;
             color: white;
         }
+        
+        /* Responsive design for stat boxes */
+        @media (max-width: 1200px) {
+            .stat-box {
+                width: 31% !important;
+                margin-bottom: 10px;
+            }
+        }
+        
+        @media (max-width: 768px) {
+            .stat-box {
+                width: 48% !important;
+                margin-bottom: 10px;
+            }
+        }
+        
+        @media (max-width: 480px) {
+            .stat-box {
+                width: 100% !important;
+                margin-bottom: 10px;
+            }
+        }
         </style>
         <?php
     }
@@ -144,32 +166,55 @@ class QBO_Dashboard {
         echo '<h3>Quick Stats</h3>';
         echo '<div class="dashboard-widget-content">';
         
-        // Get customer count
-        $customers = $this->core->fetch_customers();
-        $customer_count = is_array($customers) ? count($customers) : 0;
-        
-        // Get team count
+        // Get student counts (active vs alumni)
         global $wpdb;
+        $student_table = $wpdb->prefix . 'gears_students';
+        $active_student_count = $wpdb->get_var("SELECT COUNT(*) FROM $student_table WHERE (grade != 'Alumni' OR grade IS NULL)");
+        $alumni_count = $wpdb->get_var("SELECT COUNT(*) FROM $student_table WHERE grade = 'Alumni'");
+        
+        // Get team counts (active vs archived)
         $table_name = $wpdb->prefix . 'gears_teams';
-        $team_count = $wpdb->get_var("SELECT COUNT(*) FROM $table_name");
+        
+        // Check if archived column exists
+        $column_exists = $wpdb->get_results("SHOW COLUMNS FROM $table_name LIKE 'archived'");
+        
+        if (!empty($column_exists)) {
+            // Column exists, count active and archived teams separately
+            $active_team_count = $wpdb->get_var("SELECT COUNT(*) FROM $table_name WHERE (archived = 0 OR archived IS NULL)");
+            $archived_team_count = $wpdb->get_var("SELECT COUNT(*) FROM $table_name WHERE archived = 1");
+        } else {
+            // Column doesn't exist yet, all teams are considered active
+            $active_team_count = $wpdb->get_var("SELECT COUNT(*) FROM $table_name");
+            $archived_team_count = 0;
+        }
         
         // Get mentor count
         $mentor_table = $wpdb->prefix . 'gears_mentors';
         $mentor_count = $wpdb->get_var("SELECT COUNT(*) FROM $mentor_table");
         
-        echo '<div style="display: flex; justify-content: space-between;">';
+        echo '<div style="display: flex; justify-content: space-between; flex-wrap: wrap; gap: 8px;">';
         
-        echo '<div class="stat-box" style="width: 30%;">';
-        echo '<div class="stat-number">' . $customer_count . '</div>';
-        echo '<div class="stat-label">Customers</div>';
+        echo '<div class="stat-box" style="width: 19%;">';
+        echo '<div class="stat-number">' . ($active_student_count ?: 0) . '</div>';
+        echo '<div class="stat-label">Active Students</div>';
         echo '</div>';
         
-        echo '<div class="stat-box" style="width: 30%;">';
-        echo '<div class="stat-number">' . ($team_count ?: 0) . '</div>';
+        echo '<div class="stat-box" style="width: 19%;">';
+        echo '<div class="stat-number">' . ($alumni_count ?: 0) . '</div>';
+        echo '<div class="stat-label">Alumni</div>';
+        echo '</div>';
+        
+        echo '<div class="stat-box" style="width: 19%;">';
+        echo '<div class="stat-number">' . ($active_team_count ?: 0) . '</div>';
         echo '<div class="stat-label">Active Teams</div>';
         echo '</div>';
         
-        echo '<div class="stat-box" style="width: 30%;">';
+        echo '<div class="stat-box" style="width: 19%;">';
+        echo '<div class="stat-number">' . ($archived_team_count ?: 0) . '</div>';
+        echo '<div class="stat-label">Past Teams</div>';
+        echo '</div>';
+        
+        echo '<div class="stat-box" style="width: 19%;">';
         echo '<div class="stat-number">' . ($mentor_count ?: 0) . '</div>';
         echo '<div class="stat-label">Mentors</div>';
         echo '</div>';

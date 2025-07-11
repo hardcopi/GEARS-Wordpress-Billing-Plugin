@@ -1398,6 +1398,31 @@ class QBO_Recurring_Invoices {
                 padding-bottom: 15px;
                 border-bottom: 1px solid #f0f0f0;
             }
+        
+        /* Student column team links */
+        .student-column a {
+            display: inline-block;
+            background-color: #0073aa;
+            color: white;
+            padding: 2px 6px;
+            text-decoration: none;
+            border-radius: 3px;
+            font-size: 11px;
+            font-weight: bold;
+            margin: 1px;
+            transition: background-color 0.2s ease;
+        }
+        
+        .student-column a:hover {
+            background-color: #005a87;
+            color: white;
+        }
+        
+        .student-column a:focus {
+            box-shadow: 0 0 0 1px #5b9dd9, 0 0 2px 1px rgba(30, 140, 190, 0.8);
+            outline: none;
+        }
+        
         }
         </style>
         <?php
