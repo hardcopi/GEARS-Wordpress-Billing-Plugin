@@ -40,6 +40,8 @@ class QBO_Teams {
         add_action('wp_ajax_qbo_get_team_mentors', array($this, 'ajax_get_team_mentors'));
         add_action('wp_ajax_get_mentor_data', array($this, 'ajax_get_mentor_data'));
         add_action('wp_ajax_delete_mentor', array($this, 'ajax_delete_mentor'));
+        add_action('wp_ajax_get_student_data', array($this, 'ajax_get_student_data'));
+        add_action('wp_ajax_delete_student', array($this, 'ajax_delete_student'));
         add_action('wp_ajax_qbo_archive_team', array($this, 'ajax_archive_team'));
         add_action('wp_ajax_qbo_restore_team', array($this, 'ajax_restore_team'));
         add_action('wp_ajax_qbo_get_team_data', array($this, 'ajax_get_team_data'));
@@ -137,6 +139,12 @@ class QBO_Teams {
         } elseif (isset($_POST['add_student'])) {
             if (isset($_POST['student_nonce']) && wp_verify_nonce($_POST['student_nonce'], 'add_student_action')) {
                 $this->handle_add_student();
+            } else {
+                echo '<div class="notice notice-error"><p>Security check failed. Please try again.</p></div>';
+            }
+        } elseif (isset($_POST['edit_student'])) {
+            if (isset($_POST['edit_student_nonce']) && wp_verify_nonce($_POST['edit_student_nonce'], 'edit_student_action')) {
+                $this->handle_edit_student();
             } else {
                 echo '<div class="notice notice-error"><p>Security check failed. Please try again.</p></div>';
             }
@@ -619,7 +627,7 @@ class QBO_Teams {
                         <tr>
                             <th>Student Name</th>
                             <th>Grade</th>
-                            <th>First Year First</th>
+                            <th>First Year</th>
                             <th>Team</th>
                         </tr>
                     </thead>
@@ -1844,7 +1852,7 @@ class QBO_Teams {
         
         // Get students for this team from the database
         $students = $wpdb->get_results($wpdb->prepare("
-            SELECT s.first_name, s.last_name, s.grade, s.first_year_first, s.customer_id
+            SELECT s.id, s.first_name, s.last_name, s.grade, s.first_year_first, s.customer_id
             FROM $table_students s
             WHERE s.team_id = %d 
             ORDER BY s.last_name, s.first_name
@@ -1933,6 +1941,7 @@ class QBO_Teams {
             }
             
             $result[] = array(
+                'student_id' => $student->id,
                 'student_name' => $student_name,
                 'parent_name' => esc_html($parent_name),
                 'grade' => esc_html($student->grade),
@@ -2070,6 +2079,58 @@ class QBO_Teams {
         }
         
         wp_send_json_success('Mentor deleted successfully');
+    }
+
+    /**
+     * AJAX handler to get student data for editing
+     */
+    public function ajax_get_student_data() {
+        if (!current_user_can('manage_options') || !isset($_POST['nonce']) || !wp_verify_nonce($_POST['nonce'], 'get_student_data')) {
+            wp_send_json_error('Unauthorized');
+        }
+        
+        $student_id = isset($_POST['student_id']) ? intval($_POST['student_id']) : 0;
+        
+        if (!$student_id) {
+            wp_send_json_error('Invalid student ID');
+        }
+        
+        global $wpdb;
+        $table_students = $wpdb->prefix . 'gears_students';
+        
+        $student = $wpdb->get_row($wpdb->prepare("SELECT * FROM $table_students WHERE id = %d", $student_id));
+        
+        if (!$student) {
+            wp_send_json_error('Student not found');
+        }
+        
+        wp_send_json_success($student);
+    }
+    
+    /**
+     * AJAX handler to delete a student
+     */
+    public function ajax_delete_student() {
+        if (!current_user_can('manage_options') || !isset($_POST['nonce']) || !wp_verify_nonce($_POST['nonce'], 'delete_student')) {
+            wp_send_json_error('Unauthorized');
+        }
+        
+        $student_id = isset($_POST['student_id']) ? intval($_POST['student_id']) : 0;
+        
+        if (!$student_id) {
+            wp_send_json_error('Invalid student ID');
+        }
+        
+        global $wpdb;
+        $table_students = $wpdb->prefix . 'gears_students';
+        
+        $result = $wpdb->delete($table_students, array('id' => $student_id), array('%d'));
+        
+        if ($result === false) {
+            wp_send_json_error('Failed to delete student');
+        }
+        
+        wp_send_json_success('Student deleted successfully');
     }
 
     /**
@@ -2428,6 +2489,11 @@ class QBO_Teams {
         </div>
         
         <script type="text/javascript">
+        // Make sure ajaxurl is available
+        if (typeof ajaxurl === 'undefined') {
+            var ajaxurl = '<?php echo admin_url('admin-ajax.php'); ?>';
+        }
+        
         window.qboCustomerListVars = window.qboCustomerListVars || {};
         qboCustomerListVars.invoicesPageUrl = "<?php echo esc_js(admin_url('admin.php?page=qbo-view-invoices')); ?>";
         qboCustomerListVars.nonce = "<?php echo wp_create_nonce('qbo_get_customers'); ?>";
@@ -2442,7 +2508,7 @@ class QBO_Teams {
                 
                 // Fetch and display students for this team
                 if (typeof qboCustomerListVars !== 'undefined') {
-                    $.post(ajaxurl, {
+                    jQuery.post(ajaxurl, {
                         action: 'qbo_get_team_students',
                         team_id: teamId,
                         nonce: qboCustomerListVars.nonce
@@ -2464,11 +2530,11 @@ class QBO_Teams {
                                 var html = '<table class="wp-list-table widefat fixed striped">';
                                 html += '<thead><tr>';
                                 html += '<th>Student Name</th>';
-                                html += '<th>Grade</th>';
-                                html += '<th>First Year in FIRST</th>';
+                                html += '<th style="width: 45px;">Grade</th>';
+                                html += '<th style="width: 45px;">First Year</th>';
                                 html += '<th>Parent Name</th>';
-                                html += '<th>Balance</th>';
-                                html += '<th>Status</th>';
+                                html += '<th nowrap style="width: 45px;">Balance</th>';
+                                html += '<th style="width: 45px;">Status</th>';
                                 html += '<th>Actions</th>';
                                 html += '</tr></thead>';
                                 html += '<tbody>';
@@ -2487,11 +2553,14 @@ class QBO_Teams {
                                     // Add status column with styling
                                     var statusClass = student.status === 'Active' ? 'status-active' : 'status-inactive';
                                     html += '<td><span class="status-badge ' + statusClass + '">' + student.status + '</span></td>';
-                                    html += '<td>';
+                                    html += '<td nowrap>';
                                     if (student.customer_id) {
                                         html += '<a href="' + qboCustomerListVars.invoicesPageUrl + '&member_id=' + encodeURIComponent(student.customer_id) + '" class="button button-small view-student-invoices">' +
-                                               '<span class="dashicons dashicons-visibility"></span> Details</a>';
+                                               'Details</a> ';
                                     }
+                                    // Add Edit and Delete buttons for students
+                                    html += '<button type="button" class="button button-small edit-student-btn" data-student-id="' + student.student_id + '">Edit</button> ';
+                                    html += '<button type="button" class="button button-small button-link-delete delete-student-btn" data-student-id="' + student.student_id + '" data-student-name="' + student.student_name + '">Delete</button>';
                                     html += '</td>';
                                     html += '</tr>';
                                 });
@@ -2505,13 +2574,13 @@ class QBO_Teams {
                                 var htmlA = '<table class="wp-list-table widefat fixed striped">';
                                 htmlA += '<thead><tr>';
                                 htmlA += '<th>Name</th>';
-                                htmlA += '<th>First Year in FIRST</th>';
+                                htmlA += '<th style="width: 45px;">First Year</th>';
                                 htmlA += '<th>Parent Name</th>';
-                                htmlA += '<th>Balance</th>';
-                                htmlA += '<th>Status</th>';
+                                htmlA += '<th nowrap style="width: 45px;">Balance</th>';
+                                htmlA += '<th style="width: 45px;">Status</th>';
                                 htmlA += '<th>Actions</th>';
                                 htmlA += '</tr></thead>';
-                                htmlA += '<tbody>';
+                                html += '<tbody>';
                                 alumni.forEach(function(student) {
                                     htmlA += '<tr>';
                                     htmlA += '<td><strong>' + student.student_name + '</strong></td>';
@@ -2524,8 +2593,11 @@ class QBO_Teams {
                                     htmlA += '<td>';
                                     if (student.customer_id) {
                                         htmlA += '<a href="' + qboCustomerListVars.invoicesPageUrl + '&member_id=' + encodeURIComponent(student.customer_id) + '" class="button button-small view-student-invoices">' +
-                                               '<span class="dashicons dashicons-visibility"></span> Details</a>';
+                                               'Details</a> ';
                                     }
+                                    // Add Edit and Delete buttons for alumni
+                                    htmlA += '<button type="button" class="button button-small edit-student-btn" data-student-id="' + student.student_id + '">Edit</button> ';
+                                    htmlA += '<button type="button" class="button button-small button-link-delete delete-student-btn" data-student-id="' + student.student_id + '" data-student-name="' + student.student_name + '">Delete</button>';
                                     htmlA += '</td>';
                                     htmlA += '</tr>';
                                 });
@@ -2569,6 +2641,22 @@ class QBO_Teams {
                     
                     if (confirm('Are you sure you want to delete mentor "' + mentorName + '"? This action cannot be undone.')) {
                         deleteMentor(mentorId, mentorName);
+                    }
+                });
+                
+                // Handle edit student button clicks (using event delegation)
+                $(document).on('click', '.edit-student-btn', function() {
+                    var studentId = $(this).data('student-id');
+                    loadStudentData(studentId);
+                });
+                
+                // Handle delete student button clicks (using event delegation)
+                $(document).on('click', '.delete-student-btn', function() {
+                    var studentId = $(this).data('student-id');
+                    var studentName = $(this).data('student-name');
+                    
+                    if (confirm('Are you sure you want to delete student "' + studentName + '"? This action cannot be undone.')) {
+                        deleteStudent(studentId, studentName);
                     }
                 });
                 
@@ -2687,6 +2775,45 @@ class QBO_Teams {
                         }
                     });
                 });
+                
+                // Handle edit student form submission
+                $('#edit-student-form').submit(function(e) {
+                    e.preventDefault();
+                    var formData = new FormData(this);
+                    
+                    $.ajax({
+                        url: '<?php echo admin_url('admin.php?page=qbo-teams&action=view&team_id=' . intval($team_id)); ?>',
+                        type: 'POST',
+                        data: formData,
+                        processData: false,
+                        contentType: false,
+                        success: function(response) {
+                            // Check if the response contains success or error messages
+                            var $response = $(response);
+                            var $successNotice = $response.find('.notice-success');
+                            var $errorNotice = $response.find('.notice-error');
+                            
+                            if ($successNotice.length > 0) {
+                                // Success - close modal and reload page
+                                closeEditStudentModal();
+                                alert('Student updated successfully!');
+                                location.reload();
+                            } else if ($errorNotice.length > 0) {
+                                // Show error message
+                                var errorText = $errorNotice.find('p').text();
+                                alert('Error: ' + errorText);
+                            } else {
+                                // No specific notice found, assume success
+                                closeEditStudentModal();
+                                alert('Student updated successfully!');
+                                location.reload();
+                            }
+                        },
+                        error: function() {
+                            alert('Error updating student. Please try again.');
+                        }
+                    });
+                });
             });
             
             // Modal functions
@@ -2717,8 +2844,17 @@ class QBO_Teams {
                 document.getElementById('edit-mentor-form').reset();
             }
             
+            function openEditStudentModal() {
+                document.getElementById('edit-student-modal-overlay').classList.add('active');
+            }
+            
+            function closeEditStudentModal() {
+                document.getElementById('edit-student-modal-overlay').classList.remove('active');
+                document.getElementById('edit-student-form').reset();
+            }
+            
             function loadMentorData(mentorId) {
-                $.ajax({
+                jQuery.ajax({
                     url: ajaxurl,
                     type: 'POST',
                     data: {
@@ -2748,7 +2884,7 @@ class QBO_Teams {
             }
             
             function deleteMentor(mentorId, mentorName) {
-                $.ajax({
+                jQuery.ajax({
                     url: ajaxurl,
                     type: 'POST',
                     data: {
@@ -2771,12 +2907,65 @@ class QBO_Teams {
                 });
             }
             
+            function loadStudentData(studentId) {
+                jQuery.ajax({
+                    url: ajaxurl,
+                    type: 'POST',
+                    data: {
+                        action: 'get_student_data',
+                        student_id: studentId,
+                        nonce: '<?php echo wp_create_nonce('get_student_data'); ?>'
+                    },
+                    success: function(response) {
+                        if (response.success) {
+                            const student = response.data;
+                            document.getElementById('edit-student-id').value = student.id;
+                            document.getElementById('edit-student-first-name').value = student.first_name || '';
+                            document.getElementById('edit-student-last-name').value = student.last_name || '';
+                            document.getElementById('edit-student-grade').value = student.grade || '';
+                            document.getElementById('edit-student-first-year').value = student.first_year_first || '';
+                            document.getElementById('edit-student-customer-id').value = student.customer_id || '';
+                            openEditStudentModal();
+                        } else {
+                            alert('Error loading student data: ' + response.data);
+                        }
+                    },
+                    error: function() {
+                        alert('An error occurred while loading student data.');
+                    }
+                });
+            }
+            
+            function deleteStudent(studentId, studentName) {
+                jQuery.ajax({
+                    url: ajaxurl,
+                    type: 'POST',
+                    data: {
+                        action: 'delete_student',
+                        student_id: studentId,
+                        nonce: '<?php echo wp_create_nonce('delete_student'); ?>'
+                    },
+                    success: function(response) {
+                        if (response.success) {
+                            alert('Student deleted successfully!');
+                            // Reload the page to refresh both students and alumni lists
+                            location.reload();
+                        } else {
+                            alert('Error deleting student: ' + response.data);
+                        }
+                    },
+                    error: function() {
+                        alert('An error occurred while deleting student.');
+                    }
+                });
+            }
+            
             function loadTeamMentors() {
                 var teamId = <?php echo intval($team_id); ?>;
                 
                 // Fetch and display mentors for this team
                 if (typeof qboCustomerListVars !== 'undefined') {
-                    $.post(ajaxurl, {
+                    jQuery.post(ajaxurl, {
                         action: 'qbo_get_team_mentors',
                         team_id: teamId,
                         nonce: qboCustomerListVars.nonce
@@ -2788,7 +2977,7 @@ class QBO_Teams {
                             html += '<th>Name</th>';
                             html += '<th>Email</th>';
                             html += '<th>Phone</th>';
-                            html += '<th>Actions</th>';
+                            html += '<th align=right>Actions</th>';
                             html += '</tr></thead>';
                             html += '<tbody>';
                             
@@ -2797,7 +2986,7 @@ class QBO_Teams {
                                 html += '<td><strong>' + mentor.full_name + '</strong></td>';
                                 html += '<td>' + (mentor.email || 'N/A') + '</td>';
                                 html += '<td>' + (mentor.phone || 'N/A') + '</td>';
-                                html += '<td>';
+                                html += '<td align=right>';
                                 html += '<button type="button" class="button button-small edit-mentor-btn" data-mentor-id="' + mentor.id + '">Edit</button> ';
                                 html += '<button type="button" class="button button-small button-link-delete delete-mentor-btn" data-mentor-id="' + mentor.id + '" data-mentor-name="' + mentor.full_name + '">Delete</button>';
                                 html += '</td>';
@@ -2947,7 +3136,7 @@ class QBO_Teams {
                                     <option value="Alumni">Alumni</option>
                                 </select>
                             </td></tr>
-                            <tr><th><label for="first_year_first">First Year in FIRST</label></th><td><input type="text" id="first_year_first" name="first_year_first" class="regular-text" /></td></tr>
+                            <tr><th><label for="first_year_first">First Year</label></th><td><input type="text" id="first_year_first" name="first_year_first" class="regular-text" /></td></tr>
                             <tr><th><label for="customer_id">Customer Affiliation</label></th><td>
                                 <select name="customer_id" id="customer_id">
                                     <option value="">No Customer</option>
@@ -2977,6 +3166,66 @@ class QBO_Teams {
                         <p class="submit">
                             <input type="submit" class="button-primary" value="Add Student" />
                             <button type="button" class="button" onclick="closeAddStudentModal()">Cancel</button>
+                        </p>
+                    </form>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Edit Student Modal -->
+        <div id="edit-student-modal-overlay" class="gears-modal-overlay">
+            <div class="gears-modal">
+                <span class="gears-modal-close" id="close-edit-student-modal">&times;</span>
+                <div class="team-form-card" style="box-shadow:none; border:none; max-width:100%; margin:0; padding:0;">
+                    <h2 style="border:none; padding-bottom:0; margin-top:0;">Edit Student</h2>
+                    <form method="post" id="edit-student-form">
+                        <?php wp_nonce_field('edit_student_action', 'edit_student_nonce'); ?>
+                        <input type="hidden" name="edit_student" value="1" />
+                        <input type="hidden" name="team_id" value="<?php echo intval($team_id); ?>" />
+                        <input type="hidden" name="student_id" id="edit-student-id" />
+                        <table class="form-table">
+                            <tr><th><label for="edit-student-first-name">First Name *</label></th><td><input type="text" id="edit-student-first-name" name="first_name" required class="regular-text" /></td></tr>
+                            <tr><th><label for="edit-student-last-name">Last Name *</label></th><td><input type="text" id="edit-student-last-name" name="last_name" required class="regular-text" /></td></tr>
+                            <tr><th><label for="edit-student-grade">Grade Level</label></th><td>
+                                <select id="edit-student-grade" name="grade" class="regular-text">
+                                    <option value="">Select grade...</option>
+                                    <option value="9">9th Grade</option>
+                                    <option value="10">10th Grade</option>
+                                    <option value="11">11th Grade</option>
+                                    <option value="12">12th Grade</option>
+                                    <option value="Alumni">Alumni</option>
+                                </select>
+                            </td></tr>
+                            <tr><th><label for="edit-student-first-year">First Year</label></th><td><input type="text" id="edit-student-first-year" name="first_year_first" class="regular-text" /></td></tr>
+                            <tr><th><label for="edit-student-customer-id">Customer Affiliation</label></th><td>
+                                <select name="customer_id" id="edit-student-customer-id">
+                                    <option value="">No Customer</option>
+                                    <?php
+                                    // Get customers from QBO cache
+                                    $cache = get_option('qbo_recurring_billing_customers_cache', array());
+                                    if (isset($cache['data']) && is_array($cache['data'])) {
+                                        foreach ($cache['data'] as $customer) {
+                                            $customer_name = '';
+                                            // Try to build a proper display name
+                                            if (!empty($customer['DisplayName'])) {
+                                                $customer_name = $customer['DisplayName'];
+                                            } elseif (!empty($customer['CompanyName'])) {
+                                                $customer_name = $customer['CompanyName'];
+                                            } elseif (!empty($customer['GivenName']) || !empty($customer['FamilyName'])) {
+                                                $customer_name = trim(($customer['GivenName'] ?? '') . ' ' . ($customer['FamilyName'] ?? ''));
+                                            } else {
+                                                $customer_name = 'Customer #' . $customer['Id'];
+                                            }
+                                            echo '<option value="' . esc_attr($customer['Id']) . '">' . esc_html($customer_name) . '</option>';
+                                        }
+                                    }
+                                    ?>
+                                </select>
+                            </td></tr>
+                        </table>
+                        <p class="submit">
+                            <input type="submit" class="button-primary" value="Update Student" />
+                            <button type="button" class="button" onclick="closeEditStudentModal()">Cancel</button>
                         </p>
                     </form>
                 </div>
@@ -3100,6 +3349,47 @@ class QBO_Teams {
                 echo '<div class="notice notice-error"><p>Error adding student.</p></div>';
             } else {
                 echo '<div class="notice notice-success"><p>Student added successfully!</p></div>';
+            }
+        } else {
+            echo '<div class="notice notice-error"><p>First name and last name are required.</p></div>';
+        }
+    }
+
+    /**
+     * Handle edit student
+     */
+    private function handle_edit_student() {
+        global $wpdb;
+        
+        $table_students = $wpdb->prefix . 'gears_students';
+        
+        $student_id = intval($_POST['student_id']);
+        $team_id = intval($_POST['team_id']);
+        $first_name = sanitize_text_field($_POST['first_name']);
+        $last_name = sanitize_text_field($_POST['last_name']);
+        $grade = sanitize_text_field($_POST['grade']);
+        $first_year_first = sanitize_text_field($_POST['first_year_first']);
+        $customer_id = sanitize_text_field($_POST['customer_id']);
+        
+        if (!empty($first_name) && !empty($last_name) && $student_id > 0) {
+            $result = $wpdb->update(
+                $table_students,
+                array(
+                    'first_name' => $first_name,
+                    'last_name' => $last_name,
+                    'grade' => $grade,
+                    'first_year_first' => $first_year_first,
+                    'customer_id' => !empty($customer_id) ? $customer_id : null
+                ),
+                array('id' => $student_id),
+                array('%s', '%s', '%s', '%s', '%s'),
+                array('%d')
+            );
+            
+            if ($result === false) {
+                echo '<div class="notice notice-error"><p>Error updating student.</p></div>';
+            } else {
+                echo '<div class="notice notice-success"><p>Student updated successfully!</p></div>';
             }
         } else {
             echo '<div class="notice notice-error"><p>First name and last name are required.</p></div>';
