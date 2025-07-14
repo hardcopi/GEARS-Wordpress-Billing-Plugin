@@ -364,7 +364,7 @@ class QBO_Customers {
                 echo '<td>' . esc_html($customer['LastName'] ?? 'N/A') . '</td>';
                 echo '<td>' . esc_html($customer['ContactName']) . '</td>';
                 echo '<td>' . esc_html(isset($customer['Balance']) ? '$' . number_format($customer['Balance'], 2) : '$0.00') . '</td>';
-                echo '<td><a href="' . esc_url(admin_url('admin.php?page=qbo-view-invoices&customer_id=' . urlencode($customer['Id']))) . '" class="button button-small" title="View Customer Details">View Details</a></td>';
+                echo '<td><a href="' . esc_url(admin_url('admin.php?page=qbo-view-invoices&member_id=' . urlencode($customer['Id']))) . '" class="button button-small" title="View Customer Details">View Details</a></td>';
                 echo '</tr>';
             }
         }
