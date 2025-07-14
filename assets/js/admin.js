@@ -11,3 +11,11 @@ jQuery(document).ready(function($) {
     
     // Any additional admin JS can be added here
 });
+
+function qboAjax(action, data, successCb, errorCb) {
+    data.action = action;
+    data.nonce = qbo_ajax.nonce;
+    $.post(qbo_ajax.ajax_url, data)
+        .done(successCb || function(resp) { console.log('Success:', resp); })
+        .fail(errorCb || function() { console.error('AJAX fail'); });
+}
