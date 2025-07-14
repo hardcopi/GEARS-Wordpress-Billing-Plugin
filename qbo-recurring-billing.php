@@ -16,7 +16,6 @@ if (!defined('QBO_PLUGIN_URL')) {
 
 // Include class files
 require_once QBO_PLUGIN_DIR . 'includes/class-qbo-core.php';
-require_once QBO_PLUGIN_DIR . 'includes/traits/ajax-handler.php';
 require_once QBO_PLUGIN_DIR . 'includes/class-qbo-dashboard.php';
 require_once QBO_PLUGIN_DIR . 'includes/class-qbo-settings.php';
 require_once QBO_PLUGIN_DIR . 'includes/class-qbo-customers.php';
