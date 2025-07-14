@@ -313,92 +313,98 @@ class QBO_Customers {
     /**
      * Render customer table
      */
-    private function render_customer_table($customers_page, $orderby, $order, $search) {
-        // Helper function for sortable column headers
-        $sort_url = function($column) use ($search, $orderby, $order) {
-            $base_url = admin_url('admin.php?page=' . $_GET['page']);
-            $params = array();
-            
-            if (!empty($search)) $params['s'] = $search;
-            
-            $new_order = 'asc';
-            if ($orderby === $column && $order === 'asc') {
-                $new_order = 'desc';
-            }
-            
-            $params['orderby'] = $column;
-            $params['order'] = $new_order;
-            
-            return $base_url . '&' . http_build_query($params);
-        };
+private function render_customer_table($customers_page, $orderby, $order, $search) {
+    // Helper function for sortable column headers
+    $sort_url = function($column) use ($search, $orderby, $order) {
+        $base_url = admin_url('admin.php?page=' . $_GET['page']);
+        $params = array();
         
-        // Get sort indicator
-        $sort_indicator = function($column) use ($orderby, $order) {
-            if ($orderby === $column) {
-                return $order === 'asc' ? ' ↑' : ' ↓';
-            }
-            return '';
-        };
+        if (!empty($search)) $params['s'] = $search;
         
-        // Display customers table
-        echo '<table class="wp-list-table widefat fixed striped">';
-        echo '<thead>';
-        echo '<tr>';
-        echo '<th><a href="' . $sort_url('Id') . '">ID' . $sort_indicator('Id') . '</a></th>';
-        echo '<th><a href="' . $sort_url('FirstName') . '">First Name' . $sort_indicator('FirstName') . '</a></th>';
-        echo '<th><a href="' . $sort_url('LastName') . '">Last Name' . $sort_indicator('LastName') . '</a></th>';
-        echo '<th><a href="' . $sort_url('Name') . '">Company Name' . $sort_indicator('Name') . '</a></th>';
-        echo '<th><a href="' . $sort_url('Balance') . '">Balance' . $sort_indicator('Balance') . '</a></th>';
-        echo '<th>Actions</th>';
-        echo '</tr>';
-        echo '</thead>';
-        echo '<tbody>';
-        
-        if (empty($customers_page)) {
-            echo '<tr><td colspan="6" style="text-align: center; padding: 20px;">No customers found matching your search.</td></tr>';
-        } else {
-            foreach ($customers_page as $customer) {
-                echo '<tr>';
-                echo '<td>' . esc_html($customer['Id']) . '</td>';
-                echo '<td>' . esc_html($customer['FirstName'] ?? 'N/A') . '</td>';
-                echo '<td>' . esc_html($customer['LastName'] ?? 'N/A') . '</td>';
-                echo '<td>' . esc_html($customer['ContactName']) . '</td>';
-                echo '<td>' . esc_html(isset($customer['Balance']) ? '$' . number_format($customer['Balance'], 2) : '$0.00') . '</td>';
-                echo '<td><a href="' . esc_url(admin_url('admin.php?page=qbo-view-invoices&member_id=' . urlencode($customer['Id']))) . '" class="button button-small" title="View Customer Details">View Details</a></td>';
-                echo '</tr>';
-            }
+        $new_order = 'asc';
+        if ($orderby === $column && $order === 'asc') {
+            $new_order = 'desc';
         }
         
-        echo '</tbody></table>';
-        // Cache info and force refresh button (always show under table)
-        $cache_key = 'qbo_recurring_billing_customers_cache';
-        $cache = get_option($cache_key, array());
-        $last_cached = isset($cache['timestamp']) ? date('M j, Y H:i:s', $cache['timestamp']) : 'Never';
-        echo '<div style="margin-top:15px;">';
-        echo '<strong>Last cache:</strong> ' . esc_html($last_cached);
-        echo ' <button type="button" class="button" id="force-refresh-customers">Force Refresh</button>';
-        echo '</div>';
-        // JS for force refresh
-        echo '<script type="text/javascript">
-        jQuery(document).ready(function($){
-            $(document).off("click", "#force-refresh-customers").on("click", "#force-refresh-customers", function(){
-                var btn = $(this);
-                btn.prop("disabled", true).text("Refreshing...");
-                var nonce = (typeof qboCustomerListVars !== "undefined" ? qboCustomerListVars.nonce : "");
-                var ajaxurl_ = (typeof qboCustomerListVars !== "undefined" ? qboCustomerListVars.ajaxurl : (typeof ajaxurl !== "undefined" ? ajaxurl : ""));
-                if (!nonce) { alert("QBO AJAX nonce not found. Please reload the page."); btn.prop("disabled", false).text("Force Refresh"); return; }
-                $.post(ajaxurl_, {
-                    action: "qbo_clear_customer_cache",
-                    nonce: nonce
-                }, function(resp){
-                    btn.text("Reloading...");
-                    setTimeout(function(){ btn.prop("disabled", false).text("Force Refresh"); }, 2000);
-                    window.location.reload();
-                });
+        $params['orderby'] = $column;
+        $params['order'] = $new_order;
+        
+        return $base_url . '&' . http_build_query($params);
+    };
+    
+    // Get sort indicator
+    $sort_indicator = function($column) use ($orderby, $order) {
+        if ($orderby === $column) {
+            return $order === 'asc' ? ' ↑' : ' ↓';
+        }
+        return '';
+    };
+    
+    // Display customers table
+    echo '<table class="wp-list-table widefat fixed striped">';
+    echo '<thead>';
+    echo '<tr>';
+    echo '<th><a href="' . $sort_url('Id') . '">ID' . $sort_indicator('Id') . '</a></th>';
+    echo '<th><a href="' . $sort_url('FirstName') . '">First Name' . $sort_indicator('FirstName') . '</a></th>';
+    echo '<th><a href="' . $sort_url('LastName') . '">Last Name' . $sort_indicator('LastName') . '</a></th>';
+    echo '<th><a href="' . $sort_url('Name') . '">Company Name' . $sort_indicator('Name') . '</a></th>';
+    echo '<th><a href="' . $sort_url('Program') . '">Program' . $sort_indicator('Program') . '</a></th>'; // New column
+    echo '<th><a href="' . $sort_url('Team') . '">Team' . $sort_indicator('Team') . '</a></th>'; // New column
+    echo '<th><a href="' . $sort_url('Student') . '">Student' . $sort_indicator('Student') . '</a></th>'; // New column
+    echo '<th><a href="' . $sort_url('Balance') . '">Balance' . $sort_indicator('Balance') . '</a></th>';
+    echo '<th>Actions</th>';
+    echo '</tr>';
+    echo '</thead>';
+    echo '<tbody>';
+    
+    if (empty($customers_page)) {
+        echo '<tr><td colspan="9" style="text-align: center; padding: 20px;">No customers found matching your search.</td></tr>'; // Updated colspan
+    } else {
+        foreach ($customers_page as $customer) {
+            echo '<tr>';
+            echo '<td>' . esc_html($customer['Id']) . '</td>';
+            echo '<td>' . esc_html($customer['FirstName'] ?? 'N/A') . '</td>';
+            echo '<td>' . esc_html($customer['LastName'] ?? 'N/A') . '</td>';
+            echo '<td>' . esc_html($customer['ContactName']) . '</td>';
+            echo '<td>' . esc_html($customer['Program'] ?? 'N/A') . '</td>'; // New cell
+            echo '<td>' . esc_html($customer['Team'] ?? 'N/A') . '</td>'; // New cell
+            echo '<td>' . esc_html($customer['Student'] ?? 'N/A') . '</td>'; // New cell
+            echo '<td>' . esc_html(isset($customer['Balance']) ? '$' . number_format($customer['Balance'], 2) : '$0.00') . '</td>';
+            echo '<td><a href="' . esc_url(admin_url('admin.php?page=qbo-view-invoices&member_id=' . urlencode($customer['Id']))) . '" class="button button-small" title="View Customer Details">View Details</a></td>';
+            echo '</tr>';
+        }
+    }
+    
+    echo '</tbody></table>';
+    // Cache info and force refresh button (always show under table)
+    $cache_key = 'qbo_recurring_billing_customers_cache';
+    $cache = get_option($cache_key, array());
+    $last_cached = isset($cache['timestamp']) ? date('M j, Y H:i:s', $cache['timestamp']) : 'Never';
+    echo '<div style="margin-top:15px;">';
+    echo '<strong>Last cache:</strong> ' . esc_html($last_cached);
+    echo ' <button type="button" class="button" id="force-refresh-customers">Force Refresh</button>';
+    echo '</div>';
+    // JS for force refresh
+    echo '<script type="text/javascript">
+    jQuery(document).ready(function($){
+        $(document).off("click", "#force-refresh-customers").on("click", "#force-refresh-customers", function(){
+            var btn = $(this);
+            btn.prop("disabled", true).text("Refreshing...");
+            var nonce = (typeof qboCustomerListVars !== "undefined" ? qboCustomerListVars.nonce : "");
+            var ajaxurl_ = (typeof qboCustomerListVars !== "undefined" ? qboCustomerListVars.ajaxurl : (typeof ajaxurl !== "undefined" ? ajaxurl : ""));
+            if (!nonce) { alert("QBO AJAX nonce not found. Please reload the page."); btn.prop("disabled", false).text("Force Refresh"); return; }
+            $.post(ajaxurl_, {
+                action: "qbo_clear_customer_cache",
+                nonce: nonce
+            }, function(resp){
+                btn.text("Reloading...");
+                setTimeout(function(){ btn.prop("disabled", false).text("Force Refresh"); }, 2000);
+                window.location.reload();
             });
         });
-        </script>';
-    }
+    });
+    </script>';
+}
     
     /**
      * Customer list page (stub)
