@@ -85,6 +85,9 @@ class QBO_Teams {
         ?>
         <div class="wrap">
             <h1>Teams</h1>
+            <pre style="height: 250px; width: 100%; overflow: auto; border: 1px dashed #000;">
+                <?php print_r($hook); ?>
+            </pre>
             <button id="add-team-btn" class="button button-primary">Add New Team</button>
             <table class="wp-list-table widefat fixed striped">
                 <thead>
