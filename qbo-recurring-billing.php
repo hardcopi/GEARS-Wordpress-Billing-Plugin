@@ -134,10 +134,6 @@ class QBORecurringBilling {
      * Enqueue admin assets
      */
     public function enqueue_admin_assets($hook) {
-        $screen = get_current_screen();
-        $hook = $screen ? $screen->id : '';  // Fallback to empty if no screen
-        error_log('Screen ID: ' . $hook);  // Log this to check what it actually is
-
         // Only enqueue on QBO plugin admin pages - use the same page list as core
         $qbo_pages = array(
             'toplevel_page_gears-dashboard', 
