@@ -1013,6 +1013,192 @@ class QBO_Teams {
     private function render_page_html($teams, $archived_teams = array()) {
         ?>
         <style>
+            /* Tab Navigation Styles for Team Details Page */
+            .qbo-tabs-nav {
+                background: #fff;
+                border-radius: 12px;
+                box-shadow: 0 2px 8px rgba(0,0,0,0.07);
+                margin-bottom: 32px;
+                padding: 0 12px;
+                display: flex;
+                align-items: center;
+                min-height: 56px;
+            }
+            .qbo-tabs {
+                display: flex;
+                gap: 0;
+                list-style: none;
+                padding: 0;
+                margin: 0;
+                width: 100%;
+            }
+            .qbo-tab-link {
+                display: block;
+                padding: 14px 32px 14px 32px;
+                color: #2c3e50;
+                text-decoration: none;
+                font-weight: 600;
+                border: none;
+                background: none;
+                border-radius: 10px 10px 0 0;
+                border-bottom: 3px solid transparent;
+                margin-right: 2px;
+                transition: background 0.2s, color 0.2s, border-bottom 0.2s, box-shadow 0.2s;
+                cursor: pointer;
+                font-size: 17px;
+                position: relative;
+                z-index: 1;
+            }
+            .qbo-tab-link:hover {
+                background: #f0f4f8;
+                color: #007cba;
+            }
+            .qbo-tab-link.active {
+                color: #007cba;
+                background: #f8f9fa;
+                border-bottom: 3px solid #007cba;
+                box-shadow: 0 2px 8px rgba(0,124,186,0.07);
+                z-index: 2;
+            }
+            @media (max-width: 600px) {
+                .qbo-tabs-nav {
+                    border-radius: 8px;
+                    min-height: 0;
+                    padding: 0 2px;
+                }
+                .qbo-tabs {
+                    flex-direction: column;
+                }
+                .qbo-tab-link {
+                    padding: 10px 12px;
+                    font-size: 15px;
+                    border-radius: 8px 8px 0 0;
+                }
+            }
+            /* Tab Navigation Styles (copied from teams list page for details page) */
+            .qbo-tabs-nav {
+                background: #fff;
+                border-radius: 12px;
+                box-shadow: 0 2px 8px rgba(0,0,0,0.07);
+                margin-bottom: 32px;
+                padding: 0 12px;
+                display: flex;
+                align-items: center;
+                min-height: 56px;
+            }
+            .qbo-tabs {
+                display: flex;
+                gap: 0;
+                list-style: none;
+                padding: 0;
+                margin: 0;
+                width: 100%;
+            }
+            .qbo-tab-link {
+                display: block;
+                padding: 14px 32px 14px 32px;
+                color: #2c3e50;
+                text-decoration: none;
+                font-weight: 600;
+                border: none;
+                background: none;
+                border-radius: 10px 10px 0 0;
+                border-bottom: 3px solid transparent;
+                margin-right: 2px;
+                transition: background 0.2s, color 0.2s, border-bottom 0.2s, box-shadow 0.2s;
+                cursor: pointer;
+                font-size: 17px;
+                position: relative;
+                z-index: 1;
+            }
+            .qbo-tab-link:hover {
+                background: #f0f4f8;
+                color: #007cba;
+            }
+            .qbo-tab-link.active {
+                color: #007cba;
+                background: #f8f9fa;
+                border-bottom: 3px solid #007cba;
+                box-shadow: 0 2px 8px rgba(0,124,186,0.07);
+                z-index: 2;
+            }
+            @media (max-width: 600px) {
+                .qbo-tabs-nav {
+                    border-radius: 8px;
+                    min-height: 0;
+                    padding: 0 2px;
+                }
+                .qbo-tabs {
+                    flex-direction: column;
+                }
+                .qbo-tab-link {
+                    padding: 10px 12px;
+                    font-size: 15px;
+                    border-radius: 8px 8px 0 0;
+                }
+            }
+            /* Tab Navigation Styles */
+            .qbo-tabs-nav {
+                background: #fff;
+                border-radius: 12px;
+                box-shadow: 0 2px 8px rgba(0,0,0,0.07);
+                margin-bottom: 32px;
+                padding: 0 12px;
+                display: flex;
+                align-items: center;
+                min-height: 56px;
+            }
+            .qbo-tabs {
+                display: flex;
+                gap: 0;
+                list-style: none;
+                padding: 0;
+                margin: 0;
+                width: 100%;
+            }
+            .qbo-tab-link {
+                display: block;
+                padding: 14px 32px 14px 32px;
+                color: #2c3e50;
+                text-decoration: none;
+                font-weight: 600;
+                border: none;
+                background: none;
+                border-radius: 10px 10px 0 0;
+                border-bottom: 3px solid transparent;
+                margin-right: 2px;
+                transition: background 0.2s, color 0.2s, border-bottom 0.2s, box-shadow 0.2s;
+                cursor: pointer;
+                font-size: 17px;
+                position: relative;
+                z-index: 1;
+            }
+            .qbo-tab-link:hover {
+                background: #f0f4f8;
+                color: #007cba;
+            }
+            .qbo-tab-link.active {
+                color: #007cba;
+                background: #f8f9fa;
+                border-bottom: 3px solid #007cba;
+                box-shadow: 0 2px 8px rgba(0,124,186,0.07);
+                z-index: 2;
+            }
+            @media (max-width: 600px) {
+                .qbo-tabs-nav {
+                    border-radius: 8px;
+                    min-height: 0;
+                    padding: 0 2px;
+                }
+                .qbo-tabs {
+                    flex-direction: column;
+                }
+                .qbo-tab-link {
+                    padding: 10px 12px;
+                    font-size: 15px;
+                    border-radius: 8px 8px 0 0;
+                }
+            }
             /* Program Logo Styling */
             .program-logo {
                 height: 24px;
@@ -1055,8 +1241,8 @@ class QBO_Teams {
                 margin: 0 auto;
             }
             .team-details-main {
-                flex: 0 0 66%;
-                max-width: 66%;
+                flex: 0 0 100%;
+                max-width: 100%;
                 min-width: 0;
             }
             .team-details-sidebar {
@@ -2316,6 +2502,68 @@ class QBO_Teams {
         ?>
         
         <style>
+            /* Tab Navigation Styles for Team Details Page */
+            .qbo-tabs-nav {
+                background: #fff;
+                border-radius: 12px;
+                box-shadow: 0 2px 8px rgba(0,0,0,0.07);
+                margin-bottom: 32px;
+                padding: 0 12px;
+                display: flex;
+                align-items: center;
+                min-height: 56px;
+            }
+            .qbo-tabs {
+                display: flex;
+                gap: 0;
+                list-style: none;
+                padding: 0;
+                margin: 0;
+                width: 100%;
+            }
+            .qbo-tab-link {
+                display: block;
+                padding: 14px 32px 14px 32px;
+                color: #2c3e50;
+                text-decoration: none;
+                font-weight: 600;
+                border: none;
+                background: none;
+                border-radius: 10px 10px 0 0;
+                border-bottom: 3px solid transparent;
+                margin-right: 2px;
+                transition: background 0.2s, color 0.2s, border-bottom 0.2s, box-shadow 0.2s;
+                cursor: pointer;
+                font-size: 17px;
+                position: relative;
+                z-index: 1;
+            }
+            .qbo-tab-link:hover {
+                background: #f0f4f8;
+                color: #007cba;
+            }
+            .qbo-tab-link.active {
+                color: #007cba;
+                background: #f8f9fa;
+                border-bottom: 3px solid #007cba;
+                box-shadow: 0 2px 8px rgba(0,124,186,0.07);
+                z-index: 2;
+            }
+            @media (max-width: 600px) {
+                .qbo-tabs-nav {
+                    border-radius: 8px;
+                    min-height: 0;
+                    padding: 0 2px;
+                }
+                .qbo-tabs {
+                    flex-direction: column;
+                }
+                .qbo-tab-link {
+                    padding: 10px 12px;
+                    font-size: 15px;
+                    border-radius: 8px 8px 0 0;
+                }
+            }
             /* Team Details Page Specific Styles */
             .team-details-container {
                 max-width: 1200px;
@@ -2324,14 +2572,14 @@ class QBO_Teams {
                 margin: 0 auto;
             }
             .team-details-main {
-                flex: 0 0 66% !important;
-                max-width: 66%;
+                flex: 0 0 100% !important;
+                max-width: 100%;
                 min-width: 0;
             }
             .team-details-sidebar {
-                flex: 0 0 34% !important;
-                max-width: 34%;
-                min-width: 280px;
+                width: 100% !important;
+                max-width: 100% !important;
+                min-width: 0;
                 background: #fff;
                 border: 1px solid #ddd;
                 border-radius: 8px;
@@ -2457,210 +2705,233 @@ class QBO_Teams {
                 </h1>
                 <a href="<?php echo admin_url('admin.php?page=qbo-teams'); ?>" class="button">Back to Teams</a>
             </div>
+
+            <!-- Tab Navigation -->
+            <nav class="qbo-tabs-nav">
+                <ul class="qbo-tabs">
+                    <li><a href="#" class="qbo-tab-link active" data-tab="tab-team-info">Team Info</a></li>
+                    <li><a href="#" class="qbo-tab-link" data-tab="tab-mentors">Mentors</a></li>
+                    <li><a href="#" class="qbo-tab-link" data-tab="tab-members">Members</a></li>
+                    <li><a href="#" class="qbo-tab-link" data-tab="tab-alumni">Alumni</a></li>
+                    <li><a href="#" class="qbo-tab-link" data-tab="tab-ledger">Ledger</a></li>
+                </ul>
+            </nav>
+
             <div class="team-details-container">
-                <div class="team-details-main">
-                    <div class="team-main-info">
-                        <?php if (!empty($team->program)): ?>
-                            <div style="margin-bottom:10px;">
+                <!-- Team Info Tab -->
+                <div class="qbo-tab-content" id="tab-team-info" style="display:block;">
+                    <div class="team-details-main">
+                        <div class="team-main-info">
+                            <?php if (!empty($team->program)): ?>
+                                <div style="margin-bottom:10px;">
+                                <?php
+                                $program = strtolower(trim($team->program));
+                                if ($program === 'ftc') {
+                                    echo '<img src="https://gears.org.in/wp-content/uploads/2025/07/FIRSTTech_iconHorz_RGB.png" alt="FTC Logo" style="width:250px;max-width:100%;height:auto;vertical-align:middle;">';
+                                } elseif ($program === 'fll') {
+                                    echo '<img src="https://gears.org.in/wp-content/uploads/2025/07/FIRSTLego_iconHorz_RGB.png" alt="FLL Logo" style="width:250px;max-width:100%;height:auto;vertical-align:middle;">';
+                                } else {
+                                    echo '<strong>Program:</strong> ' . esc_html($team->program);
+                                }
+                                ?>
+                                </div>
+                            <?php endif; ?>
+                        </div>
+                        <?php if (!empty($team->description)): ?>
+                        <div class="team-section">
+                            <h2>Description</h2>
+                            <p><?php echo esc_html($team->description); ?></p>
+                        </div>
+                        <?php endif; ?>
+                        <!-- Sidebar Info (Logo, Social, Bank, etc.) -->
+                        <div class="team-details-sidebar" style="margin-top:24px;">
+                            <?php if (!empty($team->logo)): ?>
+                                <div class="sidebar-section">
+                                    <h3>Team Logo</h3>
+                                    <img src="<?php echo esc_url($team->logo); ?>" alt="Team Logo" class="team-logo">
+                                </div>
+                            <?php endif; ?>
+                            <?php if (!empty($team->website) || !empty($team->facebook) || !empty($team->twitter) || !empty($team->instagram)): ?>
+                                <div class="sidebar-section">
+                                    <h3>Contact & Social Media</h3>
+                                    <?php if (!empty($team->website)): ?>
+                                        <div class="team-website">
+                                            <a href="<?php echo esc_url($team->website); ?>" target="_blank" rel="noopener">
+                                                <span class="dashicons dashicons-admin-site-alt3"></span> Visit Website
+                                            </a>
+                                        </div>
+                                    <?php endif; ?>
+                                    <?php if (!empty($team->facebook) || !empty($team->twitter) || !empty($team->instagram)): ?>
+                                        <div class="team-social-links">
+                                            <?php if (!empty($team->facebook)): ?>
+                                                <a href="<?php echo esc_url($team->facebook); ?>" target="_blank" rel="noopener">
+                                                    <span class="dashicons dashicons-facebook"></span> Facebook
+                                                </a>
+                                            <?php endif; ?>
+                                            <?php if (!empty($team->twitter)): ?>
+                                                <a href="<?php echo esc_url($team->twitter); ?>" target="_blank" rel="noopener">
+                                                    <span class="dashicons dashicons-twitter"></span> Twitter
+                                                </a>
+                                            <?php endif; ?>
+                                            <?php if (!empty($team->instagram)): ?>
+                                                <a href="<?php echo esc_url($team->instagram); ?>" target="_blank" rel="noopener">
+                                                    <span class="dashicons dashicons-instagram"></span> Instagram
+                                                </a>
+                                            <?php endif; ?>
+                                        </div>
+                                    <?php endif; ?>
+                                </div>
+                            <?php endif; ?>
+                            <?php if (!empty($team->team_photo)): ?>
+                                <div class="sidebar-section">
+                                    <h3>Team Photo</h3>
+                                    <img src="<?php echo esc_url($team->team_photo); ?>" alt="Team Photo" class="team-photo">
+                                </div>
+                            <?php endif; ?>
                             <?php
-                            $program = strtolower(trim($team->program));
-                            if ($program === 'ftc') {
-                                echo '<img src="https://gears.org.in/wp-content/uploads/2025/07/FIRSTTech_iconHorz_RGB.png" alt="FTC Logo" style="width:250px;max-width:100%;height:auto;vertical-align:middle;">';
-                            } elseif ($program === 'fll') {
-                            echo '<img src="https://gears.org.in/wp-content/uploads/2025/07/FIRSTLego_iconHorz_RGB.png" alt="FLL Logo" style="width:250px;max-width:100%;height:auto;vertical-align:middle;">';
-                        } else {
-                            echo '<strong>Program:</strong> ' . esc_html($team->program);
+                            // Fetch previous team names from history table
+                            $table_team_name_history = $wpdb->prefix . 'gears_team_name_history';
+                            $name_history = $wpdb->get_results($wpdb->prepare(
+                                "SELECT team_name, year FROM $table_team_name_history WHERE team_id = %d ORDER BY year DESC",
+                                $team_id
+                            ));
+                            if (!empty($name_history)) : ?>
+                                <div class="sidebar-section">
+                                    <h3>Previous Team Names</h3>
+                                    <ul style="list-style: disc inside; padding-left: 1em;">
+                                    <?php foreach ($name_history as $history) : ?>
+                                        <li><strong><?php echo esc_html($history->team_name); ?></strong> (<?php echo esc_html($history->year); ?>)</li>
+                                    <?php endforeach; ?>
+                                    </ul>
+                                </div>
+                            <?php endif; ?>
+                            <div class="sidebar-section">
+                                <h3>Add Old Team Name</h3>
+                                <form method="post">
+                                    <input type="hidden" name="add_old_team_name" value="1" />
+                                    <?php wp_nonce_field('add_old_team_name_' . $team_id, 'add_old_team_name_nonce'); ?>
+                                    <label for="old_team_name">Team Name</label><br />
+                                    <input type="text" name="old_team_name" id="old_team_name" required style="width:100%;margin-bottom:8px;" />
+                                    <label for="old_team_year">Year</label><br />
+                                    <input type="number" name="old_team_year" id="old_team_year" min="1900" max="<?php echo esc_attr(date('Y')); ?>" required style="width:100%;margin-bottom:8px;" />
+                                    <button type="submit" class="button button-primary" style="width:100%;">Add Old Name</button>
+                                </form>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Mentors Tab -->
+                <div class="qbo-tab-content" id="tab-mentors" style="display:none;">
+                    <div class="team-section" id="team-mentors-section">
+                        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px;">
+                            <h2 style="margin: 0;">Team Mentors</h2>
+                            <button id="add-mentor-btn" class="button button-primary button-small">Add New Mentor</button>
+                        </div>
+                        <div id="team-mentors-list">Loading...</div>
+                    </div>
+                </div>
+
+                <!-- Members Tab -->
+                <div class="qbo-tab-content" id="tab-members" style="display:none;">
+                    <div class="team-section" id="team-students-section">
+                        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px;">
+                            <h2 style="margin: 0;">Students in this Team</h2>
+                            <button id="add-student-btn" class="button button-primary button-small">Add New Student</button>
+                        </div>
+                        <div id="team-students-list">Loading...</div>
+                    </div>
+                </div>
+
+                <!-- Alumni Tab -->
+                <div class="qbo-tab-content" id="tab-alumni" style="display:none;">
+                    <div class="team-section" id="team-alumni-section">
+                        <h2>Alumni of this Team</h2>
+                        <div id="team-alumni-list">Loading...</div>
+                    </div>
+                </div>
+
+                <!-- Ledger Tab -->
+                <div class="qbo-tab-content" id="tab-ledger" style="display:none;">
+                    <div class="team-details-sidebar">
+                        <?php
+                        // Fetch ledger for the attached bank account
+                        $ledger_entries = array();
+                        $debug_bank_id = var_export($team->bank_account_id, true);
+                        $debug_ledger_count = 0;
+                        if (method_exists($this->core, 'fetch_bank_account_ledger')) {
+                            $ledger_entries = $this->core->fetch_bank_account_ledger($team->bank_account_id);
+                            if (is_array($ledger_entries)) {
+                                $debug_ledger_count = count($ledger_entries);
+                            }
                         }
                         ?>
+                        <div class="sidebar-section" id="team-bank-ledger-section">
+                            <h3>Bank Account Ledger</h3>
+                            <div style="color:#888;font-size:12px;margin-bottom:8px;">Debug: bank_account_id=<?php echo $debug_bank_id; ?>, ledger_entries_count=<?php echo $debug_ledger_count; ?></div>
+                            <?php if (is_array($ledger_entries) && count($ledger_entries) > 0) : ?>
+                                <table class="wp-list-table widefat fixed striped">
+                                    <thead>
+                                        <tr>
+                                            <th>Date</th>
+                                            <th>Description</th>
+                                            <th>Amount</th>
+                                            <th>Balance</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        <?php foreach ($ledger_entries as $entry) : ?>
+                                            <tr>
+                                                <td><?php echo esc_html($entry['date'] ?? ''); ?></td>
+                                                <td><?php echo esc_html($entry['description'] ?? ''); ?></td>
+                                                <td><?php echo isset($entry['amount']) ? '$' . number_format((float)$entry['amount'], 2) : ''; ?></td>
+                                                <td><?php echo isset($entry['balance']) ? '$' . number_format((float)$entry['balance'], 2) : ''; ?></td>
+                                            </tr>
+                                        <?php endforeach; ?>
+                                    </tbody>
+                                </table>
+                            <?php else : ?>
+                                <p>No ledger entries found for this account.</p>
+                            <?php endif; ?>
                         </div>
-                    <?php endif; ?>
-                </div>
-                <?php if (!empty($team->description)): ?>
-                <div class="team-section">
-                    <h2>Description</h2>
-                    <p><?php echo esc_html($team->description); ?></p>
-                </div>
-                <?php endif; ?>
-                <!-- Team Mentors Section -->
-                <div class="team-section" id="team-mentors-section">
-                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px;">
-                        <h2 style="margin: 0;">Team Mentors</h2>
-                        <button id="add-mentor-btn" class="button button-primary button-small">Add New Mentor</button>
-                    </div>
-                    <div id="team-mentors-list">Loading...</div>
-                </div>
-                <!-- Students Section -->
-                <div class="team-section" id="team-students-section">
-                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px;">
-                        <h2 style="margin: 0;">Students in this Team</h2>
-                        <button id="add-student-btn" class="button button-primary button-small">Add New Student</button>
-                    </div>
-                    <div id="team-students-list">Loading...</div>
-                </div>
-                <!-- Alumni Section -->
-                <div class="team-section" id="team-alumni-section">
-                    <h2>Alumni of this Team</h2>
-                    <div id="team-alumni-list">Loading...</div>
-                </div>
-                <!-- Bank Ledger section will be rendered in the sidebar below -->
-            </div>
-            <div class="team-details-sidebar">
-                <?php if (!empty($team->bank_account_id) || empty($team->bank_account_id)) :
-                    // Fetch ledger for the attached bank account
-                    $ledger_entries = array();
-                    $debug_bank_id = var_export($team->bank_account_id, true);
-                    $debug_ledger_count = 0;
-                    if (method_exists($this->core, 'fetch_bank_account_ledger')) {
-                        $ledger_entries = $this->core->fetch_bank_account_ledger($team->bank_account_id);
-                        if (is_array($ledger_entries)) {
-                            $debug_ledger_count = count($ledger_entries);
+                        <?php
+                        // Fetch all bank accounts from QBO
+                        $bank_accounts = array();
+                        if (method_exists($this->core, 'fetch_bank_accounts')) {
+                            $bank_accounts = $this->core->fetch_bank_accounts();
                         }
-                    }
-                ?>
-                <div class="sidebar-section" id="team-bank-ledger-section">
-                    <h3>Bank Account Ledger</h3>
-                    <div style="color:#888;font-size:12px;margin-bottom:8px;">Debug: bank_account_id=<?php echo $debug_bank_id; ?>, ledger_entries_count=<?php echo $debug_ledger_count; ?></div>
-                    <?php if (is_array($ledger_entries) && count($ledger_entries) > 0) : ?>
-                        <table class="wp-list-table widefat fixed striped">
-                            <thead>
-                                <tr>
-                                    <th>Date</th>
-                                    <th>Description</th>
-                                    <th>Amount</th>
-                                    <th>Balance</th>
-                                </tr>
-                            </thead>
-                            <tbody>
-                                <?php foreach ($ledger_entries as $entry) : ?>
-                                    <tr>
-                                        <td><?php echo esc_html($entry['date'] ?? ''); ?></td>
-                                        <td><?php echo esc_html($entry['description'] ?? ''); ?></td>
-                                        <td><?php echo isset($entry['amount']) ? '$' . number_format((float)$entry['amount'], 2) : ''; ?></td>
-                                        <td><?php echo isset($entry['balance']) ? '$' . number_format((float)$entry['balance'], 2) : ''; ?></td>
-                                    </tr>
-                                <?php endforeach; ?>
-                            </tbody>
-                        </table>
-                    <?php else : ?>
-                        <p>No ledger entries found for this account.</p>
-                    <?php endif; ?>
-                </div>
-                <?php endif; ?>
-                <?php
-                // Fetch all bank accounts from QBO
-                $bank_accounts = array();
-                if (method_exists($this->core, 'fetch_bank_accounts')) {
-                    $bank_accounts = $this->core->fetch_bank_accounts();
-                }
-                ?>
-                <div class="sidebar-section">
-                    <h3>Associated Bank Account</h3>
-                    <form method="post">
-                        <input type="hidden" name="update_team" value="1" />
-                        <input type="hidden" name="team_id" value="<?php echo intval($team_id); ?>" />
-                        <?php wp_nonce_field('update_team_action', 'team_edit_nonce'); ?>
-                        <select name="bank_account_id" style="width:100%;margin-bottom:8px;">
-                            <option value="">-- None --</option>
-                            <?php foreach ($bank_accounts as $acct): 
-                                $selected = (strval($team->bank_account_id ?? '') === strval($acct['Id'])) ? 'selected' : '';
-                            ?>
-                                <option value="<?php echo esc_attr($acct['Id']); ?>" <?php echo $selected; ?>><?php echo esc_html($acct['Name']); ?></option>
-                            <?php endforeach; ?>
-                        </select>
-                        <button type="submit" class="button button-primary" style="width:100%;">Save Bank Account</button>
-                    </form>
-                    <?php if ($team->bank_account_id): ?>
-                        <p style="margin-top:10px;"><strong>Current:</strong> <?php
-                            $current = array_filter($bank_accounts, function($a) use ($team) { return $a['Id'] == $team->bank_account_id; });
-                            if ($current) {
-                                $acct = array_values($current)[0];
-                                echo esc_html($acct['Name']);
-                            } else {
-                                echo esc_html($team->bank_account_id);
-                            }
-                        ?></p>
-                    <?php endif; ?>
-                </div>
-                <?php if (!empty($team->logo)): ?>
-                    <div class="sidebar-section">
-                        <h3>Team Logo</h3>
-                        <img src="<?php echo esc_url($team->logo); ?>" alt="Team Logo" class="team-logo">
+                        ?>
+                        <div class="sidebar-section">
+                            <h3>Associated Bank Account</h3>
+                            <form method="post">
+                                <input type="hidden" name="update_team" value="1" />
+                                <input type="hidden" name="team_id" value="<?php echo intval($team_id); ?>" />
+                                <?php wp_nonce_field('update_team_action', 'team_edit_nonce'); ?>
+                                <select name="bank_account_id" style="width:100%;margin-bottom:8px;">
+                                    <option value="">-- None --</option>
+                                    <?php foreach ($bank_accounts as $acct): 
+                                        $selected = (strval($team->bank_account_id ?? '') === strval($acct['Id'])) ? 'selected' : '';
+                                    ?>
+                                        <option value="<?php echo esc_attr($acct['Id']); ?>" <?php echo $selected; ?>><?php echo esc_html($acct['Name']); ?></option>
+                                    <?php endforeach; ?>
+                                </select>
+                                <button type="submit" class="button button-primary" style="width:100%;">Save Bank Account</button>
+                            </form>
+                            <?php if ($team->bank_account_id): ?>
+                                <p style="margin-top:10px;"><strong>Current:</strong> <?php
+                                    $current = array_filter($bank_accounts, function($a) use ($team) { return $a['Id'] == $team->bank_account_id; });
+                                    if ($current) {
+                                        $acct = array_values($current)[0];
+                                        echo esc_html($acct['Name']);
+                                    } else {
+                                        echo esc_html($team->bank_account_id);
+                                    }
+                                ?></p>
+                            <?php endif; ?>
+                        </div>
                     </div>
-                <?php endif; ?>
-                
-                <?php if (!empty($team->website) || !empty($team->facebook) || !empty($team->twitter) || !empty($team->instagram)): ?>
-                    <div class="sidebar-section">
-                        <h3>Contact & Social Media</h3>
-                        
-                        <?php if (!empty($team->website)): ?>
-                            <div class="team-website">
-                                <a href="<?php echo esc_url($team->website); ?>" target="_blank" rel="noopener">
-                                    <span class="dashicons dashicons-admin-site-alt3"></span> Visit Website
-                                </a>
-                            </div>
-                        <?php endif; ?>
-                        
-                        <?php if (!empty($team->facebook) || !empty($team->twitter) || !empty($team->instagram)): ?>
-                            <div class="team-social-links">
-                                <?php if (!empty($team->facebook)): ?>
-                                    <a href="<?php echo esc_url($team->facebook); ?>" target="_blank" rel="noopener">
-                                        <span class="dashicons dashicons-facebook"></span> Facebook
-                                    </a>
-                                <?php endif; ?>
-                                <?php if (!empty($team->twitter)): ?>
-                                    <a href="<?php echo esc_url($team->twitter); ?>" target="_blank" rel="noopener">
-                                        <span class="dashicons dashicons-twitter"></span> Twitter
-                                    </a>
-                                <?php endif; ?>
-                                <?php if (!empty($team->instagram)): ?>
-                                    <a href="<?php echo esc_url($team->instagram); ?>" target="_blank" rel="noopener">
-                                        <span class="dashicons dashicons-instagram"></span> Instagram
-                                    </a>
-                                <?php endif; ?>
-                            </div>
-                        <?php endif; ?>
-                    </div>
-                <?php endif; ?>
-                
-                <?php if (!empty($team->team_photo)): ?>
-                    <div class="sidebar-section">
-                        <h3>Team Photo</h3>
-                        <img src="<?php echo esc_url($team->team_photo); ?>" alt="Team Photo" class="team-photo">
-                    </div>
-                <?php endif; ?>
-
-                <?php
-                // Fetch previous team names from history table
-                $table_team_name_history = $wpdb->prefix . 'gears_team_name_history';
-                $name_history = $wpdb->get_results($wpdb->prepare(
-                    "SELECT team_name, year FROM $table_team_name_history WHERE team_id = %d ORDER BY year DESC",
-                    $team_id
-                ));
-                if (!empty($name_history)) : ?>
-                    <div class="sidebar-section">
-                        <h3>Previous Team Names</h3>
-                        <ul style="list-style: disc inside; padding-left: 1em;">
-                        <?php foreach ($name_history as $history) : ?>
-                            <li><strong><?php echo esc_html($history->team_name); ?></strong> (<?php echo esc_html($history->year); ?>)</li>
-                        <?php endforeach; ?>
-                        </ul>
-                    </div>
-                <?php endif; ?>
-
-                <div class="sidebar-section">
-                    <h3>Add Old Team Name</h3>
-                    <form method="post">
-                        <input type="hidden" name="add_old_team_name" value="1" />
-                        <?php wp_nonce_field('add_old_team_name_' . $team_id, 'add_old_team_name_nonce'); ?>
-                        <label for="old_team_name">Team Name</label><br />
-                        <input type="text" name="old_team_name" id="old_team_name" required style="width:100%;margin-bottom:8px;" />
-                        <label for="old_team_year">Year</label><br />
-                        <input type="number" name="old_team_year" id="old_team_year" min="1900" max="<?php echo esc_attr(date('Y')); ?>" required style="width:100%;margin-bottom:8px;" />
-                        <button type="submit" class="button button-primary" style="width:100%;">Add Old Name</button>
-                    </form>
                 </div>
             </div>
-        </div>
         
         <script type="text/javascript">
         // Make sure ajaxurl is available
@@ -2671,8 +2942,27 @@ class QBO_Teams {
         window.qboCustomerListVars = window.qboCustomerListVars || {};
         qboCustomerListVars.invoicesPageUrl = "<?php echo esc_js(admin_url('admin.php?page=qbo-view-invoices')); ?>";
         qboCustomerListVars.nonce = "<?php echo wp_create_nonce('qbo_get_customers'); ?>";
+
+        // Tab switching logic
+        document.addEventListener('DOMContentLoaded', function() {
+            var tabLinks = document.querySelectorAll('.qbo-tab-link');
+            var tabContents = document.querySelectorAll('.qbo-tab-content');
+            tabLinks.forEach(function(link) {
+                link.addEventListener('click', function(e) {
+                    e.preventDefault();
+                    var tab = this.getAttribute('data-tab');
+                    // Remove active from all links
+                    tabLinks.forEach(function(l) { l.classList.remove('active'); });
+                    // Hide all tab contents
+                    tabContents.forEach(function(tc) { tc.style.display = 'none'; });
+                    // Show selected tab
+                    document.getElementById(tab).style.display = 'block';
+                    this.classList.add('active');
+                });
+            });
+        });
         </script>
-        
+
         <script type="text/javascript">
             jQuery(document).ready(function($) {
                 var teamId = <?php echo intval($team_id); ?>;
