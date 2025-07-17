@@ -355,8 +355,6 @@ class QBO_Teams {
             }
         }
 
-        // ...no debug output...
-
         if (empty($errors) && !empty($update_data)) {
             $result = $wpdb->update(
                 $table_teams,
@@ -2499,202 +2497,12 @@ class QBO_Teams {
         if (function_exists('wp_enqueue_style')) {
             wp_enqueue_style('qbo-gears-modals', plugins_url('assets/css/modals.css', dirname(__FILE__, 2) . '/qbo-recurring-billing.php'), array(), null);
         }
-        ?>
         
-        <style>
-            /* Tab Navigation Styles for Team Details Page */
-            .qbo-tabs-nav {
-                background: #fff;
-                border-radius: 12px;
-                box-shadow: 0 2px 8px rgba(0,0,0,0.07);
-                margin-bottom: 32px;
-                padding: 0 12px;
-                display: flex;
-                align-items: center;
-                min-height: 56px;
-            }
-            .qbo-tabs {
-                display: flex;
-                gap: 0;
-                list-style: none;
-                padding: 0;
-                margin: 0;
-                width: 100%;
-            }
-            .qbo-tab-link {
-                display: block;
-                padding: 14px 32px 14px 32px;
-                color: #2c3e50;
-                text-decoration: none;
-                font-weight: 600;
-                border: none;
-                background: none;
-                border-radius: 10px 10px 0 0;
-                border-bottom: 3px solid transparent;
-                margin-right: 2px;
-                transition: background 0.2s, color 0.2s, border-bottom 0.2s, box-shadow 0.2s;
-                cursor: pointer;
-                font-size: 17px;
-                position: relative;
-                z-index: 1;
-            }
-            .qbo-tab-link:hover {
-                background: #f0f4f8;
-                color: #007cba;
-            }
-            .qbo-tab-link.active {
-                color: #007cba;
-                background: #f8f9fa;
-                border-bottom: 3px solid #007cba;
-                box-shadow: 0 2px 8px rgba(0,124,186,0.07);
-                z-index: 2;
-            }
-            @media (max-width: 600px) {
-                .qbo-tabs-nav {
-                    border-radius: 8px;
-                    min-height: 0;
-                    padding: 0 2px;
-                }
-                .qbo-tabs {
-                    flex-direction: column;
-                }
-                .qbo-tab-link {
-                    padding: 10px 12px;
-                    font-size: 15px;
-                    border-radius: 8px 8px 0 0;
-                }
-            }
-            /* Team Details Page Specific Styles */
-            .team-details-container {
-                max-width: 1200px;
-                display: flex !important;
-                gap: 32px;
-                margin: 0 auto;
-            }
-            .team-details-main {
-                flex: 0 0 100% !important;
-                max-width: 100%;
-                min-width: 0;
-            }
-            .team-details-sidebar {
-                width: 100% !important;
-                max-width: 100% !important;
-                min-width: 0;
-                background: #fff;
-                border: 1px solid #ddd;
-                border-radius: 8px;
-                padding: 24px;
-                box-sizing: border-box;
-                display: flex;
-                flex-direction: column;
-                gap: 24px;
-                height: fit-content;
-                box-shadow: 0 2px 8px rgba(0,0,0,0.08);
-            }
-            
-            .team-logo {
-                width: 100%;
-                max-width: 250px;
-                height: auto;
-                object-fit: contain;
-                border-radius: 8px;
-                border: 1px solid #ddd;
-                background: #fafbfc;
-                display: block;
-                margin: 0 auto;
-            }
-            .team-photo {
-                width: 100%;
-                height: auto;
-                border-radius: 8px;
-                border: 1px solid #ddd;
-                background: #fafbfc;
-                display: block;
-                margin: 0 auto;
-            }
-            .team-social-links {
-                display: flex;
-                flex-direction: column;
-                gap: 12px;
-                width: 100%;
-            }
-            .team-social-links a {
-                display: flex;
-                align-items: center;
-                text-decoration: none;
-                padding: 8px 12px;
-                border-radius: 6px;
-                background: #f8f9fa;
-                border: 1px solid #e0e1e2;
-                transition: all 0.2s ease;
-                color: #2c3e50;
-            }
-            .team-social-links a:hover {
-                background: #e9ecef;
-                border-color: #007cba;
-                color: #007cba;
-                transform: translateY(-1px);
-            }
-            .team-social-links .dashicons {
-                margin-right: 8px;
-                font-size: 16px;
-            }
-            .sidebar-section {
-                width: 100%;
-            }
-            .sidebar-section h3 {
-                font-size: 16px;
-                font-weight: 600;
-                margin: 0 0 12px 0;
-                color: #2c3e50;
-                text-align: center;
-                border-bottom: 2px solid #e0e1e2;
-                padding-bottom: 8px;
-            }
-            .team-website {
-                text-align: center;
-                margin: 16px 0;
-            }
-            .team-website a {
-                display: inline-block;
-                padding: 10px 16px;
-                background: #007cba;
-                color: white;
-                text-decoration: none;
-                border-radius: 6px;
-                font-weight: 600;
-                transition: background 0.2s ease;
-            }
-            .team-website a:hover {
-                background: #005a87;
-            }
-            .team-section {
-                background: white;
-                border: 1px solid #ddd;
-                border-radius: 4px;
-                padding: 20px;
-                margin-bottom: 20px;
-            }
-            .team-section h2 {
-                margin-top: 0;
-                padding-bottom: 10px;
-                border-bottom: 1px solid #eee;
-            }
-            
-            /* Responsive design for mobile devices */
-            @media (max-width: 768px) {
-                .team-details-container {
-                    flex-direction: column !important;
-                    gap: 20px;
-                }
-                .team-details-main,
-                .team-details-sidebar {
-                    flex: none !important;
-                    max-width: 100% !important;
-                    min-width: 0;
-                }
-            }
-        </style>
+        // Enqueue the external CSS for team details page
+        if (function_exists('wp_enqueue_style')) {
+            wp_enqueue_style('qbo-team-details', plugins_url('assets/css/team-details.css', dirname(__FILE__, 2) . '/qbo-recurring-billing.php'), array(), null);
+        }
+        ?>
         
         <div class="wrap">
             <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
@@ -2857,35 +2665,113 @@ class QBO_Teams {
                         <?php
                         // Fetch ledger for the attached bank account
                         $ledger_entries = array();
-                        $debug_bank_id = var_export($team->bank_account_id, true);
-                        $debug_ledger_count = 0;
                         if (method_exists($this->core, 'fetch_bank_account_ledger')) {
                             $ledger_entries = $this->core->fetch_bank_account_ledger($team->bank_account_id);
-                            if (is_array($ledger_entries)) {
-                                $debug_ledger_count = count($ledger_entries);
-                            }
+                        }
+                        // DEBUG: Output raw ledger entries for troubleshooting
+                        if (isset($_GET['debug_ledger']) && $_GET['debug_ledger'] == '1') {
+                            echo '<pre style="background:#fffbe6;border:1px solid #e0c97f;padding:10px;max-height:400px;overflow:auto;font-size:12px;">';
+                            echo "<strong>DEBUG: Raw $ledger_entries</strong>\n";
+                            var_dump($ledger_entries);
+                            echo '</pre>';
                         }
                         ?>
                         <div class="sidebar-section" id="team-bank-ledger-section">
                             <h3>Bank Account Ledger</h3>
-                            <div style="color:#888;font-size:12px;margin-bottom:8px;">Debug: bank_account_id=<?php echo $debug_bank_id; ?>, ledger_entries_count=<?php echo $debug_ledger_count; ?></div>
+                            <?php
+                            // Try to fetch the true ending balance from QBO account endpoint
+                            $ending_balance = null;
+                            if (!empty($team->bank_account_id) && method_exists($this->core, 'fetch_qbo_account_balance')) {
+                                $ending_balance = $this->core->fetch_qbo_account_balance($team->bank_account_id);
+                            }
+                            // Fallback to last ledger entry if not available
+                            if ($ending_balance === null && is_array($ledger_entries) && count($ledger_entries) > 0) {
+                                $ending_balance = isset($ledger_entries[count($ledger_entries)-1]['balance']) ? $ledger_entries[count($ledger_entries)-1]['balance'] : 0;
+                            }
+                            ?>
+                            <div style="margin-bottom: 1em; font-size: 1.2em; font-weight: bold;">
+                                <?php if ($ending_balance !== null && $ending_balance !== ''): ?>
+                                    Ending Balance: $<?php echo number_format((float)$ending_balance, 2); ?>
+                                <?php else: ?>
+                                    <span style="color:#a00;">Ending balance not available.</span>
+                                <?php endif; ?>
+                            </div>
+                            <?php
+                            // DEBUG: Show a summary count of each type in the ledger
+                            if (is_array($ledger_entries) && count($ledger_entries) > 0) {
+                                $type_counts = array();
+                                foreach ($ledger_entries as $entry) {
+                                    $t = $entry['type'] ?? 'UNKNOWN';
+                                    if (!isset($type_counts[$t])) $type_counts[$t] = 0;
+                                    $type_counts[$t]++;
+                                }
+                                echo '<div style="background:#e6f7ff;border:1px solid #91d5ff;padding:6px 10px;margin-bottom:8px;font-size:12px;">';
+                                echo '<strong>DEBUG: Ledger Entry Type Counts:</strong> ';
+                                foreach ($type_counts as $t => $c) {
+                                    echo esc_html($t) . ': ' . intval($c) . ' &nbsp; ';
+                                }
+                                echo '</div>';
+                            }
+                            ?>
                             <?php if (is_array($ledger_entries) && count($ledger_entries) > 0) : ?>
                                 <table class="wp-list-table widefat fixed striped">
                                     <thead>
                                         <tr>
                                             <th>Date</th>
-                                            <th>Description</th>
-                                            <th>Amount</th>
-                                            <th>Balance</th>
+                                            <th>Type</th>
+                                            <th>Payee</th>
+                                            <th>Payment</th>
+                                            <th>Deposit</th>
+                                            <th>Running Balance</th>
                                         </tr>
                                     </thead>
                                     <tbody>
-                                        <?php foreach ($ledger_entries as $entry) : ?>
+                                        <?php 
+                                        $running_balance = 0;
+                                        // Show all entry types with clear columns
+                                        foreach ($ledger_entries as $entry) :
+                                            $type = $entry['type'] ?? '';
+                                            // Use 'payee' if present, else fallback to description
+                                            $payee = $entry['payee'] ?? ($entry['description'] ?? '');
+                                            $amount = isset($entry['amount']) ? (float)$entry['amount'] : 0;
+                                            // For BillPayment and Expenditure, show as Payment (negative)
+                                            // For Deposit, show as Deposit (positive)
+                                            // For Transfer, show as Payment or Deposit based on sign
+                                            // For JournalEntry, show as Payment if negative, Deposit if positive
+                                            $payment = '';
+                                            $deposit = '';
+                                            // Expenditures (Expense, Check, BillPayment) should always show as Payment (negative outflow)
+                                            if ($type === 'Expenditure' || $type === 'Expense' || $type === 'Check' || $type === 'BillPayment') {
+                                                $payment = '$' . number_format(abs($amount), 2);
+                                            } elseif ($type === 'Deposit') {
+                                                $deposit = '$' . number_format($amount, 2);
+                                            } elseif ($type === 'Transfer') {
+                                                if ($amount < 0) {
+                                                    $payment = '$' . number_format(abs($amount), 2);
+                                                } else {
+                                                    $deposit = '$' . number_format($amount, 2);
+                                                }
+                                            } elseif ($type === 'JournalEntry') {
+                                                if ($amount < 0) {
+                                                    $payment = '$' . number_format(abs($amount), 2);
+                                                } else {
+                                                    $deposit = '$' . number_format($amount, 2);
+                                                }
+                                            }
+                                            // Calculate running balance if not present
+                                            if (isset($entry['balance']) && $entry['balance'] !== '') {
+                                                $running_balance = (float)$entry['balance'];
+                                            } else {
+                                                $running_balance += $amount;
+                                            }
+                                        ?>
                                             <tr>
                                                 <td><?php echo esc_html($entry['date'] ?? ''); ?></td>
-                                                <td><?php echo esc_html($entry['description'] ?? ''); ?></td>
-                                                <td><?php echo isset($entry['amount']) ? '$' . number_format((float)$entry['amount'], 2) : ''; ?></td>
-                                                <td><?php echo isset($entry['balance']) ? '$' . number_format((float)$entry['balance'], 2) : ''; ?></td>
+                                                <td><?php echo esc_html($type); ?></td>
+                                                <td><?php echo esc_html($payee); ?></td>
+                                                <td><?php echo $payment; ?></td>
+                                                <td><?php echo $deposit; ?></td>
+                                                <td><?php echo '$' . number_format($running_balance, 2); ?></td>
                                             </tr>
                                         <?php endforeach; ?>
                                     </tbody>

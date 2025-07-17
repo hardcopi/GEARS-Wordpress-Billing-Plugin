@@ -1,0 +1,191 @@
+/* Tab Navigation Styles for Team Details Page */
+.qbo-tabs-nav {
+    background: #fff;
+    border-radius: 12px;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.07);
+    margin-bottom: 32px;
+    padding: 0 12px;
+    display: flex;
+    align-items: center;
+    min-height: 56px;
+}
+.qbo-tabs {
+    display: flex;
+    gap: 0;
+    list-style: none;
+    padding: 0;
+    margin: 0;
+    width: 100%;
+}
+.qbo-tab-link {
+    display: block;
+    padding: 14px 32px 14px 32px;
+    color: #2c3e50;
+    text-decoration: none;
+    font-weight: 600;
+    border: none;
+    background: none;
+    border-radius: 10px 10px 0 0;
+    border-bottom: 3px solid transparent;
+    margin-right: 2px;
+    transition: background 0.2s, color 0.2s, border-bottom 0.2s, box-shadow 0.2s;
+    cursor: pointer;
+    font-size: 17px;
+    position: relative;
+    z-index: 1;
+}
+.qbo-tab-link:hover {
+    background: #f0f4f8;
+    color: #007cba;
+}
+.qbo-tab-link.active {
+    color: #007cba;
+    background: #f8f9fa;
+    border-bottom: 3px solid #007cba;
+    box-shadow: 0 2px 8px rgba(0,124,186,0.07);
+    z-index: 2;
+}
+@media (max-width: 600px) {
+    .qbo-tabs-nav {
+        border-radius: 8px;
+        min-height: 0;
+        padding: 0 2px;
+    }
+    .qbo-tabs {
+        flex-direction: column;
+    }
+    .qbo-tab-link {
+        padding: 10px 12px;
+        font-size: 15px;
+        border-radius: 8px 8px 0 0;
+    }
+}
+
+/* Team Details Page Specific Styles */
+.team-details-container {
+    max-width: 1200px;
+    display: flex !important;
+    gap: 32px;
+    margin: 0 auto;
+}
+.team-details-main {
+    flex: 0 0 100% !important;
+    max-width: 100%;
+    min-width: 0;
+}
+.team-details-sidebar {
+    width: 100% !important;
+    max-width: 100% !important;
+    min-width: 0;
+    background: #fff;
+    border: 1px solid #ddd;
+    border-radius: 8px;
+    padding: 24px;
+    box-sizing: border-box;
+    display: flex;
+    flex-direction: column;
+    gap: 24px;
+    height: fit-content;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.08);
+}
+
+.team-logo {
+    width: 100%;
+    max-width: 250px;
+    height: auto;
+    object-fit: contain;
+    border-radius: 8px;
+    border: 1px solid #ddd;
+    background: #fafbfc;
+    display: block;
+    margin: 0 auto;
+}
+.team-photo {
+    width: 100%;
+    height: auto;
+    border-radius: 8px;
+    border: 1px solid #ddd;
+    background: #fafbfc;
+    display: block;
+    margin: 0 auto;
+}
+.team-social-links {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    width: 100%;
+}
+.team-social-links a {
+    display: flex;
+    align-items: center;
+    text-decoration: none;
+    padding: 8px 12px;
+    border-radius: 6px;
+    background: #f8f9fa;
+    border: 1px solid #e0e1e2;
+    transition: all 0.2s ease;
+    color: #2c3e50;
+}
+.team-social-links a:hover {
+    background: #e9ecef;
+    border-color: #007cba;
+    color: #007cba;
+    transform: translateY(-1px);
+}
+.team-social-links .dashicons {
+    margin-right: 8px;
+    font-size: 16px;
+}
+.sidebar-section {
+    width: 100%;
+}
+.sidebar-section h3 {
+    font-size: 16px;
+    font-weight: 600;
+    margin: 0 0 12px 0;
+    color: #2c3e50;
+    text-align: center;
+    border-bottom: 2px solid #e0e1e2;
+    padding-bottom: 8px;
+}
+.team-website {
+    text-align: center;
+    margin: 16px 0;
+}
+.team-website a {
+    display: inline-block;
+    padding: 10px 16px;
+    background: #007cba;
+    color: white;
+    text-decoration: none;
+    border-radius: 6px;
+    font-weight: 600;
+    transition: background 0.2s ease;
+}
+.team-website a:hover {
+    background: #005a87;
+}
+.team-section {
+    background: white;
+    border: 1px solid #ddd;
+    border-radius: 4px;
+    padding: 20px;
+    margin-bottom: 20px;
+}
+.team-section h2 {
+    margin-top: 0;
+    padding-bottom: 10px;
+    border-bottom: 1px solid #eee;
+}
+@media (max-width: 768px) {
+    .team-details-container {
+        flex-direction: column !important;
+        gap: 20px;
+    }
+    .team-details-main,
+    .team-details-sidebar {
+        flex: none !important;
+        max-width: 100% !important;
+        min-width: 0;
+    }
+}
