@@ -72,6 +72,13 @@ class QBO_Teams {
             // Add the hall_of_fame column
             $wpdb->query("ALTER TABLE $table_teams ADD COLUMN hall_of_fame TINYINT(1) DEFAULT 0");
         }
+
+        // Check if bank_account_id column exists, if not add it
+        $bank_account_id_exists = $wpdb->get_results("SHOW COLUMNS FROM $table_teams LIKE 'bank_account_id'");
+        if (empty($bank_account_id_exists)) {
+            // Add the bank_account_id column (string, nullable)
+            $wpdb->query("ALTER TABLE $table_teams ADD COLUMN bank_account_id VARCHAR(64) NULL");
+        }
     }
     
     /**
@@ -170,6 +177,7 @@ class QBO_Teams {
         $instagram = sanitize_text_field($_POST['instagram']);
         $website = esc_url_raw($_POST['website']);
         $hall_of_fame = isset($_POST['hall_of_fame']) ? 1 : 0;
+        $bank_account_id = isset($_POST['bank_account_id']) ? sanitize_text_field($_POST['bank_account_id']) : null;
         $logo = '';
         $team_photo = '';
         
@@ -215,6 +223,24 @@ class QBO_Teams {
         }
         
         if (empty($errors)) {
+            // Check if team name is changing
+            $old_team_name = $wpdb->get_var($wpdb->prepare(
+                "SELECT team_name FROM $table_teams WHERE id = %d",
+                $team_id
+            ));
+            if ($old_team_name && $old_team_name !== $team_name) {
+                // Insert old name and current year into name history table
+                $table_team_name_history = $wpdb->prefix . 'gears_team_name_history';
+                $wpdb->insert(
+                    $table_team_name_history,
+                    array(
+                        'team_id' => $team_id,
+                        'team_name' => $old_team_name,
+                        'year' => date('Y')
+                    ),
+                    array('%d', '%s', '%d')
+                );
+            }
             $insert_data = array(
                 'team_name' => $team_name,
                 'team_number' => $team_number,
@@ -227,12 +253,13 @@ class QBO_Teams {
                 'instagram' => $instagram,
                 'website' => $website,
                 'hall_of_fame' => $hall_of_fame
+                ,'bank_account_id' => $bank_account_id
             );
             
             $result = $wpdb->insert(
                 $table_teams,
                 $insert_data,
-                array('%s', '%s', '%s', '%s', '%s', '%s', '%s', '%s', '%s', '%s', '%d')
+                array('%s', '%s', '%s', '%s', '%s', '%s', '%s', '%s', '%s', '%s', '%d', '%s')
             );
             
             if ($result === false) {
@@ -252,71 +279,85 @@ class QBO_Teams {
         global $wpdb;
         
         $team_id = intval($_POST['team_id']);
-        $team_name = sanitize_text_field($_POST['team_name']);
-        $team_number = sanitize_text_field($_POST['team_number']);
-        $program = sanitize_text_field($_POST['program']);
-        $description = sanitize_textarea_field($_POST['description']);
-        $facebook = sanitize_text_field($_POST['facebook']);
-        $twitter = sanitize_text_field($_POST['twitter']);
-        $instagram = sanitize_text_field($_POST['instagram']);
-        $website = esc_url_raw($_POST['website']);
-        $hall_of_fame = isset($_POST['hall_of_fame']) ? 1 : 0;
-        
+        $update_data = array();
         $errors = array();
-        if (empty($team_name)) {
-            $errors[] = 'Team name is required.';
-        }
-        
-        // Check for duplicate team name, excluding current team
-        if (!empty($team_name)) {
-            $existing_team = $wpdb->get_var($wpdb->prepare(
-                "SELECT id FROM $table_teams WHERE team_name = %s AND id != %d",
-                $team_name, $team_id
-            ));
-            if ($existing_team) {
-                $errors[] = 'A team with this name already exists.';
+
+        // Only validate and update fields that are present in the request
+        if (isset($_POST['team_name'])) {
+            $team_name = sanitize_text_field($_POST['team_name']);
+            if (empty($team_name)) {
+                $errors[] = 'Team name is required.';
+            } else {
+                // Check for duplicate team name, excluding current team
+                $existing_team = $wpdb->get_var($wpdb->prepare(
+                    "SELECT id FROM $table_teams WHERE team_name = %s AND id != %d",
+                    $team_name, $team_id
+                ));
+                if ($existing_team) {
+                    $errors[] = 'A team with this name already exists.';
+                }
+                $update_data['team_name'] = $team_name;
             }
         }
-        
-        // Check for duplicate team number, excluding current team
-        if (!empty($team_number)) {
-            $existing_number = $wpdb->get_var($wpdb->prepare(
-                "SELECT id FROM $table_teams WHERE team_number = %s AND id != %d",
-                $team_number, $team_id
-            ));
-            if ($existing_number) {
-                $errors[] = 'A team with this number already exists.';
-            }
-        }
-        
-        if (empty($errors)) {
-            $update_data = array(
-                'team_name' => $team_name,
-                'team_number' => $team_number,
-                'program' => $program,
-                'description' => $description,
-                'facebook' => $facebook,
-                'twitter' => $twitter,
-                'instagram' => $instagram,
-                'website' => $website,
-                'hall_of_fame' => $hall_of_fame
-            );
-            
-            // Handle file uploads - only update if new file is uploaded
-            if (!empty($_FILES['logo']['name'])) {
-                $uploaded = media_handle_upload('logo', 0);
-                if (!is_wp_error($uploaded)) {
-                    $update_data['logo'] = wp_get_attachment_url($uploaded);
+        if (isset($_POST['team_number'])) {
+            $team_number = sanitize_text_field($_POST['team_number']);
+            // Check for duplicate team number, excluding current team
+            if (!empty($team_number)) {
+                $existing_number = $wpdb->get_var($wpdb->prepare(
+                    "SELECT id FROM $table_teams WHERE team_number = %s AND id != %d",
+                    $team_number, $team_id
+                ));
+                if ($existing_number) {
+                    $errors[] = 'A team with this number already exists.';
                 }
             }
-            
-            if (!empty($_FILES['team_photo']['name'])) {
-                $uploaded = media_handle_upload('team_photo', 0);
-                if (!is_wp_error($uploaded)) {
-                    $update_data['team_photo'] = wp_get_attachment_url($uploaded);
-                }
+            $update_data['team_number'] = $team_number;
+        }
+        if (isset($_POST['program'])) {
+            $update_data['program'] = sanitize_text_field($_POST['program']);
+        }
+        if (isset($_POST['description'])) {
+            $update_data['description'] = sanitize_textarea_field($_POST['description']);
+        }
+        if (isset($_POST['facebook'])) {
+            $update_data['facebook'] = sanitize_text_field($_POST['facebook']);
+        }
+        if (isset($_POST['twitter'])) {
+            $update_data['twitter'] = sanitize_text_field($_POST['twitter']);
+        }
+        if (isset($_POST['instagram'])) {
+            $update_data['instagram'] = sanitize_text_field($_POST['instagram']);
+        }
+        if (isset($_POST['website'])) {
+            $update_data['website'] = esc_url_raw($_POST['website']);
+        }
+        if (isset($_POST['hall_of_fame'])) {
+            $update_data['hall_of_fame'] = 1;
+        } else if (array_key_exists('hall_of_fame', $_POST)) {
+            $update_data['hall_of_fame'] = 0;
+        }
+        // Always update bank_account_id, even if empty (to allow clearing)
+        if (array_key_exists('bank_account_id', $_POST)) {
+            $update_data['bank_account_id'] = sanitize_text_field($_POST['bank_account_id']);
+        }
+
+        // Handle file uploads - only update if new file is uploaded
+        if (!empty($_FILES['logo']['name'])) {
+            $uploaded = media_handle_upload('logo', 0);
+            if (!is_wp_error($uploaded)) {
+                $update_data['logo'] = wp_get_attachment_url($uploaded);
             }
-            
+        }
+        if (!empty($_FILES['team_photo']['name'])) {
+            $uploaded = media_handle_upload('team_photo', 0);
+            if (!is_wp_error($uploaded)) {
+                $update_data['team_photo'] = wp_get_attachment_url($uploaded);
+            }
+        }
+
+        // ...no debug output...
+
+        if (empty($errors) && !empty($update_data)) {
             $result = $wpdb->update(
                 $table_teams,
                 $update_data,
@@ -324,15 +365,17 @@ class QBO_Teams {
                 null, // Let WordPress determine the format
                 array('%d')
             );
-            
             if ($result === false) {
                 echo '<div class="notice notice-error"><p>Error updating team: ' . esc_html($wpdb->last_error) . '</p></div>';
             } else {
                 echo '<div class="notice notice-success"><p>Team updated successfully!</p></div>';
             }
-        } else {
+        } elseif (!empty($errors)) {
             echo '<div class="notice notice-error"><p>' . implode('<br>', array_map('esc_html', $errors)) . '</p></div>';
+        } else {
+            echo '<div class="notice notice-info"><p>No changes to update.</p></div>';
         }
+
     }
     
     /**
@@ -348,7 +391,6 @@ class QBO_Teams {
             
             // Delete the team
             $result = $wpdb->delete($table_teams, array('id' => $team_id), array('%d'));
-            
             if ($result === false) {
                 echo '<div class="notice notice-error"><p>Error deleting team.</p></div>';
             } else {
@@ -1490,7 +1532,7 @@ class QBO_Teams {
                         <form id="edit-team-form" method="post" enctype="multipart/form-data">
                             <?php wp_nonce_field('update_team_action', 'team_edit_nonce'); ?>
                             <input type="hidden" name="update_team" value="1" />
-                            <input type="hidden" name="team_id" id="edit-team-id" value="" />
+                            <input type="hidden" name="team_id" id="edit-team-id" value="<?php echo isset($team) && isset($team->id) ? esc_attr($team->id) : ''; ?>" />
                             
                             <div class="form-row">
                                 <label for="edit_team_name">Team Name <span style="color: red;">*</span></label>
@@ -2226,7 +2268,28 @@ class QBO_Teams {
         
         // Handle form submissions for team details page
         if ($_POST) {
-            $this->handle_form_submissions($table_teams, $table_mentors);
+            // Handle manual add of old team name
+            if (isset($_POST['add_old_team_name']) && isset($_POST['old_team_name']) && isset($_POST['old_team_year']) && wp_verify_nonce($_POST['add_old_team_name_nonce'], 'add_old_team_name_' . $team_id)) {
+                $old_name = sanitize_text_field($_POST['old_team_name']);
+                $old_year = intval($_POST['old_team_year']);
+                if ($old_name && $old_year > 1900 && $old_year <= intval(date('Y'))) {
+                    $table_team_name_history = $wpdb->prefix . 'gears_team_name_history';
+                    $wpdb->insert(
+                        $table_team_name_history,
+                        array(
+                            'team_id' => $team_id,
+                            'team_name' => $old_name,
+                            'year' => $old_year
+                        ),
+                        array('%d', '%s', '%d')
+                    );
+                    echo '<div class="notice notice-success"><p>Old team name added.</p></div>';
+                } else {
+                    echo '<div class="notice notice-error"><p>Invalid name or year.</p></div>';
+                }
+            } else {
+                $this->handle_form_submissions($table_teams, $table_mentors);
+            }
         }
         
         // Get team details
@@ -2439,8 +2502,85 @@ class QBO_Teams {
                     <h2>Alumni of this Team</h2>
                     <div id="team-alumni-list">Loading...</div>
                 </div>
+                <!-- Bank Ledger section will be rendered in the sidebar below -->
             </div>
             <div class="team-details-sidebar">
+                <?php if (!empty($team->bank_account_id) || empty($team->bank_account_id)) :
+                    // Fetch ledger for the attached bank account
+                    $ledger_entries = array();
+                    $debug_bank_id = var_export($team->bank_account_id, true);
+                    $debug_ledger_count = 0;
+                    if (method_exists($this->core, 'fetch_bank_account_ledger')) {
+                        $ledger_entries = $this->core->fetch_bank_account_ledger($team->bank_account_id);
+                        if (is_array($ledger_entries)) {
+                            $debug_ledger_count = count($ledger_entries);
+                        }
+                    }
+                ?>
+                <div class="sidebar-section" id="team-bank-ledger-section">
+                    <h3>Bank Account Ledger</h3>
+                    <div style="color:#888;font-size:12px;margin-bottom:8px;">Debug: bank_account_id=<?php echo $debug_bank_id; ?>, ledger_entries_count=<?php echo $debug_ledger_count; ?></div>
+                    <?php if (is_array($ledger_entries) && count($ledger_entries) > 0) : ?>
+                        <table class="wp-list-table widefat fixed striped">
+                            <thead>
+                                <tr>
+                                    <th>Date</th>
+                                    <th>Description</th>
+                                    <th>Amount</th>
+                                    <th>Balance</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <?php foreach ($ledger_entries as $entry) : ?>
+                                    <tr>
+                                        <td><?php echo esc_html($entry['date'] ?? ''); ?></td>
+                                        <td><?php echo esc_html($entry['description'] ?? ''); ?></td>
+                                        <td><?php echo isset($entry['amount']) ? '$' . number_format((float)$entry['amount'], 2) : ''; ?></td>
+                                        <td><?php echo isset($entry['balance']) ? '$' . number_format((float)$entry['balance'], 2) : ''; ?></td>
+                                    </tr>
+                                <?php endforeach; ?>
+                            </tbody>
+                        </table>
+                    <?php else : ?>
+                        <p>No ledger entries found for this account.</p>
+                    <?php endif; ?>
+                </div>
+                <?php endif; ?>
+                <?php
+                // Fetch all bank accounts from QBO
+                $bank_accounts = array();
+                if (method_exists($this->core, 'fetch_bank_accounts')) {
+                    $bank_accounts = $this->core->fetch_bank_accounts();
+                }
+                ?>
+                <div class="sidebar-section">
+                    <h3>Associated Bank Account</h3>
+                    <form method="post">
+                        <input type="hidden" name="update_team" value="1" />
+                        <input type="hidden" name="team_id" value="<?php echo intval($team_id); ?>" />
+                        <?php wp_nonce_field('update_team_action', 'team_edit_nonce'); ?>
+                        <select name="bank_account_id" style="width:100%;margin-bottom:8px;">
+                            <option value="">-- None --</option>
+                            <?php foreach ($bank_accounts as $acct): 
+                                $selected = (strval($team->bank_account_id ?? '') === strval($acct['Id'])) ? 'selected' : '';
+                            ?>
+                                <option value="<?php echo esc_attr($acct['Id']); ?>" <?php echo $selected; ?>><?php echo esc_html($acct['Name']); ?></option>
+                            <?php endforeach; ?>
+                        </select>
+                        <button type="submit" class="button button-primary" style="width:100%;">Save Bank Account</button>
+                    </form>
+                    <?php if ($team->bank_account_id): ?>
+                        <p style="margin-top:10px;"><strong>Current:</strong> <?php
+                            $current = array_filter($bank_accounts, function($a) use ($team) { return $a['Id'] == $team->bank_account_id; });
+                            if ($current) {
+                                $acct = array_values($current)[0];
+                                echo esc_html($acct['Name']);
+                            } else {
+                                echo esc_html($team->bank_account_id);
+                            }
+                        ?></p>
+                    <?php endif; ?>
+                </div>
                 <?php if (!empty($team->logo)): ?>
                     <div class="sidebar-section">
                         <h3>Team Logo</h3>
@@ -2488,6 +2628,37 @@ class QBO_Teams {
                         <img src="<?php echo esc_url($team->team_photo); ?>" alt="Team Photo" class="team-photo">
                     </div>
                 <?php endif; ?>
+
+                <?php
+                // Fetch previous team names from history table
+                $table_team_name_history = $wpdb->prefix . 'gears_team_name_history';
+                $name_history = $wpdb->get_results($wpdb->prepare(
+                    "SELECT team_name, year FROM $table_team_name_history WHERE team_id = %d ORDER BY year DESC",
+                    $team_id
+                ));
+                if (!empty($name_history)) : ?>
+                    <div class="sidebar-section">
+                        <h3>Previous Team Names</h3>
+                        <ul style="list-style: disc inside; padding-left: 1em;">
+                        <?php foreach ($name_history as $history) : ?>
+                            <li><strong><?php echo esc_html($history->team_name); ?></strong> (<?php echo esc_html($history->year); ?>)</li>
+                        <?php endforeach; ?>
+                        </ul>
+                    </div>
+                <?php endif; ?>
+
+                <div class="sidebar-section">
+                    <h3>Add Old Team Name</h3>
+                    <form method="post">
+                        <input type="hidden" name="add_old_team_name" value="1" />
+                        <?php wp_nonce_field('add_old_team_name_' . $team_id, 'add_old_team_name_nonce'); ?>
+                        <label for="old_team_name">Team Name</label><br />
+                        <input type="text" name="old_team_name" id="old_team_name" required style="width:100%;margin-bottom:8px;" />
+                        <label for="old_team_year">Year</label><br />
+                        <input type="number" name="old_team_year" id="old_team_year" min="1900" max="<?php echo esc_attr(date('Y')); ?>" required style="width:100%;margin-bottom:8px;" />
+                        <button type="submit" class="button button-primary" style="width:100%;">Add Old Name</button>
+                    </form>
+                </div>
             </div>
         </div>
         

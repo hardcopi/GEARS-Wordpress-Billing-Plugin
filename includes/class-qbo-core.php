@@ -10,6 +10,261 @@ if (!defined('ABSPATH')) {
 }
 
 class QBO_Core {
+    /**
+     * Fetch recent transactions for a given bank account from QuickBooks Online
+     * Returns array of ['date' => ..., 'description' => ..., 'amount' => ..., 'balance' => ...]
+     */
+    public function fetch_bank_account_ledger($account_id, $limit = 25) {
+        $options = get_option($this->option_name);
+        if (!isset($options['access_token']) || !isset($options['realm_id']) || empty($account_id)) {
+            error_log('QBO Ledger: Missing access_token, realm_id, or account_id');
+            return array();
+        }
+        $access_token = $options['access_token'];
+        $realm_id = $options['realm_id'];
+        $entries = array();
+        $debugged = false;
+
+        // 1. JournalEntry (use Line.AccountRef, lowercase keywords, no Description field)
+        $query = sprintf(
+            "SELECT Id, TxnDate, PrivateNote, TotalAmt, Line FROM JournalEntry WHERE Line.AccountRef = '%s' order by TxnDate desc startposition 1 maxresults %d",
+            esc_sql($account_id),
+            intval($limit)
+        );
+        $type = 'JournalEntry';
+        $url = 'https://quickbooks.api.intuit.com/v3/company/' . $realm_id . '/query?query=' . urlencode($query) . '&minorversion=65';
+        error_log('QBO Ledger Query: Type=' . $type . ' Query=' . $query . ' URL=' . $url);
+        $args = array(
+            'headers' => array(
+                'Authorization' => 'Bearer ' . $access_token,
+                'Accept' => 'application/json',
+                'Content-Type' => 'application/text',
+            ),
+            'timeout' => 30,
+        );
+        $response = wp_remote_get($url, $args);
+        if (is_wp_error($response)) {
+            error_log('QBO Ledger: WP_Error for ' . $type . ': ' . $response->get_error_message());
+        } else {
+            $body = wp_remote_retrieve_body($response);
+            $data = json_decode($body, true);
+            if (!$debugged) {
+                error_log('QBO Ledger Debug: Type=' . $type . ' Query=' . $query . ' URL=' . $url);
+                error_log('QBO Ledger Debug: Raw response for ' . $type . ': ' . $body);
+                $debugged = true;
+            }
+            if (isset($data['Fault'])) {
+                error_log('QBO Ledger: API Fault for ' . $type . ': ' . print_r($data['Fault'], true));
+            }
+            if (isset($data['QueryResponse'][$type])) {
+                foreach ($data['QueryResponse'][$type] as $txn) {
+                    $date = $txn['TxnDate'] ?? '';
+                    $desc = $txn['PrivateNote'] ?? '';
+                    $amount = $txn['TotalAmt'] ?? null;
+                    if (empty($desc) && isset($txn['Line']) && is_array($txn['Line'])) {
+                        foreach ($txn['Line'] as $line) {
+                            if (!empty($line['Description'])) {
+                                $desc = $line['Description'];
+                                break;
+                            }
+                        }
+                    }
+                    $entries[] = array(
+                        'date' => $date,
+                        'description' => $desc,
+                        'amount' => $amount,
+                        'balance' => '',
+                        'type' => $type,
+                    );
+                }
+            } else {
+                error_log('QBO Ledger: No entries for ' . $type . ' (QueryResponse=' . print_r($data['QueryResponse'] ?? [], true) . ')');
+            }
+        }
+
+        // 2. Deposit (DepositToAccountRef)
+        $query = sprintf(
+            "SELECT Id, TxnDate, PrivateNote, TotalAmt, Line FROM Deposit WHERE DepositToAccountRef = '%s' order by TxnDate desc maxresults %d",
+            esc_sql($account_id),
+            intval($limit)
+        );
+        $type = 'Deposit';
+        $url = 'https://quickbooks.api.intuit.com/v3/company/' . $realm_id . '/query?query=' . urlencode($query) . '&minorversion=65';
+        error_log('QBO Ledger Query: Type=' . $type . ' Query=' . $query . ' URL=' . $url);
+        $response = wp_remote_get($url, $args);
+        if (is_wp_error($response)) {
+            error_log('QBO Ledger: WP_Error for ' . $type . ': ' . $response->get_error_message());
+        } else {
+            $body = wp_remote_retrieve_body($response);
+            $data = json_decode($body, true);
+            if (isset($data['Fault'])) {
+                error_log('QBO Ledger: API Fault for ' . $type . ': ' . print_r($data['Fault'], true));
+            }
+            if (isset($data['QueryResponse'][$type])) {
+                foreach ($data['QueryResponse'][$type] as $txn) {
+                    $date = $txn['TxnDate'] ?? '';
+                    $desc = $txn['PrivateNote'] ?? '';
+                    $amount = $txn['TotalAmt'] ?? null;
+                    if (empty($desc) && isset($txn['Line']) && is_array($txn['Line'])) {
+                        foreach ($txn['Line'] as $line) {
+                            if (!empty($line['Description'])) {
+                                $desc = $line['Description'];
+                                break;
+                            }
+                        }
+                    }
+                    $entries[] = array(
+                        'date' => $date,
+                        'description' => $desc,
+                        'amount' => $amount,
+                        'balance' => '',
+                        'type' => $type,
+                    );
+                }
+            } else {
+                error_log('QBO Ledger: No entries for ' . $type . ' (QueryResponse=' . print_r($data['QueryResponse'] ?? [], true) . ')');
+            }
+        }
+
+        // 3. Payment (cannot filter by DepositToAccountRef, so skip or fetch all and filter in PHP - here, skip)
+
+        // 4. Transfer (run two queries: FromAccountRef and ToAccountRef)
+        foreach (['FromAccountRef', 'ToAccountRef'] as $transfer_field) {
+            $query = sprintf(
+                "SELECT Id, TxnDate, PrivateNote, TotalAmt, Line FROM Transfer WHERE %s = '%s' order by TxnDate desc maxresults %d",
+                $transfer_field,
+                esc_sql($account_id),
+                intval($limit)
+            );
+            $type = 'Transfer';
+            $url = 'https://quickbooks.api.intuit.com/v3/company/' . $realm_id . '/query?query=' . urlencode($query) . '&minorversion=65';
+            error_log('QBO Ledger Query: Type=' . $type . ' Query=' . $query . ' URL=' . $url);
+            $response = wp_remote_get($url, $args);
+            if (is_wp_error($response)) {
+                error_log('QBO Ledger: WP_Error for ' . $type . ': ' . $response->get_error_message());
+                continue;
+            }
+            $body = wp_remote_retrieve_body($response);
+            $data = json_decode($body, true);
+            if (isset($data['Fault'])) {
+                error_log('QBO Ledger: API Fault for ' . $type . ': ' . print_r($data['Fault'], true));
+            }
+            if (isset($data['QueryResponse'][$type])) {
+                foreach ($data['QueryResponse'][$type] as $txn) {
+                    $date = $txn['TxnDate'] ?? '';
+                    $desc = $txn['PrivateNote'] ?? '';
+                    $amount = $txn['TotalAmt'] ?? null;
+                    if (empty($desc) && isset($txn['Line']) && is_array($txn['Line'])) {
+                        foreach ($txn['Line'] as $line) {
+                            if (!empty($line['Description'])) {
+                                $desc = $line['Description'];
+                                break;
+                            }
+                        }
+                    }
+                    $entries[] = array(
+                        'date' => $date,
+                        'description' => $desc,
+                        'amount' => $amount,
+                        'balance' => '',
+                        'type' => $type,
+                    );
+                }
+            } else {
+                error_log('QBO Ledger: No entries for ' . $type . ' (QueryResponse=' . print_r($data['QueryResponse'] ?? [], true) . ')');
+            }
+        }
+
+        // 5. BillPayment (remove Description from SELECT)
+        $query = sprintf(
+            "SELECT Id, TxnDate, PrivateNote, TotalAmt, Line FROM BillPayment WHERE BankAccountRef = '%s' order by TxnDate desc maxresults %d",
+            esc_sql($account_id),
+            intval($limit)
+        );
+        $type = 'BillPayment';
+        $url = 'https://quickbooks.api.intuit.com/v3/company/' . $realm_id . '/query?query=' . urlencode($query) . '&minorversion=65';
+        error_log('QBO Ledger Query: Type=' . $type . ' Query=' . $query . ' URL=' . $url);
+        $response = wp_remote_get($url, $args);
+        if (is_wp_error($response)) {
+            error_log('QBO Ledger: WP_Error for ' . $type . ': ' . $response->get_error_message());
+        } else {
+            $body = wp_remote_retrieve_body($response);
+            $data = json_decode($body, true);
+            if (isset($data['Fault'])) {
+                error_log('QBO Ledger: API Fault for ' . $type . ': ' . print_r($data['Fault'], true));
+            }
+            if (isset($data['QueryResponse'][$type])) {
+                foreach ($data['QueryResponse'][$type] as $txn) {
+                    $date = $txn['TxnDate'] ?? '';
+                    $desc = $txn['PrivateNote'] ?? '';
+                    $amount = $txn['TotalAmt'] ?? null;
+                    if (empty($desc) && isset($txn['Line']) && is_array($txn['Line'])) {
+                        foreach ($txn['Line'] as $line) {
+                            if (!empty($line['Description'])) {
+                                $desc = $line['Description'];
+                                break;
+                            }
+                        }
+                    }
+                    $entries[] = array(
+                        'date' => $date,
+                        'description' => $desc,
+                        'amount' => $amount,
+                        'balance' => '',
+                        'type' => $type,
+                    );
+                }
+            } else {
+                error_log('QBO Ledger: No entries for ' . $type . ' (QueryResponse=' . print_r($data['QueryResponse'] ?? [], true) . ')');
+            }
+        }
+
+        // Sort all entries by date descending
+        usort($entries, function($a, $b) {
+            return strtotime($b['date']) - strtotime($a['date']);
+        });
+        // Limit to $limit most recent
+        return array_slice($entries, 0, $limit);
+    }
+
+    /**
+     * Fetch all bank accounts from QuickBooks Online
+     * Returns array of ['Id' => ..., 'Name' => ...]
+     */
+    public function fetch_bank_accounts() {
+        $options = get_option($this->option_name);
+        if (!isset($options['access_token']) || !isset($options['realm_id'])) {
+            return array();
+        }
+        $access_token = $options['access_token'];
+        $realm_id = $options['realm_id'];
+        $query = "SELECT Id, Name, AccountType FROM Account WHERE AccountType = 'Bank'";
+        $url = 'https://quickbooks.api.intuit.com/v3/company/' . $realm_id . '/query?query=' . urlencode($query);
+        $args = array(
+            'headers' => array(
+                'Authorization' => 'Bearer ' . $access_token,
+                'Accept' => 'application/json',
+                'Content-Type' => 'application/text',
+            ),
+            'timeout' => 30,
+        );
+        $response = wp_remote_get($url, $args);
+        if (is_wp_error($response)) {
+            return array();
+        }
+        $body = wp_remote_retrieve_body($response);
+        $data = json_decode($body, true);
+        $accounts = array();
+        if (isset($data['QueryResponse']['Account'])) {
+            foreach ($data['QueryResponse']['Account'] as $acct) {
+                $accounts[] = array(
+                    'Id' => $acct['Id'],
+                    'Name' => $acct['Name'],
+                );
+            }
+        }
+        return $accounts;
+    }
     
     private $option_name = 'qbo_recurring_billing_options';
     private $plugin_version = '1.1.0';

@@ -18,6 +18,8 @@ echo "Creating database tables...\n";
 // Create gears_teams table
 $table_teams = $wpdb->prefix . 'gears_teams';
 
+
+// Use varchar(64) for bank_account_id
 $sql_teams = "CREATE TABLE $table_teams (
     id mediumint(9) NOT NULL AUTO_INCREMENT,
     team_name varchar(255) NOT NULL,
@@ -30,12 +32,44 @@ $sql_teams = "CREATE TABLE $table_teams (
     twitter varchar(255) DEFAULT '',
     instagram varchar(255) DEFAULT '',
     website varchar(255) DEFAULT '',
+    bank_account_id varchar(64) DEFAULT NULL,
     created_at datetime DEFAULT CURRENT_TIMESTAMP,
     PRIMARY KEY (id)
 ) $charset_collate;";
 
 dbDelta($sql_teams);
 echo "Created/updated table: $table_teams\n";
+
+
+// Check and print schema for bank_account_id column
+$col_info = $wpdb->get_row("SHOW COLUMNS FROM $table_teams LIKE 'bank_account_id'");
+if ($col_info) {
+    echo "bank_account_id column found: Field={$col_info->Field}, Type={$col_info->Type}, Null={$col_info->Null}, Default={$col_info->Default}\n";
+    if (stripos($col_info->Type, 'varchar(64)') === false) {
+        echo "Warning: bank_account_id is not varchar(64), attempting to alter...\n";
+        $wpdb->query("ALTER TABLE $table_teams MODIFY COLUMN bank_account_id varchar(64) DEFAULT NULL");
+        // Re-check
+        $col_info2 = $wpdb->get_row("SHOW COLUMNS FROM $table_teams LIKE 'bank_account_id'");
+        echo "After alter: Field={$col_info2->Field}, Type={$col_info2->Type}, Null={$col_info2->Null}, Default={$col_info2->Default}\n";
+    }
+} else {
+    echo "bank_account_id column NOT FOUND in $table_teams\n";
+}
+
+// Create gears_team_name_history table
+$table_team_name_history = $wpdb->prefix . 'gears_team_name_history';
+
+$sql_team_name_history = "CREATE TABLE $table_team_name_history (
+    id mediumint(9) NOT NULL AUTO_INCREMENT,
+    team_id mediumint(9) NOT NULL,
+    team_name varchar(255) NOT NULL,
+    year int(4) NOT NULL,
+    PRIMARY KEY (id),
+    KEY team_id (team_id)
+) $charset_collate;";
+
+dbDelta($sql_team_name_history);
+echo "Created/`update`d table: $table_team_name_history\n";
 
 // Create gears_mentors table
 $table_mentors = $wpdb->prefix . 'gears_mentors';
