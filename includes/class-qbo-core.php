@@ -10,375 +10,80 @@ if (!defined('ABSPATH')) {
 }
 
 class QBO_Core {
-    /**
-     * Fetch recent transactions for a given bank account from QuickBooks Online
-     * Returns array of ['date' => ..., 'description' => ..., 'amount' => ..., 'balance' => ...]
-     */
-    public function fetch_bank_account_ledger($account_id, $limit = 100) {
-        // Helper to extract payee for each type
-        $get_payee = function($txn, $type, $line = null, $direction = null) {
-            // BillPayment: VendorRef
-            if ($type === 'BillPayment') {
-                if (isset($txn['VendorRef']['name'])) return $txn['VendorRef']['name'];
-                if ($line && isset($line['VendorRef']['name'])) return $line['VendorRef']['name'];
-                return '';
-            }
-            // Expense/Check: PayeeRef
-            if ($type === 'Expense' || $type === 'Check') {
-                if (isset($txn['PayeeRef']['name'])) return $txn['PayeeRef']['name'];
-                if ($line && isset($line['PayeeRef']['name'])) return $line['PayeeRef']['name'];
-                return '';
-            }
-            // Deposit: try to get name from Line.Entity or fallback to PrivateNote
-            if ($type === 'Deposit') {
-                if ($line && isset($line['Entity']) && isset($line['Entity']['Name'])) return $line['Entity']['Name'];
-                if (isset($txn['PrivateNote']) && $txn['PrivateNote']) return $txn['PrivateNote'];
-                return '';
-            }
-            // Transfer: show counterparty account name
-            if ($type === 'Transfer') {
-                if ($direction === 'out' && isset($txn['ToAccountRef']['name'])) return $txn['ToAccountRef']['name'];
-                if ($direction === 'in' && isset($txn['FromAccountRef']['name'])) return $txn['FromAccountRef']['name'];
-                return '';
-            }
-            // JournalEntry: try to get name from Line.Entity, then Description, then PrivateNote
-            if ($type === 'JournalEntry') {
-                if ($line && isset($line['Entity']) && isset($line['Entity']['Name'])) return $line['Entity']['Name'];
-                if ($line && isset($line['Description'])) return $line['Description'];
-                if (isset($txn['PrivateNote']) && $txn['PrivateNote']) return $txn['PrivateNote'];
-                return '';
-            }
-            return '';
-        };
-        // DEBUG: Log all API responses and final merged entries if debug_ledger=2
-        $debug_all = (isset($_GET['debug_ledger']) && $_GET['debug_ledger'] == '2');
-        $debug_output = '';
-        $options = get_option($this->option_name);
-        if (!isset($options['access_token']) || !isset($options['realm_id']) || empty($account_id)) {
-            error_log('QBO Ledger: Missing access_token, realm_id, or account_id');
-            return array();
-        }
-        $access_token = $options['access_token'];
-        $realm_id = $options['realm_id'];
-        $entries = array();
-        $debugged = false;
-        $per_type_limit = 200; // Fetch more per type for a better mix
-        $args = array(
-            'headers' => array(
-                'Authorization' => 'Bearer ' . $access_token,
-                'Accept' => 'application/json',
-                'Content-Type' => 'application/text',
-            ),
-            'timeout' => 30,
-        );
-
-        // 5. Expense (always negative)
-        // DEBUG: Remove BankAccountRef filter to test if any expenses are returned
-        $query = sprintf(
-            "SELECT Id, TxnDate, PrivateNote, TotalAmt, PayeeRef FROM Expense order by TxnDate desc maxresults %d",
-            intval($per_type_limit)
-        );
-        if (isset($_GET['debug_ledger']) && ($_GET['debug_ledger'] == '1' || $_GET['debug_ledger'] == '2')) {
-            echo '<div style="background:#fffbe6;border:1px solid #e0c97f;padding:10px;max-height:400px;overflow:auto;font-size:12px;">';
-            echo '<strong>QBO Expense API URL:</strong><br>' . htmlentities($url) . '<br>';
-        }
-        $type = 'Expense';
-        $url = 'https://quickbooks.api.intuit.com/v3/company/' . $realm_id . '/query?query=' . urlencode($query) . '&minorversion=65';
-        $response = wp_remote_get($url, $args);
-        if ($debug_all) {
-            $debug_output .= "<h4>QBO Expense API URL:</h4><pre>" . htmlentities($url) . "</pre>";
-            $debug_output .= "<h4>QBO Expense API Response:</h4><pre>" . htmlentities(print_r($response, true)) . "</pre>";
-        }
-        if (isset($_GET['debug_ledger']) && ($_GET['debug_ledger'] == '1' || $_GET['debug_ledger'] == '2')) {
-            echo '<strong>QBO Expense API Response:</strong><pre>' . htmlentities(print_r($response, true)) . '</pre>';
-        }
-        if (!is_wp_error($response)) {
-            $body = wp_remote_retrieve_body($response);
-            $data = json_decode($body, true);
-            if ($debug_all) $debug_output .= "<h4>QBO Expense API Body:</h4><pre>" . htmlentities($body) . "</pre>";
-            if (isset($data['QueryResponse'][$type])) {
-                foreach ($data['QueryResponse'][$type] as $txn) {
-                    $date = $txn['TxnDate'] ?? '';
-                    $desc = $txn['PrivateNote'] ?? '';
-                    $amount = $txn['TotalAmt'] ?? null;
-                    $payee = $get_payee($txn, $type);
-                    $entries[] = array(
-                        'date' => $date,
-                        'description' => $desc,
-                        'payee' => $payee,
-                        'amount' => -abs((float)$amount),
-                        'balance' => '',
-                        'type' => $type,
-                        'source' => 'Expense',
-                    );
-                }
-            }
-        }
-
-        // 6. Check (always negative)
-        // DEBUG: Remove BankAccountRef filter to test if any checks are returned
-        $query = sprintf(
-            "SELECT Id, TxnDate, PrivateNote, TotalAmt, PayeeRef FROM Check order by TxnDate desc maxresults %d",
-            intval($per_type_limit)
-        );
-        if (isset($_GET['debug_ledger']) && ($_GET['debug_ledger'] == '1' || $_GET['debug_ledger'] == '2')) {
-            echo '<div style="background:#fffbe6;border:1px solid #e0c97f;padding:10px;max-height:400px;overflow:auto;font-size:12px;">';
-            echo '<strong>QBO Check API URL:</strong><br>' . htmlentities($url) . '<br>';
-        }
-        $type = 'Check';
-        $url = 'https://quickbooks.api.intuit.com/v3/company/' . $realm_id . '/query?query=' . urlencode($query) . '&minorversion=65';
-        $response = wp_remote_get($url, $args);
-        if ($debug_all) {
-            $debug_output .= "<h4>QBO Check API URL:</h4><pre>" . htmlentities($url) . "</pre>";
-            $debug_output .= "<h4>QBO Check API Response:</h4><pre>" . htmlentities(print_r($response, true)) . "</pre>";
-        }
-        if (isset($_GET['debug_ledger']) && ($_GET['debug_ledger'] == '1' || $_GET['debug_ledger'] == '2')) {
-            echo '<strong>QBO Check API Response:</strong><pre>' . htmlentities(print_r($response, true)) . '</pre>';
-        }
-        if (!is_wp_error($response)) {
-            $body = wp_remote_retrieve_body($response);
-            $data = json_decode($body, true);
-            if ($debug_all) $debug_output .= "<h4>QBO Check API Body:</h4><pre>" . htmlentities($body) . "</pre>";
-            if (isset($data['QueryResponse'][$type])) {
-                foreach ($data['QueryResponse'][$type] as $txn) {
-                    $date = $txn['TxnDate'] ?? '';
-                    $desc = $txn['PrivateNote'] ?? '';
-                    $amount = $txn['TotalAmt'] ?? null;
-                    $payee = $get_payee($txn, $type);
-                    $entries[] = array(
-                        'date' => $date,
-                        'description' => $desc,
-                        'payee' => $payee,
-                        'amount' => -abs((float)$amount),
-                        'balance' => '',
-                        'type' => $type,
-                        'source' => 'Check',
-                    );
-                }
-            }
-        }
-
-        // 1. JournalEntry (fetch all, filter in PHP for account involvement)
-        $query = sprintf(
-            "SELECT Id, TxnDate, PrivateNote, Line FROM JournalEntry ORDER BY TxnDate DESC MAXRESULTS %d",
-            intval($per_type_limit)
-        );
-        $type = 'JournalEntry';
-        $url = 'https://quickbooks.api.intuit.com/v3/company/' . $realm_id . '/query?query=' . urlencode($query) . '&minorversion=65';
-        $response = wp_remote_get($url, $args);
-        if ($debug_all) {
-            $debug_output .= "<h4>QBO JournalEntry API URL:</h4><pre>" . htmlentities($url) . "</pre>";
-            $debug_output .= "<h4>QBO JournalEntry API Response:</h4><pre>" . htmlentities(print_r($response, true)) . "</pre>";
-        }
-        if (!is_wp_error($response)) {
-            $body = wp_remote_retrieve_body($response);
-            $data = json_decode($body, true);
-            if ($debug_all) $debug_output .= "<h4>QBO JournalEntry API Body:</h4><pre>" . htmlentities($body) . "</pre>";
-            if (isset($data['QueryResponse'][$type])) {
-                foreach ($data['QueryResponse'][$type] as $txn) {
-                    if (isset($txn['Line']) && is_array($txn['Line'])) {
-                        foreach ($txn['Line'] as $line) {
-                            if (isset($line['AccountRef']['value']) && $line['AccountRef']['value'] == $account_id) {
-                                $date = $txn['TxnDate'] ?? '';
-                                $desc = $txn['PrivateNote'] ?? '';
-                                if (empty($desc) && !empty($line['Description'])) {
-                                    $desc = $line['Description'];
-                                }
-                                $amount = isset($line['Amount']) ? (float)$line['Amount'] : 0;
-                                // JournalEntry: use line amount, sign based on posting type
-                                $sign = (isset($line['PostingType']) && $line['PostingType'] === 'Credit') ? 1 : -1;
-                                $entries[] = array(
-                                    'date' => $date,
-                                    'description' => $desc,
-                                    'payee' => $get_payee($txn, $type, $line),
-                                    'amount' => $sign * abs($amount),
-                                    'balance' => '',
-                                    'type' => $type,
-                                    'source' => 'JournalEntry',
-                                );
-                            }
-                        }
-                    }
-                }
-            }
-        }
-
-        // 2. Deposit (fetch all, filter in PHP for DepositToAccountRef)
-        $query = sprintf(
-            "SELECT Id, TxnDate, PrivateNote, DepositToAccountRef FROM Deposit ORDER BY TxnDate DESC MAXRESULTS %d",
-            intval($per_type_limit)
-        );
-        $type = 'Deposit';
-        $url = 'https://quickbooks.api.intuit.com/v3/company/' . $realm_id . '/query?query=' . urlencode($query) . '&minorversion=65';
-        $response = wp_remote_get($url, $args);
-        if ($debug_all) {
-            $debug_output .= "<h4>QBO Deposit API URL:</h4><pre>" . htmlentities($url) . "</pre>";
-            $debug_output .= "<h4>QBO Deposit API Response:</h4><pre>" . htmlentities(print_r($response, true)) . "</pre>";
-        }
-        if (!is_wp_error($response)) {
-            $body = wp_remote_retrieve_body($response);
-            $data = json_decode($body, true);
-            if ($debug_all) $debug_output .= "<h4>QBO Deposit API Body:</h4><pre>" . htmlentities($body) . "</pre>";
-            if (isset($data['QueryResponse'][$type])) {
-                foreach ($data['QueryResponse'][$type] as $txn) {
-                    if (isset($txn['DepositToAccountRef']['value']) && $txn['DepositToAccountRef']['value'] == $account_id) {
-                        $date = $txn['TxnDate'] ?? '';
-                        $desc = $txn['PrivateNote'] ?? '';
-                        // Deposit: always positive
-                        $amount = isset($txn['TotalAmt']) ? abs((float)$txn['TotalAmt']) : 0;
-                        // Try to get payee from first Line.Entity if available, fallback to helper
-                        $payee = '';
-                        if (isset($txn['Line']) && is_array($txn['Line'])) {
-                            foreach ($txn['Line'] as $line) {
-                                $payee = $get_payee($txn, $type, $line);
-                                if ($payee) break;
-                            }
-                        }
-                        if (!$payee) $payee = $get_payee($txn, $type);
-                        $entries[] = array(
-                            'date' => $date,
-                            'description' => $desc,
-                            'payee' => $payee,
-                            'amount' => $amount,
-                            'balance' => '',
-                            'type' => $type,
-                            'source' => 'Deposit',
-                        );
-                    }
-                }
-            }
-        }
-
-        // 3. Transfer (fetch all, filter in PHP for FromAccountRef/ToAccountRef)
-        $query = sprintf(
-            "SELECT Id, TxnDate, PrivateNote, FromAccountRef, ToAccountRef FROM Transfer ORDER BY TxnDate DESC MAXRESULTS %d",
-            intval($per_type_limit)
-        );
-        $type = 'Transfer';
-        $url = 'https://quickbooks.api.intuit.com/v3/company/' . $realm_id . '/query?query=' . urlencode($query) . '&minorversion=65';
-        $response = wp_remote_get($url, $args);
-        if ($debug_all) {
-            $debug_output .= "<h4>QBO Transfer API URL:</h4><pre>" . htmlentities($url) . "</pre>";
-            $debug_output .= "<h4>QBO Transfer API Response:</h4><pre>" . htmlentities(print_r($response, true)) . "</pre>";
-        }
-        if (!is_wp_error($response)) {
-            $body = wp_remote_retrieve_body($response);
-            $data = json_decode($body, true);
-            if ($debug_all) $debug_output .= "<h4>QBO Transfer API Body:</h4><pre>" . htmlentities($body) . "</pre>";
-            if (isset($data['QueryResponse'][$type])) {
-                foreach ($data['QueryResponse'][$type] as $txn) {
-                    // Outgoing
-                    if (isset($txn['FromAccountRef']['value']) && $txn['FromAccountRef']['value'] == $account_id) {
-                        $date = $txn['TxnDate'] ?? '';
-                        $desc = $txn['PrivateNote'] ?? '';
-                        $amount = isset($txn['Amount']) ? (float)$txn['Amount'] : (isset($txn['TotalAmt']) ? (float)$txn['TotalAmt'] : 0);
-                        if ($amount == 0 && isset($txn['Amount'])) $amount = (float)$txn['Amount'];
-                        if ($amount == 0 && isset($txn['TotalAmt'])) $amount = (float)$txn['TotalAmt'];
-                        if ($amount == 0) $amount = 0;
-                        $payee = $get_payee($txn, $type, null, 'out');
-                        $entries[] = array(
-                            'date' => $date,
-                            'description' => $desc,
-                            'payee' => $payee,
-                            'amount' => -abs($amount),
-                            'balance' => '',
-                            'type' => $type,
-                            'source' => 'Transfer Out',
-                        );
-                    }
-                    // Incoming
-                    if (isset($txn['ToAccountRef']['value']) && $txn['ToAccountRef']['value'] == $account_id) {
-                        $date = $txn['TxnDate'] ?? '';
-                        $desc = $txn['PrivateNote'] ?? '';
-                        $amount = isset($txn['Amount']) ? (float)$txn['Amount'] : (isset($txn['TotalAmt']) ? (float)$txn['TotalAmt'] : 0);
-                        if ($amount == 0 && isset($txn['Amount'])) $amount = (float)$txn['Amount'];
-                        if ($amount == 0 && isset($txn['TotalAmt'])) $amount = (float)$txn['TotalAmt'];
-                        if ($amount == 0) $amount = 0;
-                        $payee = $get_payee($txn, $type, null, 'in');
-                        $entries[] = array(
-                            'date' => $date,
-                            'description' => $desc,
-                            'payee' => $payee,
-                            'amount' => abs($amount),
-                            'balance' => '',
-                            'type' => $type,
-                            'source' => 'Transfer In',
-                        );
-                    }
-                }
-            }
-        }
-
-        // 4. BillPayment (always negative)
-        if ($debug_all) {
-            $debug_output .= "<h4>QBO BillPayment API URL:</h4><pre>" . htmlentities($url) . "</pre>";
-            $debug_output .= "<h4>QBO BillPayment API Response:</h4><pre>" . htmlentities(print_r($response, true)) . "</pre>";
-        }
-        if ($debug_all) {
-            $debug_output .= "<h4>QBO Expense API URL:</h4><pre>" . htmlentities($url) . "</pre>";
-            $debug_output .= "<h4>QBO Expense API Response:</h4><pre>" . htmlentities(print_r($response, true)) . "</pre>";
-        }
-        if ($debug_all) {
-            $debug_output .= "<h4>QBO Check API URL:</h4><pre>" . htmlentities($url) . "</pre>";
-            $debug_output .= "<h4>QBO Check API Response:</h4><pre>" . htmlentities(print_r($response, true)) . "</pre>";
-        }
-        $query = sprintf(
-            "SELECT Id, TxnDate, PrivateNote, TotalAmt, Line FROM BillPayment WHERE BankAccountRef = '%s' order by TxnDate desc maxresults %d",
-            esc_sql($account_id),
-            intval($per_type_limit)
-        );
-        $type = 'BillPayment';
-        $url = 'https://quickbooks.api.intuit.com/v3/company/' . $realm_id . '/query?query=' . urlencode($query) . '&minorversion=65';
-        $response = wp_remote_get($url, $args);
-        if (!is_wp_error($response)) {
-            $body = wp_remote_retrieve_body($response);
-            $data = json_decode($body, true);
-            if (isset($data['QueryResponse'][$type])) {
-                foreach ($data['QueryResponse'][$type] as $txn) {
-                    $date = $txn['TxnDate'] ?? '';
-                    $desc = $txn['PrivateNote'] ?? '';
-                    $amount = $txn['TotalAmt'] ?? null;
-                    if (empty($desc) && isset($txn['Line']) && is_array($txn['Line'])) {
-                        foreach ($txn['Line'] as $line) {
-                            if (!empty($line['Description'])) {
-                                $desc = $line['Description'];
-                                break;
-                            }
-                        }
-                    }
-                    // BillPayment: try VendorRef at txn, then at line level if not present
-                    $payee = $get_payee($txn, $type);
-                    if (!$payee && isset($txn['Line']) && is_array($txn['Line'])) {
-                        foreach ($txn['Line'] as $line) {
-                            $payee = $get_payee($txn, $type, $line);
-                            if ($payee) break;
-                        }
-                    }
-                    $entries[] = array(
-                        'date' => $date,
-                        'description' => $desc,
-                        'payee' => $payee,
-                        'amount' => -abs((float)$amount),
-                        'balance' => '',
-                        'type' => $type,
-                        'source' => 'BillPayment',
-                    );
-                }
-            }
-        }
-
-        // Sort all entries by date descending
-        if ($debug_all) {
-            $debug_output .= "<h4>QBO FINAL LEDGER ENTRIES:</h4><pre>" . htmlentities(print_r($entries, true)) . "</pre>";
-            echo '<div style="background:#fffbe6;border:2px solid #e0c97f;padding:10px;max-height:600px;overflow:auto;font-size:12px;z-index:99999;position:relative;">' . $debug_output . '</div>';
-        }
-        usort($entries, function($a, $b) {
-            return strtotime($b['date']) - strtotime($a['date']);
-        });
-        // Limit to $limit most recent
-        return array_slice($entries, 0, $limit);
+/**
+ * Fetch recent transactions for a given bank account from QuickBooks Online
+ * Returns array of ['date' => ..., 'description' => ..., 'amount' => ..., 'balance' => ...]
+ */
+public function fetch_bank_account_ledger($account_id, $limit = 100) {
+    // DEBUG setup
+    if (isset($_GET['debug_ledger']) && $_GET['debug_ledger'] == '2') {
+        echo '<div style="background:#e6f7ff;border:2px solid #1890ff;padding:10px;max-height:200px;overflow:auto;font-size:12px;z-index:99999;position:relative;">';
+        echo '<strong>DEBUG: fetch_bank_account_ledger called with account_id:</strong> ' . htmlentities($account_id) . '<br>';
+        echo '</div>';
     }
+    $debug_all = (isset($_GET['debug_ledger']) && $_GET['debug_ledger'] == '2');
+    $debug_output = '';
 
+    $options = get_option($this->option_name);
+    if (!isset($options['access_token']) || !isset($options['realm_id']) || empty($account_id)) {
+        error_log('QBO Ledger: Missing access_token, realm_id, or account_id');
+        return array();
+    }
+    $access_token = $options['access_token'];
+    $realm_id = $options['realm_id'];
+    $entries = array();
+    $args = array(
+        'headers' => array(
+            'Authorization' => 'Bearer ' . $access_token,
+            'Accept' => 'application/json',
+            'Content-Type' => 'application/text',
+        ),
+        'timeout' => 30,
+    );
+
+    // Use GeneralLedger report filtered by account
+    $start_date = date('Y-m-d', strtotime('-5 years')); // Wider range to capture more; adjust if needed
+    $end_date = date('Y-m-d');
+    $query_params = http_build_query([
+        'account' => $account_id,
+        'start_date' => $start_date,
+        'end_date' => $end_date,
+    ]);
+    $url = 'https://quickbooks.api.intuit.com/v3/company/' . $realm_id . '/reports/GeneralLedger?' . $query_params . '&minorversion=65';
+    $response = wp_remote_get($url, $args);
+    if ($debug_all) {
+        $debug_output .= "<h4>QBO GeneralLedger Report API URL:</h4><pre>" . htmlentities($url) . "</pre>";
+        $debug_output .= "<h4>QBO GeneralLedger Report API Response:</h4><pre>" . htmlentities(print_r($response, true)) . "</pre>";
+    }
+    if (!is_wp_error($response) && wp_remote_retrieve_response_code($response) === 200) {
+        $body = wp_remote_retrieve_body($response);
+        $data = json_decode($body, true);
+        if ($debug_all) $debug_output .= "<h4>QBO GeneralLedger Report API Body:</h4><pre>" . htmlentities($body) . "</pre>";
+        if (isset($data['Columns']['Column']) && isset($data['Rows']['Row'])) {
+            $columns = $data['Columns']['Column'];
+            if ($debug_all) $debug_output .= "<h4>Report Columns:</h4><pre>" . htmlentities(print_r($columns, true)) . "</pre>";
+            // Updated column titles for GeneralLedger
+            $date_idx = array_search('Date', array_column($columns, 'ColTitle'));
+            $type_idx = array_search('Transaction Type', array_column($columns, 'ColTitle'));
+            $num_idx = array_search('Num', array_column($columns, 'ColTitle'));
+            $payee_idx = array_search('Name', array_column($columns, 'ColTitle'));
+            $memo_idx = array_search('Memo/Description', array_column($columns, 'ColTitle'));
+            $split_idx = array_search('Split', array_column($columns, 'ColTitle'));
+            $debit_idx = array_search('Debit', array_column($columns, 'ColTitle'));
+            $credit_idx = array_search('Credit', array_column($columns, 'ColTitle'));
+            $balance_idx = array_search('Balance', array_column($columns, 'ColTitle'));
+
+            if ($date_idx !== false && $type_idx !== false && $debit_idx !== false && $credit_idx !== false) {
+                // GeneralLedger may have grouped rows; process all Row
+                $process_rows = function($rows) use (&$entries, $date_idx, $type_idx, $payee_idx, $memo_idx, $split_idx, $debit_idx, $credit_idx, $balance_idx) {
+                    foreach ($rows as $row) {
+                        if (isset($row['ColData'])) {
+                            $col_data = $row['ColData'];
+                            $date = $col_data[$date_idx]['value'] ?? '';
+                            if (empty($date)) continue; // Skip summary rows without date
+                            $
+
+    
     /**
      * Fetch the true balance for a given bank account from QBO API endpoint /v3/company/{realmID}/account/{accountId}
      * Returns the current balance as a float, or null on failure.
