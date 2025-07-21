@@ -1,4 +1,12 @@
 <?php
+// Ensure WordPress functions are available when running standalone or via AJAX
+if (!function_exists('sanitize_text_field')) {
+    if (file_exists(dirname(__FILE__, 4) . '/wp-load.php')) {
+        require_once dirname(__FILE__, 4) . '/wp-load.php';
+    } elseif (file_exists(dirname(__FILE__, 3) . '/wp-load.php')) {
+        require_once dirname(__FILE__, 3) . '/wp-load.php';
+    }
+}
 /**
  * QBO Teams Class
  * 
@@ -2078,7 +2086,7 @@ class QBO_Teams {
         
         // Get students for this team from the database
         $students = $wpdb->get_results($wpdb->prepare("
-            SELECT s.id, s.first_name, s.last_name, s.grade, s.first_year_first, s.customer_id
+            SELECT s.id, s.first_name, s.last_name, s.grade, s.first_year_first, s.customer_id, s.tshirt_size
             FROM $table_students s
             WHERE s.team_id = %d 
             ORDER BY s.last_name, s.first_name
@@ -2120,9 +2128,11 @@ class QBO_Teams {
         }
         
         $result = array();
+        $debug_info = array();
         foreach ($students as $student) {
             $student_name = esc_html(trim($student->first_name . ' ' . $student->last_name));
             $customer_info = null;
+            $debug_info[] = 'student_id ' . $student->id . ' tshirt_size: ' . (isset($student->tshirt_size) ? $student->tshirt_size : 'NOT SET');
             $parent_name = 'No Customer';
             $balance = 0.00;
             $status = 'Inactive'; // Default status
@@ -2177,11 +2187,12 @@ class QBO_Teams {
                 'first_year_first' => esc_html($student->first_year_first),
                 'balance' => $balance,
                 'customer_id' => $student->customer_id,
-                'status' => $status
+                'status' => $status,
+                'tshirt_size' => isset($student->tshirt_size) ? esc_html($student->tshirt_size) : ''
             );
         }
         
-        wp_send_json_success($result);
+        wp_send_json_success(array_merge($result));
     }
     
     /**
@@ -3125,45 +3136,44 @@ class QBO_Teams {
                             });
                             // Students table
                             if (students.length) {
-                                var html = '<table class="wp-list-table widefat fixed striped">';
-                                html += '<thead><tr>';
-                                html += '<th>Student Name</th>';
-                                html += '<th style="width: 45px;">Grade</th>';
-                                html += '<th style="width: 45px;">First Year</th>';
-                                html += '<th>Parent Name</th>';
-                                html += '<th nowrap style="width: 45px;">Balance</th>';
-                                html += '<th style="width: 45px;">Status</th>';
-                                html += '<th>Actions</th>';
-                                html += '</tr></thead>';
-                                html += '<tbody>';
-                                students.forEach(function(student) {
-                                    html += '<tr>';
-                                    html += '<td><strong>' + student.student_name + '</strong></td>';
-                                    // Format grade display
-                                    var gradeDisplay = student.grade || 'N/A';
-                                    if (gradeDisplay && gradeDisplay !== 'N/A' && gradeDisplay !== 'Alumni') {
-                                        gradeDisplay = gradeDisplay + 'th Grade';
-                                    }
-                                    html += '<td>' + gradeDisplay + '</td>';
-                                    html += '<td>' + (student.first_year_first || 'N/A') + '</td>';
-                                    html += '<td>' + student.parent_name + '</td>';
-                                    html += '<td nowrap>$' + parseFloat(student.balance).toFixed(2) + '</td>';
-                                    // Add status column with styling
-                                    var statusClass = student.status === 'Active' ? 'status-active' : 'status-inactive';
-                                    html += '<td nowrap><span class="status-badge ' + statusClass + '">' + student.status + '</span></td>';
-                                    html += '<td nowrap>';
-                                    if (student.customer_id) {
-                                        html += '<a href="' + qboCustomerListVars.invoicesPageUrl + '&member_id=' + encodeURIComponent(student.customer_id) + '" class="button button-small view-student-invoices">' +
-                                               'Details</a> ';
-                                    }
-                                    // Add Edit and Delete buttons for students
-                                    html += '<button type="button" class="button button-small edit-student-btn" data-student-id="' + student.student_id + '">Edit</button> ';
-                                    html += '<button type="button" class="button button-small button-link-delete delete-student-btn" data-student-id="' + student.student_id + '" data-student-name="' + student.student_name + '">Delete</button>';
-                                    html += '</td>';
-                                    html += '</tr>';
-                                });
-                                html += '</tbody></table>';
-                                studentsDiv.innerHTML = html;
+                        var html = '<table class="wp-list-table widefat fixed striped">';
+                        html += '<thead><tr>';
+                        html += '<th>Student Name</th>';
+                        html += '<th style="width: 45px;">Grade</th>';
+                        html += '<th style="width: 90px;">T-Shirt Size</th>';
+                        html += '<th style="width: 45px;">First Year</th>';
+                        html += '<th>Parent Name</th>';
+                        html += '<th nowrap style="width: 45px;">Balance</th>';
+                        html += '<th style="width: 45px;">Status</th>';
+                        html += '<th>Actions</th>';
+                        html += '</tr></thead>';
+                        html += '<tbody>';
+                        students.forEach(function(student) {
+                            html += '<tr>';
+                            html += '<td><strong>' + student.student_name + '</strong></td>';
+                            var gradeDisplay = student.grade || 'N/A';
+                            if (gradeDisplay && gradeDisplay !== 'N/A' && gradeDisplay.toLowerCase() !== 'alumni') {
+                                if (gradeDisplay === 'K') gradeDisplay = 'Kindergarten';
+                                else gradeDisplay = gradeDisplay + 'th Grade';
+                            }
+                            html += '<td>' + gradeDisplay + '</td>';
+                            html += '<td>' + (student.tshirt_size || 'N/A') + '</td>';
+                            html += '<td>' + (student.first_year_first || 'N/A') + '</td>';
+                            html += '<td>' + student.parent_name + '</td>';
+                            html += '<td nowrap>$' + parseFloat(student.balance).toFixed(2) + '</td>';
+                            var statusClass = student.status === 'Active' ? 'status-active' : 'status-inactive';
+                            html += '<td nowrap><span class="status-badge ' + statusClass + '">' + student.status + '</span></td>';
+                            html += '<td nowrap>';
+                            if (student.customer_id) {
+                                html += '<a href="' + qboCustomerListVars.invoicesPageUrl + '&member_id=' + encodeURIComponent(student.customer_id) + '" class="button button-small view-student-invoices">Details</a> ';
+                            }
+                            html += '<button type="button" class="button button-small edit-student-btn" data-student-id="' + student.student_id + '">Edit</button> ';
+                            html += '<button type="button" class="button button-small button-link-delete delete-student-btn" data-student-id="' + student.student_id + '" data-student-name="' + student.student_name + '">Delete</button>';
+                            html += '</td>';
+                            html += '</tr>';
+                        });
+                        html += '</tbody></table>';
+                        studentsDiv.innerHTML = html;
                             } else {
                                 studentsDiv.innerHTML = '<em>No students assigned to this team.</em>';
                             }
@@ -3339,7 +3349,6 @@ class QBO_Teams {
                 $('#add-student-form').submit(function(e) {
                     e.preventDefault();
                     var formData = new FormData(this);
-                    
                     $.ajax({
                         url: '<?php echo admin_url('admin.php?page=qbo-teams&action=view&team_id=' . intval($team_id)); ?>',
                         type: 'POST',
@@ -3347,25 +3356,222 @@ class QBO_Teams {
                         processData: false,
                         contentType: false,
                         success: function(response) {
-                            // Check if the response contains success or error messages
                             var $response = $(response);
                             var $successNotice = $response.find('.notice-success');
                             var $errorNotice = $response.find('.notice-error');
-                            
                             if ($successNotice.length > 0) {
-                                // Success - close modal and reload page
                                 closeAddStudentModal();
                                 alert('Student added successfully!');
-                                location.reload();
+                                // Reload only the students and alumni lists via AJAX
+                                if (typeof qboCustomerListVars !== 'undefined') {
+                                    jQuery.post(ajaxurl, {
+                                        action: 'qbo_get_team_students',
+                                        team_id: <?php echo intval($team_id); ?>,
+                                        nonce: qboCustomerListVars.nonce
+                                    }, function(resp) {
+                                        var studentsDiv = document.getElementById('team-students-list');
+                                        var alumniDiv = document.getElementById('team-alumni-list');
+                                        if (resp.success && Array.isArray(resp.data) && resp.data.length) {
+                                            var students = [];
+                                            var alumni = [];
+                                            resp.data.forEach(function(student) {
+                                                if ((student.grade || '').toLowerCase() === 'alumni') {
+                                                    alumni.push(student);
+                                                } else {
+                                                    students.push(student);
+                                                }
+                                            });
+                                            // Students table
+                                            if (students.length) {
+                                                var html = '<table class="wp-list-table widefat fixed striped">';
+                                                html += '<thead><tr>';
+                                                html += '<th>Student Name</th>';
+                                                html += '<th style="width: 45px;">Grade</th>';
+                                                html += '<th style="width: 90px;">T-Shirt Size</th>';
+                                                html += '<th style="width: 45px;">First Year</th>';
+                                                html += '<th>Parent Name</th>';
+                                                html += '<th nowrap style="width: 45px;">Balance</th>';
+                                                html += '<th style="width: 45px;">Status</th>';
+                                                html += '<th>Actions</th>';
+                                                html += '</tr></thead>';
+                                                html += '<tbody>';
+                                                students.forEach(function(student) {
+                                                    html += '<tr>';
+                                                    html += '<td><strong>' + student.student_name + '</strong></td>';
+                                                    var gradeDisplay = student.grade || 'N/A';
+                                                    if (gradeDisplay && gradeDisplay !== 'N/A' && gradeDisplay.toLowerCase() !== 'alumni') {
+                                                        if (gradeDisplay === 'K') gradeDisplay = 'Kindergarten';
+                                                        else gradeDisplay = gradeDisplay + 'th Grade';
+                                                    }
+                                                    html += '<td>' + gradeDisplay + '</td>';
+                                                    html += '<td>' + (student.tshirt_size || 'N/A') + '</td>';
+                                                    html += '<td>' + (student.first_year_first || 'N/A') + '</td>';
+                                                    html += '<td>' + student.parent_name + '</td>';
+                                                    html += '<td nowrap>$' + parseFloat(student.balance).toFixed(2) + '</td>';
+                                                    var statusClass = student.status === 'Active' ? 'status-active' : 'status-inactive';
+                                                    html += '<td nowrap><span class="status-badge ' + statusClass + '">' + student.status + '</span></td>';
+                                                    html += '<td nowrap>';
+                                                    if (student.customer_id) {
+                                                        html += '<button type="button" class="button button-small edit-student-btn" data-student-id="' + student.student_id + '">Edit</button> ';
+                                                    }
+                                                    html += '</td>';
+                                                    html += '</tr>';
+                                                });
+                                                html += '</tbody></table>';
+                                                studentsDiv.innerHTML = html;
+                                            } else {
+                                                studentsDiv.innerHTML = '<em>No students assigned to this team.</em>';
+                                            }
+                                            // Alumni table
+                                            if (alumni.length) {
+                                                var htmlA = '<table class="wp-list-table widefat fixed striped">';
+                                                htmlA += '<thead><tr>';
+                                                htmlA += '<th>Name</th>';
+                                htmlA += '<th style="width: 45px;">First Year</th>';
+                                htmlA += '<th style="width: 90px;">T-Shirt Size</th>';
+                                                htmlA += '<th>Parent Name</th>';
+                                                htmlA += '<th nowrap style="width: 45px;">Balance</th>';
+                                                htmlA += '<th style="width: 45px;">Status</th>';
+                                                htmlA += '<th>Actions</th>';
+                                                htmlA += '</tr></thead>';
+                                                htmlA += '<tbody>';
+                                                alumni.forEach(function(student) {
+                                                    htmlA += '<tr>';
+                                                    htmlA += '<td><strong>' + student.student_name + '</strong></td>';
+                                    htmlA += '<td>' + (student.first_year_first || 'N/A') + '</td>';
+                                    htmlA += '<td>' + (student.tshirt_size || 'N/A') + '</td>';
+                                                    htmlA += '<td>' + student.parent_name + '</td>';
+                                                    htmlA += '<td nowrap>$' + parseFloat(student.balance).toFixed(2) + '</td>';
+                                                    var statusClass = student.status === 'Active' ? 'status-active' : 'status-inactive';
+                                                    htmlA += '<td nowrap><span class="status-badge ' + statusClass + '">' + student.status + '</span></td>';
+                                                    htmlA += '<td nowrap>';
+                                                    if (student.customer_id) {
+                                                        htmlA += '<button type="button" class="button button-small edit-student-btn" data-student-id="' + student.student_id + '">Edit</button> ';
+                                                    }
+                                                    htmlA += '</td>';
+                                                    htmlA += '</tr>';
+                                                });
+                                                htmlA += '</tbody></table>';
+                                                alumniDiv.innerHTML = htmlA;
+                                            } else {
+                                                alumniDiv.innerHTML = '<em>No alumni for this team.</em>';
+                                            }
+                                        } else {
+                                            studentsDiv.innerHTML = '<em>No students assigned to this team.</em>';
+                                            alumniDiv.innerHTML = '<em>No alumni for this team.</em>';
+                                        }
+                                    }).fail(function() {
+                                        document.getElementById('team-students-list').innerHTML = '<em>Error loading students.</em>';
+                                        document.getElementById('team-alumni-list').innerHTML = '<em>Error loading alumni.</em>';
+                                    });
+                                }
                             } else if ($errorNotice.length > 0) {
-                                // Show error message
                                 var errorText = $errorNotice.find('p').text();
                                 alert('Error: ' + errorText);
                             } else {
-                                // No specific notice found, assume success
                                 closeAddStudentModal();
                                 alert('Student added successfully!');
-                                location.reload();
+                                // Fallback: reload students/alumni lists
+                                if (typeof qboCustomerListVars !== 'undefined') {
+                                    jQuery.post(ajaxurl, {
+                                        action: 'qbo_get_team_students',
+                                        team_id: <?php echo intval($team_id); ?>,
+                                        nonce: qboCustomerListVars.nonce
+                                    }, function(resp) {
+                                        var studentsDiv = document.getElementById('team-students-list');
+                                        var alumniDiv = document.getElementById('team-alumni-list');
+                                        if (resp.success && Array.isArray(resp.data) && resp.data.length) {
+                                            var students = [];
+                                            var alumni = [];
+                                            resp.data.forEach(function(student) {
+                                                if ((student.grade || '').toLowerCase() === 'alumni') {
+                                                    alumni.push(student);
+                                                } else {
+                                                    students.push(student);
+                                                }
+                                            });
+                                            // Students table
+                                            if (students.length) {
+                        var html = '<table class="wp-list-table widefat fixed striped">';
+                        html += '<thead><tr>';
+                        html += '<th>Student Name</th>';
+                        html += '<th style="width: 45px;">Grade</th>';
+                        html += '<th style="width: 90px;">T-Shirt Size</th>';
+                        html += '<th style="width: 45px;">First Year</th>';
+                        html += '<th>Parent Name</th>';
+                        html += '<th nowrap style="width: 45px;">Balance</th>';
+                        html += '<th style="width: 45px;">Status</th>';
+                        html += '<th>Actions</th>';
+                        html += '</tr></thead>';
+                        html += '<tbody>';
+                        students.forEach(function(student) {
+                            html += '<tr>';
+                            html += '<td><strong>' + student.student_name + '</strong></td>';
+                            var gradeDisplay = student.grade || 'N/A';
+                            if (gradeDisplay && gradeDisplay !== 'N/A' && gradeDisplay.toLowerCase() !== 'alumni') {
+                                if (gradeDisplay === 'K') gradeDisplay = 'Kindergarten';
+                                else gradeDisplay = gradeDisplay + 'th Grade';
+                            }
+                            html += '<td>' + gradeDisplay + '</td>';
+                            html += '<td>' + (student.tshirt_size || 'N/A') + '</td>';
+                            html += '<td>' + (student.first_year_first || 'N/A') + '</td>';
+                            html += '<td>' + student.parent_name + '</td>';
+                            html += '<td nowrap>$' + parseFloat(student.balance).toFixed(2) + '</td>';
+                            var statusClass = student.status === 'Active' ? 'status-active' : 'status-inactive';
+                            html += '<td nowrap><span class="status-badge ' + statusClass + '">' + student.status + '</span></td>';
+                            html += '<td nowrap>';
+                            if (student.customer_id) {
+                                html += '<button type="button" class="button button-small edit-student-btn" data-student-id="' + student.student_id + '">Edit</button> ';
+                            }
+                            html += '</td>';
+                            html += '</tr>';
+                        });
+                        html += '</tbody></table>';
+                        studentsDiv.innerHTML = html;
+                                            } else {
+                                                studentsDiv.innerHTML = '<em>No students assigned to this team.</em>';
+                                            }
+                                            // Alumni table
+                                            if (alumni.length) {
+                                                var htmlA = '<table class="wp-list-table widefat fixed striped">';
+                                                htmlA += '<thead><tr>';
+                                                htmlA += '<th>Name</th>';
+                                                htmlA += '<th style="width: 45px;">First Year</th>';
+                                                htmlA += '<th>Parent Name</th>';
+                                                htmlA += '<th nowrap style="width: 45px;">Balance</th>';
+                                                htmlA += '<th style="width: 45px;">Status</th>';
+                                                htmlA += '<th>Actions</th>';
+                                                htmlA += '</tr></thead>';
+                                                htmlA += '<tbody>';
+                                                alumni.forEach(function(student) {
+                                                    htmlA += '<tr>';
+                                                    htmlA += '<td><strong>' + student.student_name + '</strong></td>';
+                                                    htmlA += '<td>' + (student.first_year_first || 'N/A') + '</td>';
+                                                    htmlA += '<td>' + student.parent_name + '</td>';
+                                                    htmlA += '<td nowrap>$' + parseFloat(student.balance).toFixed(2) + '</td>';
+                                                    var statusClass = student.status === 'Active' ? 'status-active' : 'status-inactive';
+                                                    htmlA += '<td nowrap><span class="status-badge ' + statusClass + '">' + student.status + '</span></td>';
+                                                    htmlA += '<td nowrap>';
+                                                    if (student.customer_id) {
+                                                        htmlA += '<button type="button" class="button button-small edit-student-btn" data-student-id="' + student.student_id + '">Edit</button> ';
+                                                    }
+                                                    htmlA += '</td>';
+                                                    htmlA += '</tr>';
+                                                });
+                                                htmlA += '</tbody></table>';
+                                                alumniDiv.innerHTML = htmlA;
+                                            } else {
+                                                alumniDiv.innerHTML = '<em>No alumni for this team.</em>';
+                                            }
+                                        } else {
+                                            studentsDiv.innerHTML = '<em>No students assigned to this team.</em>';
+                                            alumniDiv.innerHTML = '<em>No alumni for this team.</em>';
+                                        }
+                                    }).fail(function() {
+                                        document.getElementById('team-students-list').innerHTML = '<em>Error loading students.</em>';
+                                        document.getElementById('team-alumni-list').innerHTML = '<em>Error loading alumni.</em>';
+                                    });
+                                }
                             }
                         },
                         error: function() {
@@ -3378,7 +3584,6 @@ class QBO_Teams {
                 $('#edit-student-form').submit(function(e) {
                     e.preventDefault();
                     var formData = new FormData(this);
-                    
                     $.ajax({
                         url: '<?php echo admin_url('admin.php?page=qbo-teams&action=view&team_id=' . intval($team_id)); ?>',
                         type: 'POST',
@@ -3386,25 +3591,220 @@ class QBO_Teams {
                         processData: false,
                         contentType: false,
                         success: function(response) {
-                            // Check if the response contains success or error messages
                             var $response = $(response);
                             var $successNotice = $response.find('.notice-success');
                             var $errorNotice = $response.find('.notice-error');
-                            
                             if ($successNotice.length > 0) {
-                                // Success - close modal and reload page
                                 closeEditStudentModal();
                                 alert('Student updated successfully!');
-                                location.reload();
+                                // Reload only the students and alumni lists via AJAX
+                                if (typeof qboCustomerListVars !== 'undefined') {
+                                    jQuery.post(ajaxurl, {
+                                        action: 'qbo_get_team_students',
+                                        team_id: <?php echo intval($team_id); ?>,
+                                        nonce: qboCustomerListVars.nonce
+                                    }, function(resp) {
+                                        var studentsDiv = document.getElementById('team-students-list');
+                                        var alumniDiv = document.getElementById('team-alumni-list');
+                                        if (resp.success && Array.isArray(resp.data) && resp.data.length) {
+                                            var students = [];
+                                            var alumni = [];
+                                            resp.data.forEach(function(student) {
+                                                if ((student.grade || '').toLowerCase() === 'alumni') {
+                                                    alumni.push(student);
+                                                } else {
+                                                    students.push(student);
+                                                }
+                                            });
+                                            // Students table
+                                            if (students.length) {
+                        var html = '<table class="wp-list-table widefat fixed striped">';
+                        html += '<thead><tr>';
+                        html += '<th>Student Name</th>';
+                        html += '<th style="width: 45px;">Grade</th>';
+                        html += '<th style="width: 90px;">T-Shirt Size</th>';
+                        html += '<th style="width: 45px;">First Year</th>';
+                        html += '<th>Parent Name</th>';
+                        html += '<th nowrap style="width: 45px;">Balance</th>';
+                        html += '<th style="width: 45px;">Status</th>';
+                        html += '<th>Actions</th>';
+                        html += '</tr></thead>';
+                        html += '<tbody>';
+                        students.forEach(function(student) {
+                            html += '<tr>';
+                            html += '<td><strong>' + student.student_name + '</strong></td>';
+                            var gradeDisplay = student.grade || 'N/A';
+                            if (gradeDisplay && gradeDisplay !== 'N/A' && gradeDisplay.toLowerCase() !== 'alumni') {
+                                if (gradeDisplay === 'K') gradeDisplay = 'Kindergarten';
+                                else gradeDisplay = gradeDisplay + 'th Grade';
+                            }
+                            html += '<td>' + gradeDisplay + '</td>';
+                            html += '<td>' + (student.tshirt_size || 'N/A') + '</td>';
+                            html += '<td>' + (student.first_year_first || 'N/A') + '</td>';
+                            html += '<td>' + student.parent_name + '</td>';
+                            html += '<td nowrap>$' + parseFloat(student.balance).toFixed(2) + '</td>';
+                            var statusClass = student.status === 'Active' ? 'status-active' : 'status-inactive';
+                            html += '<td nowrap><span class="status-badge ' + statusClass + '">' + student.status + '</span></td>';
+                            html += '<td nowrap>';
+                            if (student.customer_id) {
+                                html += '<button type="button" class="button button-small edit-student-btn" data-student-id="' + student.student_id + '">Edit</button> ';
+                            }
+                            html += '</td>';
+                            html += '</tr>';
+                        });
+                        html += '</tbody></table>';
+                        studentsDiv.innerHTML = html;
+                                            } else {
+                                                studentsDiv.innerHTML = '<em>No students assigned to this team.</em>';
+                                            }
+                                            // Alumni table
+                                            if (alumni.length) {
+                                                var htmlA = '<table class="wp-list-table widefat fixed striped">';
+                                                htmlA += '<thead><tr>';
+                                                htmlA += '<th>Name</th>';
+                                                htmlA += '<th style="width: 45px;">First Year</th>';
+                                                htmlA += '<th>Parent Name</th>';
+                                                htmlA += '<th nowrap style="width: 45px;">Balance</th>';
+                                                htmlA += '<th style="width: 45px;">Status</th>';
+                                                htmlA += '<th>Actions</th>';
+                                                htmlA += '</tr></thead>';
+                                                htmlA += '<tbody>';
+                                                alumni.forEach(function(student) {
+                                                    htmlA += '<tr>';
+                                                    htmlA += '<td><strong>' + student.student_name + '</strong></td>';
+                                                    htmlA += '<td>' + (student.first_year_first || 'N/A') + '</td>';
+                                                    htmlA += '<td>' + student.parent_name + '</td>';
+                                                    htmlA += '<td nowrap>$' + parseFloat(student.balance).toFixed(2) + '</td>';
+                                                    var statusClass = student.status === 'Active' ? 'status-active' : 'status-inactive';
+                                                    htmlA += '<td nowrap><span class="status-badge ' + statusClass + '">' + student.status + '</span></td>';
+                                                    htmlA += '<td nowrap>';
+                                                    if (student.customer_id) {
+                                                        htmlA += '<button type="button" class="button button-small edit-student-btn" data-student-id="' + student.student_id + '">Edit</button> ';
+                                                    }
+                                                    htmlA += '</td>';
+                                                    htmlA += '</tr>';
+                                                });
+                                                htmlA += '</tbody></table>';
+                                                alumniDiv.innerHTML = htmlA;
+                                            } else {
+                                                alumniDiv.innerHTML = '<em>No alumni for this team.</em>';
+                                            }
+                                        } else {
+                                            studentsDiv.innerHTML = '<em>No students assigned to this team.</em>';
+                                            alumniDiv.innerHTML = '<em>No alumni for this team.</em>';
+                                        }
+                                    }).fail(function() {
+                                        document.getElementById('team-students-list').innerHTML = '<em>Error loading students.</em>';
+                                        document.getElementById('team-alumni-list').innerHTML = '<em>Error loading alumni.</em>';
+                                    });
+                                }
                             } else if ($errorNotice.length > 0) {
-                                // Show error message
                                 var errorText = $errorNotice.find('p').text();
                                 alert('Error: ' + errorText);
                             } else {
-                                // No specific notice found, assume success
                                 closeEditStudentModal();
                                 alert('Student updated successfully!');
-                                location.reload();
+                                // Fallback: reload students/alumni lists
+                                if (typeof qboCustomerListVars !== 'undefined') {
+                                    jQuery.post(ajaxurl, {
+                                        action: 'qbo_get_team_students',
+                                        team_id: <?php echo intval($team_id); ?>,
+                                        nonce: qboCustomerListVars.nonce
+                                    }, function(resp) {
+                                        var studentsDiv = document.getElementById('team-students-list');
+                                        var alumniDiv = document.getElementById('team-alumni-list');
+                                        if (resp.success && Array.isArray(resp.data) && resp.data.length) {
+                                            var students = [];
+                                            var alumni = [];
+                                            resp.data.forEach(function(student) {
+                                                if ((student.grade || '').toLowerCase() === 'alumni') {
+                                                    alumni.push(student);
+                                                } else {
+                                                    students.push(student);
+                                                }
+                                            });
+                                            // Students table
+                                            if (students.length) {
+                        var html = '<table class="wp-list-table widefat fixed striped">';
+                        html += '<thead><tr>';
+                        html += '<th>Student Name</th>';
+                        html += '<th style="width: 45px;">Grade</th>';
+                        html += '<th style="width: 90px;">T-Shirt Size</th>';
+                        html += '<th style="width: 45px;">First Year</th>';
+                        html += '<th>Parent Name</th>';
+                        html += '<th nowrap style="width: 45px;">Balance</th>';
+                        html += '<th style="width: 45px;">Status</th>';
+                        html += '<th>Actions</th>';
+                        html += '</tr></thead>';
+                        html += '<tbody>';
+                        students.forEach(function(student) {
+                            html += '<tr>';
+                            html += '<td><strong>' + student.student_name + '</strong></td>';
+                            var gradeDisplay = student.grade || 'N/A';
+                            if (gradeDisplay && gradeDisplay !== 'N/A' && gradeDisplay.toLowerCase() !== 'alumni') {
+                                if (gradeDisplay === 'K') gradeDisplay = 'Kindergarten';
+                                else gradeDisplay = gradeDisplay + 'th Grade';
+                            }
+                            html += '<td>' + gradeDisplay + '</td>';
+                            html += '<td>' + (student.tshirt_size || 'N/A') + '</td>';
+                            html += '<td>' + (student.first_year_first || 'N/A') + '</td>';
+                            html += '<td>' + student.parent_name + '</td>';
+                            html += '<td nowrap>$' + parseFloat(student.balance).toFixed(2) + '</td>';
+                            var statusClass = student.status === 'Active' ? 'status-active' : 'status-inactive';
+                            html += '<td nowrap><span class="status-badge ' + statusClass + '">' + student.status + '</span></td>';
+                            html += '<td nowrap>';
+                            if (student.customer_id) {
+                                html += '<button type="button" class="button button-small edit-student-btn" data-student-id="' + student.student_id + '">Edit</button> ';
+                            }
+                            html += '</td>';
+                            html += '</tr>';
+                        });
+                        html += '</tbody></table>';
+                        studentsDiv.innerHTML = html;
+                                            } else {
+                                                studentsDiv.innerHTML = '<em>No students assigned to this team.</em>';
+                                            }
+                                            // Alumni table
+                                            if (alumni.length) {
+                                                var htmlA = '<table class="wp-list-table widefat fixed striped">';
+                                                htmlA += '<thead><tr>';
+                                                htmlA += '<th>Name</th>';
+                                                htmlA += '<th style="width: 45px;">First Year</th>';
+                                                htmlA += '<th>Parent Name</th>';
+                                                htmlA += '<th nowrap style="width: 45px;">Balance</th>';
+                                                htmlA += '<th style="width: 45px;">Status</th>';
+                                                htmlA += '<th>Actions</th>';
+                                                htmlA += '</tr></thead>';
+                                                htmlA += '<tbody>';
+                                                alumni.forEach(function(student) {
+                                                    htmlA += '<tr>';
+                                                    htmlA += '<td><strong>' + student.student_name + '</strong></td>';
+                                                    htmlA += '<td>' + (student.first_year_first || 'N/A') + '</td>';
+                                                    htmlA += '<td>' + student.parent_name + '</td>';
+                                                    htmlA += '<td nowrap>$' + parseFloat(student.balance).toFixed(2) + '</td>';
+                                                    var statusClass = student.status === 'Active' ? 'status-active' : 'status-inactive';
+                                                    htmlA += '<td nowrap><span class="status-badge ' + statusClass + '">' + student.status + '</span></td>';
+                                                    htmlA += '<td nowrap>';
+                                                    if (student.customer_id) {
+                                                        htmlA += '<button type="button" class="button button-small edit-student-btn" data-student-id="' + student.student_id + '">Edit</button> ';
+                                                    }
+                                                    htmlA += '</td>';
+                                                    htmlA += '</tr>';
+                                                });
+                                                htmlA += '</tbody></table>';
+                                                alumniDiv.innerHTML = htmlA;
+                                            } else {
+                                                alumniDiv.innerHTML = '<em>No alumni for this team.</em>';
+                                            }
+                                        } else {
+                                            studentsDiv.innerHTML = '<em>No students assigned to this team.</em>';
+                                            alumniDiv.innerHTML = '<em>No alumni for this team.</em>';
+                                        }
+                                    }).fail(function() {
+                                        document.getElementById('team-students-list').innerHTML = '<em>Error loading students.</em>';
+                                        document.getElementById('team-alumni-list').innerHTML = '<em>Error loading alumni.</em>';
+                                    });
+                                }
                             }
                         },
                         error: function() {
@@ -3723,6 +4123,24 @@ class QBO_Teams {
                         <input type="hidden" name="team_id" value="<?php echo intval($team_id); ?>" />
                         <table class="form-table">
                             <tr><th><label for="first_name">First Name *</label></th><td><input type="text" id="first_name" name="first_name" required class="regular-text" /></td></tr>
+                            <tr><th><label for="tshirt_size">T-Shirt Size</label></th><td>
+                                <select id="tshirt_size" name="tshirt_size" class="regular-text" required>
+                                    <option value="">Select size...</option>
+                                    <option value="YS">Youth Small</option>
+                                    <option value="YM">Youth Medium</option>
+                                    <option value="YL">Youth Large</option>
+                                    <option value="YXL">Youth XL</option>
+                                    <option value="AS">Adult Small</option>
+                                    <option value="AM">Adult Medium</option>
+                                    <option value="AL">Adult Large</option>
+                                    <option value="AXL">Adult XL</option>
+                                    <option value="A2XL">Adult 2XL</option>
+                                    <option value="A3XL">Adult 3XL</option>
+                                    <option value="A4XL">Adult 4XL</option>
+                                    <option value="A5XL">Adult 5XL</option>
+                                    <option value="A6XL">Adult 6XL</option>
+                                </select>
+                            </td></tr>
                             <tr><th><label for="last_name">Last Name *</label></th><td><input type="text" id="last_name" name="last_name" required class="regular-text" /></td></tr>
                             <tr><th><label for="grade">Grade Level</label></th><td>
                                 <select id="grade" name="grade" class="regular-text">
@@ -3793,6 +4211,24 @@ class QBO_Teams {
                         <input type="hidden" name="student_id" id="edit-student-id" />
                         <table class="form-table">
                             <tr><th><label for="edit-student-first-name">First Name *</label></th><td><input type="text" id="edit-student-first-name" name="first_name" required class="regular-text" /></td></tr>
+                            <tr><th><label for="edit-tshirt-size">T-Shirt Size</label></th><td>
+                                <select id="edit-tshirt-size" name="tshirt_size" class="regular-text" required>
+                                    <option value="">Select size...</option>
+                                    <option value="YS">Youth Small</option>
+                                    <option value="YM">Youth Medium</option>
+                                    <option value="YL">Youth Large</option>
+                                    <option value="YXL">Youth XL</option>
+                                    <option value="AS">Adult Small</option>
+                                    <option value="AM">Adult Medium</option>
+                                    <option value="AL">Adult Large</option>
+                                    <option value="AXL">Adult XL</option>
+                                    <option value="A2XL">Adult 2XL</option>
+                                    <option value="A3XL">Adult 3XL</option>
+                                    <option value="A4XL">Adult 4XL</option>
+                                    <option value="A5XL">Adult 5XL</option>
+                                    <option value="A6XL">Adult 6XL</option>
+                                </select>
+                            </td></tr>
                             <tr><th><label for="edit-student-last-name">Last Name *</label></th><td><input type="text" id="edit-student-last-name" name="last_name" required class="regular-text" /></td></tr>
                             <tr><th><label for="edit-student-grade">Grade Level</label></th><td>
                                 <select id="edit-student-grade" name="grade" class="regular-text">
@@ -3947,7 +4383,10 @@ class QBO_Teams {
         $grade = sanitize_text_field($_POST['grade']);
         $first_year_first = sanitize_text_field($_POST['first_year_first']);
         $customer_id = sanitize_text_field($_POST['customer_id']);
-        
+        $tshirt_size = isset($_POST['tshirt_size']) ? sanitize_text_field($_POST['tshirt_size']) : '';
+
+        // ...debug output removed...
+
         if (!empty($first_name) && !empty($last_name)) {
             $result = $wpdb->insert(
                 $table_students,
@@ -3957,9 +4396,10 @@ class QBO_Teams {
                     'last_name' => $last_name,
                     'grade' => $grade,
                     'first_year_first' => $first_year_first,
-                    'customer_id' => !empty($customer_id) ? $customer_id : null
+                    'customer_id' => !empty($customer_id) ? $customer_id : null,
+                    'tshirt_size' => $tshirt_size
                 ),
-                array('%d', '%s', '%s', '%s', '%s', '%s')
+                array('%d', '%s', '%s', '%s', '%s', '%s', '%s')
             );
             
             if ($result === false) {
@@ -3987,7 +4427,10 @@ class QBO_Teams {
         $grade = sanitize_text_field($_POST['grade']);
         $first_year_first = sanitize_text_field($_POST['first_year_first']);
         $customer_id = sanitize_text_field($_POST['customer_id']);
-        
+        $tshirt_size = isset($_POST['tshirt_size']) ? sanitize_text_field($_POST['tshirt_size']) : '';
+
+        // ...debug output removed...
+
         if (!empty($first_name) && !empty($last_name) && $student_id > 0) {
             $result = $wpdb->update(
                 $table_students,
@@ -3996,10 +4439,11 @@ class QBO_Teams {
                     'last_name' => $last_name,
                     'grade' => $grade,
                     'first_year_first' => $first_year_first,
-                    'customer_id' => !empty($customer_id) ? $customer_id : null
+                    'customer_id' => !empty($customer_id) ? $customer_id : null,
+                    'tshirt_size' => $tshirt_size
                 ),
                 array('id' => $student_id),
-                array('%s', '%s', '%s', '%s', '%s'),
+                array('%s', '%s', '%s', '%s', '%s', '%s'),
                 array('%d')
             );
             

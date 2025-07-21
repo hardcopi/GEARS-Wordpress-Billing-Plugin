@@ -118,19 +118,25 @@ class QBO_Students {
         $team_id = intval($_POST['team_id']);
         $customer_id = sanitize_text_field($_POST['customer_id']);
         $first_year = intval($_POST['first_year']);
+        $tshirt_size = isset($_POST['tshirt_size']) ? sanitize_text_field($_POST['tshirt_size']) : '';
+
+        echo '<div style="color:blue;">DEBUG: ADD STUDENT: tshirt_size from POST: ' . htmlspecialchars($tshirt_size) . '</div>';
         
+        $insert_data = array(
+            'first_name' => $first_name,
+            'last_name' => $last_name,
+            'grade' => $grade,
+            'team_id' => $team_id,
+            'customer_id' => $customer_id,
+            'first_year_first' => $first_year,
+            'tshirt_size' => $tshirt_size,
+            'created_at' => current_time('mysql')
+        );
+        echo '<div style="color:orange;">DEBUG: ADD STUDENT SQL DATA: <pre>' . print_r($insert_data, true) . '</pre></div>';
         $result = $wpdb->insert(
             $table_students,
-            array(
-                'first_name' => $first_name,
-                'last_name' => $last_name,
-                'grade' => $grade,
-                'team_id' => $team_id,
-                'customer_id' => $customer_id,
-                'first_year_first' => $first_year,
-                'created_at' => current_time('mysql')
-            ),
-            array('%s', '%s', '%s', '%d', '%s', '%d', '%s')
+            $insert_data,
+            array('%s', '%s', '%s', '%d', '%s', '%d', '%s', '%s')
         );
         
         if ($result !== false) {
@@ -153,19 +159,25 @@ class QBO_Students {
         $team_id = intval($_POST['team_id']);
         $customer_id = sanitize_text_field($_POST['customer_id']);
         $first_year = intval($_POST['first_year']);
+        $tshirt_size = isset($_POST['tshirt_size']) ? sanitize_text_field($_POST['tshirt_size']) : '';
+
+        echo '<div style="color:blue;">DEBUG: UPDATE STUDENT: tshirt_size from POST: ' . htmlspecialchars($tshirt_size) . '</div>';
         
+        $update_data = array(
+            'first_name' => $first_name,
+            'last_name' => $last_name,
+            'grade' => $grade,
+            'team_id' => $team_id,
+            'customer_id' => $customer_id,
+            'first_year_first' => $first_year,
+            'tshirt_size' => $tshirt_size
+        );
+        echo '<div style="color:orange;">DEBUG: UPDATE STUDENT SQL DATA: <pre>' . print_r($update_data, true) . '</pre></div>';
         $result = $wpdb->update(
             $table_students,
-            array(
-                'first_name' => $first_name,
-                'last_name' => $last_name,
-                'grade' => $grade,
-                'team_id' => $team_id,
-                'customer_id' => $customer_id,
-                'first_year_first' => $first_year
-            ),
+            $update_data,
             array('id' => $student_id),
-            array('%s', '%s', '%s', '%d', '%s', '%d'),
+            array('%s', '%s', '%s', '%d', '%s', '%d', '%s'),
             array('%d')
         );
         
