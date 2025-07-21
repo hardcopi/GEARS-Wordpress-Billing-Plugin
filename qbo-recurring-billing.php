@@ -6,6 +6,7 @@ Version: 1.0.0
 Author: Your Name
 */
 
+
 // Define plugin constants
 if (!defined('QBO_PLUGIN_DIR')) {
     define('QBO_PLUGIN_DIR', plugin_dir_path(__FILE__));
@@ -13,6 +14,10 @@ if (!defined('QBO_PLUGIN_DIR')) {
 if (!defined('QBO_PLUGIN_URL')) {
     define('QBO_PLUGIN_URL', plugin_dir_url(__FILE__));
 }
+
+add_action('init', function() {
+    add_rewrite_rule('^mentor-dashboard/?$', 'wp-content/plugins/qbo-recurring-billing/qbo-register.php', 'top');
+});
 
 // Include class files
 require_once QBO_PLUGIN_DIR . 'includes/class-qbo-core.php';

@@ -81,9 +81,61 @@ public function fetch_bank_account_ledger($account_id, $limit = 100) {
                             $col_data = $row['ColData'];
                             $date = $col_data[$date_idx]['value'] ?? '';
                             if (empty($date)) continue; // Skip summary rows without date
-                            $
+                            $type = $col_data[$type_idx]['value'] ?? '';
+                            $amount = ($col_data[$debit_idx]['value'] ?? 0) - ($col_data[$credit_idx]['value'] ?? 0);
+                            $balance = $col_data[$balance_idx]['value'] ?? 0;
 
-    
+                            // Payee and Memo may be in different columns based on report settings
+                            $payee = $col_data[$payee_idx]['value'] ?? '';
+                            $memo = $col_data[$memo_idx]['value'] ?? '';
+
+                            // Split transactions handling
+                            if (isset($col_data[$split_idx])) {
+                                $split_info = $col_data[$split_idx]['value'] ?? '';
+                                // Further processing for split info if needed
+                            } else {
+                                $split_info = '';
+                            }
+
+                            $entries[] = array(
+                                'date' => $date,
+                                'description' => $memo,
+                                'amount' => $amount,
+                                'balance' => $balance,
+                                'type' => $type,
+                                'payee' => $payee,
+                                'split_info' => $split_info,
+                            );
+                        }
+                    }
+                };
+
+                // Check for summary rows and process accordingly
+                foreach ($data['Rows']['Row'] as $row) {
+                    if (isset($row['Summary']) && $row['Summary'] === true) {
+                        // Summary row, skip or handle as needed
+                        continue;
+                    }
+                    // Regular transaction row
+                    $process_rows([$row]);
+                }
+
+                // Limit entries to the specified limit
+                $entries = array_slice($entries, 0, $limit);
+            }
+        }
+    } else {
+        error_log('QBO Ledger: Request error or non-200 response: ' . print_r($response, true));
+    }
+
+    if ($debug_all) {
+        echo $debug_output;
+    }
+
+    return $entries;
+}
+
+
     /**
      * Fetch the true balance for a given bank account from QBO API endpoint /v3/company/{realmID}/account/{accountId}
      * Returns the current balance as a float, or null on failure.

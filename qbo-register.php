@@ -7,6 +7,14 @@ error_reporting(E_ALL);
 // Place this file in your plugin directory and access directly (e.g., /wp-content/plugins/your-plugin/qbo-register.php)
 // Usage: qbo-register.php?account_id=144
 
+// To make this respond to /mentors, add the following to your main plugin file (e.g., qbo-recurring-billing.php):
+/*
+add_action('init', function() {
+    add_rewrite_rule('^mentors/?$', 'wp-content/plugins/qbo-recurring-billing/qbo-register.php', 'top');
+});
+*/
+// Then, go to Settings > Permalinks in WordPress admin and click Save Changes to flush rewrite rules.
+
 // Start PHP session for Google login
 session_start();
 
@@ -60,8 +68,6 @@ if (!isset($_SESSION['google_logged_in']) || $_SESSION['google_logged_in'] !== t
     echo '<!DOCTYPE html><html><head><title>Login Required</title><link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet" integrity="sha384-QWTKZyjpPEjISv5WaRU9OFeRpok6YctnYmDr5pNlyT2bRjXh0JMhjY6hW+ALEwIH" crossorigin="anonymous"></head><body class="bg-light"><div class="container my-5 text-center"><h2>Login Required</h2><p>Please log in with Google to view the account register.</p><a href="' . $login_url . '" class="btn btn-primary">Login with Google</a></div></body></html>';
     exit;
 }
-
-// Get account_id from query string
 
 // Mentor check and account_id selection
 require_once(dirname(__FILE__) . '/includes/class-qbo-teams.php');
@@ -295,21 +301,66 @@ unset($entry); // Unset reference
 <title>QuickBooks Account Register: <?php echo htmlentities($account_name); ?></title>
 <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet" crossorigin="anonymous">
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js" crossorigin="anonymous"></script>
+<style>
+  .animated-header {
+    background: linear-gradient(90deg, #f8f9fa 0%, #e3e6ff 50%, #f8f9fa 100%);
+    background-size: 200% 200%;
+    animation: gradientMove 6s ease-in-out infinite;
+    border-radius: 12px;
+    box-shadow: 0 2px 12px rgba(80,80,120,0.08);
+  }
+  @keyframes gradientMove {
+    0% {background-position: 0% 50%;}
+    50% {background-position: 100% 50%;}
+    100% {background-position: 0% 50%;}
+  }
+  .fade-in {
+    opacity: 0;
+    animation: fadeInLogo 1.2s ease forwards;
+  }
+  @keyframes fadeInLogo {
+    to { opacity: 1; }
+  }
+  .tab-pane {
+    animation: fadeInTab 0.7s;
+  }
+  @keyframes fadeInTab {
+    from { opacity: 0; }
+    to { opacity: 1; }
+  }
+  .nav-tabs .nav-link:hover {
+    background: #e3e6ff;
+    color: #2c3e50;
+    transition: background 0.2s, color 0.2s;
+  }
+  .table-hover tbody tr:hover {
+    background: #f0f4ff;
+    transition: background 0.2s;
+  }
+</style>
 </head><body class="bg-light">
 
 <div class="container my-4">
-<div class="d-flex justify-content-between align-items-center mb-3" style="min-height:80px;">
+<div class="animated-header d-flex justify-content-between align-items-center mb-3 px-3 py-2" style="min-height:80px;">
   <div class="d-flex align-items-center">
-    <img src="https://gears.org.in/wp-content/uploads/2023/11/gears-logo-transparent-white.png" alt="GEARS Logo" style="height:64px;max-width:180px;object-fit:contain;background:transparent;border-radius:8px;padding:6px;">
+    <img src="https://gears.org.in/wp-content/uploads/2023/11/gears-logo-transparent-white.png" alt="GEARS Logo" class="fade-in" style="height:64px;max-width:180px;object-fit:contain;background:transparent;border-radius:8px;padding:6px;">
   </div>
   <?php if (!empty($team->logo)): ?>
     <div class="d-flex align-items-center justify-content-end">
-      <img src="<?php echo esc_url($team->logo); ?>" alt="Team Logo" style="height:64px;max-width:180px;object-fit:contain;border-radius:8px;background:#f8f9fa;padding:6px;">
+      <img src="<?php echo esc_url($team->logo); ?>" alt="Team Logo" class="fade-in" style="height:64px;max-width:180px;object-fit:contain;border-radius:8px;background:#f8f9fa;padding:6px;">
     </div>
   <?php endif; ?>
 </div>
-<h3><?php echo htmlentities($account_name); ?> (<?php echo htmlentities($account_type); ?>)</h3>
-<p><strong>Current Balance:</strong> $<?php echo number_format($account_balance, 2); ?></p>
+<div class="row mb-4">
+  <div class="col-md-6 mx-auto">
+    <div class="card shadow-lg border-0 animate__animated animate__fadeInDown">
+      <div class="card-body text-center">
+        <h3 class="card-title mb-2"><?php echo htmlentities($account_name); ?> <span class="badge bg-primary ms-2" style="font-size:1rem;"><?php echo htmlentities($account_type); ?></span></h3>
+        <p class="card-text mb-0"><strong>Current Balance:</strong> <span class="fs-4 text-success">$<?php echo number_format($account_balance, 2); ?></span></p>
+      </div>
+    </div>
+  </div>
+</div>
 
 <ul class="nav nav-tabs mb-3" id="registerTabs" role="tablist">
   <li class="nav-item" role="presentation">
@@ -327,7 +378,7 @@ unset($entry); // Unset reference
 </ul>
 <div class="tab-content" id="registerTabsContent">
   <div class="tab-pane fade show active" id="register" role="tabpanel" aria-labelledby="register-tab">
-    <table class="table table-striped table-bordered">
+<table class="table table-striped table-bordered table-hover">
     <thead><tr><th>Date</th><th>Type</th><th>Payee</th><th>Description</th><th>Deposit</th><th>Withdrawal</th><th>Balance</th></tr></thead>
     <tbody>
     <?php foreach ($entries as $entry): ?>
@@ -354,7 +405,7 @@ unset($entry); // Unset reference
     <?php
     $mentors = $wpdb->get_results("SELECT * FROM $table_mentors WHERE team_id = " . intval($team->id));
     if ($mentors && count($mentors) > 0): ?>
-    <table class="table table-striped table-bordered">
+<table class="table table-striped table-bordered table-hover">
       <thead><tr><th>Name</th><th>Email</th><th>Phone</th><th>Address</th><th>Notes</th></tr></thead>
       <tbody>
       <?php foreach ((array)$mentors as $mentor): ?>
@@ -376,7 +427,7 @@ unset($entry); // Unset reference
     <?php
     $students = $wpdb->get_results("SELECT * FROM {$wpdb->prefix}gears_students WHERE team_id = " . intval($team->id) . " AND grade != 'Alumni'");
     if ($students && count($students) > 0): ?>
-    <table class="table table-striped table-bordered">
+<table class="table table-striped table-bordered table-hover">
       <thead><tr><th>Name</th><th>Grade</th><th>First Year</th><th>Customer ID</th></tr></thead>
       <tbody>
       <?php foreach ((array)$students as $student): ?>
@@ -397,7 +448,7 @@ unset($entry); // Unset reference
     <?php
     $alumni = $wpdb->get_results("SELECT * FROM {$wpdb->prefix}gears_students WHERE team_id = " . intval($team->id) . " AND grade = 'Alumni'");
     if ($alumni && count($alumni) > 0): ?>
-    <table class="table table-striped table-bordered">
+<table class="table table-striped table-bordered table-hover">
       <thead><tr><th>Name</th><th>First Year</th><th>Customer ID</th></tr></thead>
       <tbody>
       <?php foreach ((array)$alumni as $student): ?>
