@@ -2070,115 +2070,64 @@ class QBO_Teams {
     /**
      * AJAX handler to get students for a team from the Students database table
      */
+
+    /**
+     * AJAX handler to get students for a team from the Students database table
+     */
     public function ajax_get_team_students() {
         if (!current_user_can('manage_options') || !isset($_POST['nonce']) || !wp_verify_nonce($_POST['nonce'], 'qbo_get_customers')) {
             wp_send_json_error('Unauthorized');
         }
-        
         $team_id = isset($_POST['team_id']) ? intval($_POST['team_id']) : 0;
-        
         if (!$team_id) {
             wp_send_json_success(array());
         }
-        
         global $wpdb;
         $table_students = $wpdb->prefix . 'gears_students';
-        
-        // Get students for this team from the database
-        $students = $wpdb->get_results($wpdb->prepare("
-            SELECT s.id, s.first_name, s.last_name, s.grade, s.first_year_first, s.customer_id, s.tshirt_size, s.sex
-            FROM $table_students s
-            WHERE s.team_id = %d 
-            ORDER BY s.last_name, s.first_name
-        ", $team_id));
-        
-        if (!$students) {
-            wp_send_json_success(array());
-        }
-        
-        // Get QBO customer cache to lookup customer info and balances
-        $cache = get_option('qbo_recurring_billing_customers_cache', array());
-        $customers_lookup = array();
-        
-        if (isset($cache['data']) && is_array($cache['data'])) {
-            foreach ($cache['data'] as $customer) {
-                $customers_lookup[$customer['Id']] = $customer;
-            }
-        }
-        
-        // Get recurring invoices to check for active status
-        $recurring_invoices_class = new QBO_Recurring_Invoices($this->core);
-        $all_recurring_invoices = $recurring_invoices_class->fetch_recurring_invoices();
-        
-        // Create lookup for active recurring invoices by customer ID
-        $active_recurring_lookup = array();
-        foreach ($all_recurring_invoices as $recurring_invoice) {
-            if (isset($recurring_invoice['Invoice'])) {
-                $invoice_data = $recurring_invoice['Invoice'];
-                $recurring_info = isset($invoice_data['RecurringInfo']) ? $invoice_data['RecurringInfo'] : array();
-                
-                // Check if this recurring invoice is active
-                $is_active = isset($recurring_info['Active']) && $recurring_info['Active'] === true;
-                
-                if ($is_active && isset($invoice_data['CustomerRef']['value'])) {
-                    $customer_id = $invoice_data['CustomerRef']['value'];
-                    $active_recurring_lookup[$customer_id] = true;
-                }
-            }
-        }
-        
+        $students = $wpdb->get_results($wpdb->prepare("SELECT * FROM $table_students WHERE team_id = %d ORDER BY last_name, first_name", $team_id));
         $result = array();
-        $debug_info = array();
+        $active_recurring_lookup = array();
+        // Optionally, build $active_recurring_lookup here if needed
         foreach ($students as $student) {
-            $student_name = esc_html(trim($student->first_name . ' ' . $student->last_name));
-            $customer_info = null;
-            $debug_info[] = 'student_id ' . $student->id . ' tshirt_size: ' . (isset($student->tshirt_size) ? $student->tshirt_size : 'NOT SET');
-            $parent_name = 'No Customer';
-            $balance = 0.00;
-            $status = 'Inactive'; // Default status
-            
-            // Get customer info if customer_id is set
-            if (!empty($student->customer_id) && isset($customers_lookup[$student->customer_id])) {
-                $customer_info = $customers_lookup[$student->customer_id];
-                
-                // Get parent name from customer data
-                $display_name = isset($customer_info['DisplayName']) ? $customer_info['DisplayName'] : '';
-                $company_name = isset($customer_info['CompanyName']) ? $customer_info['CompanyName'] : '';
-                $first_name = isset($customer_info['GivenName']) ? $customer_info['GivenName'] : '';
-                $last_name = isset($customer_info['FamilyName']) ? $customer_info['FamilyName'] : '';
-                
-                // Construct parent name - prefer DisplayName, then CompanyName, fallback to GivenName/FamilyName
-                if (!empty($display_name)) {
-                    $parent_name = $display_name;
-                } elseif (!empty($company_name)) {
-                    $parent_name = $company_name;
-                } elseif (!empty($first_name) || !empty($last_name)) {
-                    $parent_name = trim($first_name . ' ' . $last_name);
-                } else {
-                    $parent_name = 'Unknown Customer';
+            $student_name = trim($student->first_name . ' ' . $student->last_name);
+            $parent_name = '';
+            $customer_info = array();
+            if (is_object($this->core) && is_callable([$this->core, 'get_customer_info'])) {
+                try {
+                    $customer_info = $this->core->get_customer_info($student->customer_id);
+                } catch (Throwable $e) {
+                    // Log or ignore, but do not break AJAX
+                    $customer_info = array();
                 }
-                
-                // Get balance by fetching customer invoices and summing their balances
-                $balance = 0.00;
-                if (!empty($student->customer_id)) {
-                    $customer_invoices = $this->core->fetch_customer_invoices($student->customer_id);
-                    if (is_array($customer_invoices)) {
-                        foreach ($customer_invoices as $invoice) {
-                            $invoice_balance = floatval($invoice['Balance'] ?? 0);
-                            $balance += $invoice_balance;
-                        }
+            }
+            $display_name = isset($customer_info['DisplayName']) ? $customer_info['DisplayName'] : '';
+            $company_name = isset($customer_info['CompanyName']) ? $customer_info['CompanyName'] : '';
+            $first_name = isset($customer_info['GivenName']) ? $customer_info['GivenName'] : '';
+            $last_name = isset($customer_info['FamilyName']) ? $customer_info['FamilyName'] : '';
+            if (!empty($display_name)) {
+                $parent_name = $display_name;
+            } elseif (!empty($company_name)) {
+                $parent_name = $company_name;
+            } elseif (!empty($first_name) || !empty($last_name)) {
+                $parent_name = trim($first_name . ' ' . $last_name);
+            } else {
+                $parent_name = 'Unknown Customer';
+            }
+            $balance = 0.00;
+            if (!empty($student->customer_id) && is_object($this->core) && method_exists($this->core, 'fetch_customer_invoices') && is_callable([$this->core, 'fetch_customer_invoices'])) {
+                $customer_invoices = $this->core->fetch_customer_invoices($student->customer_id);
+                if (is_array($customer_invoices)) {
+                    foreach ($customer_invoices as $invoice) {
+                        $invoice_balance = floatval($invoice['Balance'] ?? 0);
+                        $balance += $invoice_balance;
                     }
                 }
-                
-                // Determine status based on active recurring invoices
-                // Check if this customer has any active recurring invoices
-                if (isset($active_recurring_lookup[$student->customer_id])) {
-                    $status = 'Active';
-                } else {
-                    $status = 'Inactive';
-                }
             }
-            
+            if (isset($active_recurring_lookup[$student->customer_id])) {
+                $status = 'Active';
+            } else {
+                $status = 'Inactive';
+            }
             $result[] = array(
                 'student_id' => $student->id,
                 'student_name' => $student_name,
@@ -2192,7 +2141,6 @@ class QBO_Teams {
                 'sex' => isset($student->sex) ? esc_html($student->sex) : ''
             );
         }
-        
         wp_send_json_success(array_merge($result));
     }
     
