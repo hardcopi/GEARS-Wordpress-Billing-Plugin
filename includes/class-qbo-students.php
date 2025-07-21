@@ -251,6 +251,15 @@ class QBO_Students {
                                 <tr><th><label for="grade">Grade Level</label></th><td>
                                     <select id="grade" name="grade" class="regular-text">
                                         <option value="">Select grade...</option>
+                                        <option value="K">Kindergarten</option>
+                                        <option value="1">1st Grade</option>
+                                        <option value="2">2nd Grade</option>
+                                        <option value="3">3rd Grade</option>
+                                        <option value="4">4th Grade</option>
+                                        <option value="5">5th Grade</option>
+                                        <option value="6">6th Grade</option>
+                                        <option value="7">7th Grade</option>
+                                        <option value="8">8th Grade</option>
                                         <option value="9">9th Grade</option>
                                         <option value="10">10th Grade</option>
                                         <option value="11">11th Grade</option>
@@ -388,6 +397,12 @@ class QBO_Students {
                             <td>
                                 <select name="grade" id="edit-grade" required>
                                     <option value="">Select Grade</option>
+                                    <option value="K">Kindergarten</option>
+                                    <option value="1">1st Grade</option>
+                                    <option value="2">2nd Grade</option>
+                                    <option value="3">3rd Grade</option>
+                                    <option value="4">4th Grade</option>
+                                    <option value="5">5th Grade</option>
                                     <option value="6">6th Grade</option>
                                     <option value="7">7th Grade</option>
                                     <option value="8">8th Grade</option>

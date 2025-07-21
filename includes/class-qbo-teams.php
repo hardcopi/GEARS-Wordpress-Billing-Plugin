@@ -2770,7 +2770,261 @@ class QBO_Teams {
                     </div>
                 </div>
 
-                <!-- Bank Account Association moved to Team Info tab -->
+                <!-- Ledger Tab Content -->
+                <div class="qbo-tab-content" id="tab-ledger" style="display:none;">
+                    <div class="team-section" id="team-ledger-section">
+                        <h2>Bank Account Register</h2>
+                        <?php
+                        // Show only if a bank account is associated
+                        if (!empty($team->bank_account_id)) {
+                            $account_id = $team->bank_account_id;
+                            // Fetch account name/type from all bank accounts
+                            $account_name = '';
+                            $account_type = '';
+                            $bank_accounts = method_exists($this->core, 'fetch_bank_accounts') ? $this->core->fetch_bank_accounts() : array();
+                            foreach ($bank_accounts as $acct) {
+                                if ($acct['Id'] == $account_id) {
+                                    $account_name = $acct['Name'];
+                                    $account_type = isset($acct['AccountType']) ? $acct['AccountType'] : 'Bank';
+                                    break;
+                                }
+                            }
+                            // Fetch balance
+                            $account_balance = method_exists($this->core, 'fetch_qbo_account_balance') ? $this->core->fetch_qbo_account_balance($account_id) : 0;
+
+                            // --- BEGIN: qbo-register.php style ledger logic ---
+                            $options = get_option('qbo_recurring_billing_options');
+                            $access_token = isset($options['access_token']) ? $options['access_token'] : '';
+                            $realm_id = isset($options['realm_id']) ? $options['realm_id'] : '';
+                            $entries = array();
+                            $types = array('Purchase', 'JournalEntry', 'Deposit', 'Transfer', 'BillPayment', 'VendorCredit', 'CreditCardPayment', 'Payment', 'SalesReceipt');
+                            if ($access_token && $realm_id) {
+                                foreach ($types as $type) {
+                                    $q = "SELECT * FROM $type ORDER BY TxnDate DESC MAXRESULTS 200";
+                                    $endpoint = '/query?query=' . urlencode($q) . '&minorversion=65';
+                                    $url = 'https://quickbooks.api.intuit.com/v3/company/' . $realm_id . $endpoint;
+                                    $args = array(
+                                        'headers' => array(
+                                            'Authorization' => 'Bearer ' . $access_token,
+                                            'Accept' => 'application/json',
+                                        ),
+                                        'timeout' => 30,
+                                    );
+                                    $response = wp_remote_get($url, $args);
+                                    if (is_wp_error($response)) continue;
+                                    $body = wp_remote_retrieve_body($response);
+                                    $data = json_decode($body, true);
+                                    if (!$data || !isset($data['QueryResponse'][$type])) continue;
+                                    foreach ($data['QueryResponse'][$type] as $txn) {
+                                        // Filtering logic for each type
+                                        if ($type === 'Purchase' && isset($txn['AccountRef']['value']) && $txn['AccountRef']['value'] == $account_id) {
+                                            $date = $txn['TxnDate'] ?? '';
+                                            $payee = $txn['EntityRef']['name'] ?? '';
+                                            $desc = $txn['PrivateNote'] ?? '';
+                                            if (empty($desc) && isset($txn['Line']) && is_array($txn['Line'])) {
+                                                $desc = implode('; ', array_filter(array_map(function($line) { return $line['Description'] ?? ''; }, $txn['Line'])));
+                                            }
+                                            $amount = -abs((float)($txn['TotalAmt'] ?? 0));
+                                            $display_type = (isset($txn['PaymentType']) && $txn['PaymentType'] === 'Check') ? 'Check' : 'Expenditure';
+                                            $entries[] = array(
+                                                'date' => $date,
+                                                'type' => $display_type,
+                                                'payee' => $payee,
+                                                'desc' => $desc,
+                                                'amount' => $amount,
+                                            );
+                                        } elseif ($type === 'JournalEntry' && isset($txn['Line'])) {
+                                            foreach ($txn['Line'] as $line) {
+                                                if (isset($line['JournalEntryLineDetail']['AccountRef']['value']) && $line['JournalEntryLineDetail']['AccountRef']['value'] == $account_id) {
+                                                    $date = $txn['TxnDate'] ?? '';
+                                                    $payee = isset($line['JournalEntryLineDetail']['Entity']['Name']) ? $line['JournalEntryLineDetail']['Entity']['Name'] : '';
+                                                    $desc = $txn['PrivateNote'] ?? ($line['Description'] ?? '');
+                                                    $posting_type = $line['JournalEntryLineDetail']['PostingType'] ?? '';
+                                                    $amount = (float)($line['Amount'] ?? 0);
+                                                    $sign = ($posting_type === 'Debit') ? 1 : -1;
+                                                    $entries[] = array(
+                                                        'date' => $date,
+                                                        'type' => $type,
+                                                        'payee' => $payee,
+                                                        'desc' => $desc,
+                                                        'amount' => $sign * $amount,
+                                                    );
+                                                }
+                                            }
+                                        } elseif ($type === 'Deposit' && isset($txn['DepositToAccountRef']['value']) && $txn['DepositToAccountRef']['value'] == $account_id) {
+                                            $date = $txn['TxnDate'] ?? '';
+                                            $payee = '';
+                                            if (isset($txn['Line']) && is_array($txn['Line'])) {
+                                                foreach ($txn['Line'] as $line) {
+                                                    if (isset($line['DepositLineDetail']['EntityRef']['name'])) {
+                                                        $payee = $line['DepositLineDetail']['EntityRef']['name'];
+                                                        break;
+                                                    }
+                                                }
+                                            }
+                                            $desc = $txn['PrivateNote'] ?? '';
+                                            $amount = abs((float)($txn['TotalAmt'] ?? 0));
+                                            $entries[] = array(
+                                                'date' => $date,
+                                                'type' => $type,
+                                                'payee' => $payee,
+                                                'desc' => $desc,
+                                                'amount' => $amount,
+                                            );
+                                        } elseif ($type === 'Transfer') {
+                                            $date = $txn['TxnDate'] ?? '';
+                                            $desc = $txn['PrivateNote'] ?? '';
+                                            $amount = (float)($txn['Amount'] ?? 0);
+                                            if (isset($txn['FromAccountRef']['value']) && $txn['FromAccountRef']['value'] == $account_id) {
+                                                $payee = $txn['ToAccountRef']['name'] ?? '';
+                                                $entries[] = array(
+                                                    'date' => $date,
+                                                    'type' => $type,
+                                                    'payee' => $payee,
+                                                    'desc' => $desc,
+                                                    'amount' => -abs($amount),
+                                                );
+                                            }
+                                            if (isset($txn['ToAccountRef']['value']) && $txn['ToAccountRef']['value'] == $account_id) {
+                                                $payee = $txn['FromAccountRef']['name'] ?? '';
+                                                $entries[] = array(
+                                                    'date' => $date,
+                                                    'type' => $type,
+                                                    'payee' => $payee,
+                                                    'desc' => $desc,
+                                                    'amount' => abs($amount),
+                                                );
+                                            }
+                                        } elseif ($type === 'BillPayment' && isset($txn['PayType']) && $txn['PayType'] === 'Check' && isset($txn['CheckPayment']['BankAccountRef']['value']) && $txn['CheckPayment']['BankAccountRef']['value'] == $account_id) {
+                                            $date = $txn['TxnDate'] ?? '';
+                                            $payee = $txn['VendorRef']['name'] ?? '';
+                                            $desc = $txn['PrivateNote'] ?? '';
+                                            $amount = -abs((float)($txn['TotalAmt'] ?? 0));
+                                            $entries[] = array(
+                                                'date' => $date,
+                                                'type' => 'Check',
+                                                'payee' => $payee,
+                                                'desc' => $desc,
+                                                'amount' => $amount,
+                                            );
+                                        } elseif ($type === 'VendorCredit' && isset($txn['APAccountRef']['value']) && $txn['APAccountRef']['value'] == $account_id) {
+                                            $date = $txn['TxnDate'] ?? '';
+                                            $payee = $txn['VendorRef']['name'] ?? '';
+                                            $desc = $txn['PrivateNote'] ?? '';
+                                            $amount = abs((float)($txn['TotalAmt'] ?? 0));
+                                            $entries[] = array(
+                                                'date' => $date,
+                                                'type' => $type,
+                                                'payee' => $payee,
+                                                'desc' => $desc,
+                                                'amount' => $amount,
+                                            );
+                                        } elseif ($type === 'CreditCardPayment' && isset($txn['CreditCardAccountRef']['value']) && $txn['CreditCardAccountRef']['value'] == $account_id) {
+                                            $date = $txn['TxnDate'] ?? '';
+                                            $payee = $txn['EntityRef']['name'] ?? '';
+                                            $desc = $txn['PrivateNote'] ?? '';
+                                            $amount = -abs((float)($txn['TotalAmt'] ?? 0));
+                                            $entries[] = array(
+                                                'date' => $date,
+                                                'type' => $type,
+                                                'payee' => $payee,
+                                                'desc' => $desc,
+                                                'amount' => $amount,
+                                            );
+                                        } elseif ($type === 'Payment' && isset($txn['DepositToAccountRef']['value']) && $txn['DepositToAccountRef']['value'] == $account_id) {
+                                            $date = $txn['TxnDate'] ?? '';
+                                            $payee = $txn['CustomerRef']['name'] ?? '';
+                                            $desc = $txn['PrivateNote'] ?? '';
+                                            $amount = abs((float)($txn['TotalAmt'] ?? 0));
+                                            $entries[] = array(
+                                                'date' => $date,
+                                                'type' => 'Deposit',
+                                                'payee' => $payee,
+                                                'desc' => $desc,
+                                                'amount' => $amount,
+                                            );
+                                        } elseif ($type === 'SalesReceipt' && isset($txn['DepositToAccountRef']['value']) && $txn['DepositToAccountRef']['value'] == $account_id) {
+                                            $date = $txn['TxnDate'] ?? '';
+                                            $payee = $txn['CustomerRef']['name'] ?? '';
+                                            $desc = $txn['PrivateNote'] ?? '';
+                                            $amount = abs((float)($txn['TotalAmt'] ?? 0));
+                                            $entries[] = array(
+                                                'date' => $date,
+                                                'type' => 'Deposit',
+                                                'payee' => $payee,
+                                                'desc' => $desc,
+                                                'amount' => $amount,
+                                            );
+                                        }
+                                    }
+                                }
+                                // Sort by date descending
+                                usort($entries, function($a, $b) {
+                                    return strtotime($b['date']) - strtotime($a['date']);
+                                });
+                                // Compute running balances (starting from current balance, working backwards)
+                                $running_balance = $account_balance;
+                                foreach ($entries as &$entry) {
+                                    $entry['balance'] = $running_balance;
+                                    $running_balance -= $entry['amount'];
+                                }
+                                unset($entry);
+                            }
+                            // --- END: qbo-register.php style ledger logic ---
+                        ?>
+                        <div class="card" style="margin-bottom:20px;max-width:400px;">
+                            <div class="card-body">
+                                <h3 class="card-title" style="margin-bottom:8px;">
+                                    <?php echo esc_html($account_name); ?>
+                                    <?php if ($account_type): ?>
+                                        <span class="badge" style="background:#0073aa;color:#fff;font-size:1rem;margin-left:8px;vertical-align:middle;">
+                                            <?php echo esc_html($account_type); ?>
+                                        </span>
+                                    <?php endif; ?>
+                                </h3>
+                                <p class="card-text" style="margin-bottom:0;"><strong>Current Balance:</strong> <span style="font-size:1.2em;color:#46b450;">$
+                                    <?php echo number_format((float)$account_balance, 2); ?></span></p>
+                            </div>
+                        </div>
+                        <div style="overflow-x:auto;">
+                        <table class="wp-list-table widefat fixed striped" style="min-width:800px;">
+                            <thead>
+                                <tr>
+                                    <th>Date</th>
+                                    <th>Type</th>
+                                    <th>Payee</th>
+                                    <th>Description</th>
+                                    <th style="text-align:right;">Deposit</th>
+                                    <th style="text-align:right;">Withdrawal</th>
+                                    <th style="text-align:right;">Balance</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <?php foreach ($entries as $entry): ?>
+                                <tr>
+                                    <td><?php echo esc_html($entry['date']); ?></td>
+                                    <td><?php echo esc_html($entry['type']); ?></td>
+                                    <td><?php echo esc_html($entry['payee']); ?></td>
+                                    <td><?php echo esc_html($entry['description'] ?? $entry['desc'] ?? ''); ?></td>
+                                    <td style="text-align:right; color:#228B22; font-weight:bold;">
+                                        <?php echo ($entry['amount'] > 0) ? '$' . number_format($entry['amount'], 2) : ''; ?>
+                                    </td>
+                                    <td style="text-align:right; color:#dc3232; font-weight:bold;">
+                                        <?php echo ($entry['amount'] < 0) ? '$' . number_format(abs($entry['amount']), 2) : ''; ?>
+                                    </td>
+                                    <td style="text-align:right;">
+                                        <?php echo '$' . number_format($entry['balance'], 2); ?>
+                                    </td>
+                                </tr>
+                                <?php endforeach; ?>
+                            </tbody>
+                        </table>
+                        </div>
+                        <?php } else { ?>
+                            <div class="notice notice-info"><p>No bank account is associated with this team.</p></div>
+                        <?php } ?>
+                    </div>
+                </div>
             </div>
         
         <script type="text/javascript">
@@ -3473,11 +3727,21 @@ class QBO_Teams {
                             <tr><th><label for="grade">Grade Level</label></th><td>
                                 <select id="grade" name="grade" class="regular-text">
                                     <option value="">Select grade...</option>
+                                    <option value="K">Kindergarten</option>
+                                    <option value="1">1st Grade</option>
+                                    <option value="2">2nd Grade</option>
+                                    <option value="3">3rd Grade</option>
+                                    <option value="4">4th Grade</option>
+                                    <option value="5">5th Grade</option>
+                                    <option value="6">6th Grade</option>
+                                    <option value="7">7th Grade</option>
+                                    <option value="8">8th Grade</option>
                                     <option value="9">9th Grade</option>
                                     <option value="10">10th Grade</option>
                                     <option value="11">11th Grade</option>
                                     <option value="12">12th Grade</option>
                                     <option value="Alumni">Alumni</option>
+
                                 </select>
                             </td></tr>
                             <tr><th><label for="first_year_first">First Year</label></th><td><input type="text" id="first_year_first" name="first_year_first" class="regular-text" /></td></tr>
@@ -3533,6 +3797,15 @@ class QBO_Teams {
                             <tr><th><label for="edit-student-grade">Grade Level</label></th><td>
                                 <select id="edit-student-grade" name="grade" class="regular-text">
                                     <option value="">Select grade...</option>
+                                    <option value="K">Kindergarten</option>
+                                    <option value="1">1st Grade</option>
+                                    <option value="2">2nd Grade</option>
+                                    <option value="3">3rd Grade</option>
+                                    <option value="4">4th Grade</option>
+                                    <option value="5">5th Grade</option>
+                                    <option value="6">6th Grade</option>
+                                    <option value="7">7th Grade</option>
+                                    <option value="8">8th Grade</option>
                                     <option value="9">9th Grade</option>
                                     <option value="10">10th Grade</option>
                                     <option value="11">11th Grade</option>
