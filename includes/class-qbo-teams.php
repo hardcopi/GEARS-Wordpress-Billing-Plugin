@@ -2086,7 +2086,7 @@ class QBO_Teams {
         
         // Get students for this team from the database
         $students = $wpdb->get_results($wpdb->prepare("
-            SELECT s.id, s.first_name, s.last_name, s.grade, s.first_year_first, s.customer_id, s.tshirt_size
+            SELECT s.id, s.first_name, s.last_name, s.grade, s.first_year_first, s.customer_id, s.tshirt_size, s.sex
             FROM $table_students s
             WHERE s.team_id = %d 
             ORDER BY s.last_name, s.first_name
@@ -2188,7 +2188,8 @@ class QBO_Teams {
                 'balance' => $balance,
                 'customer_id' => $student->customer_id,
                 'status' => $status,
-                'tshirt_size' => isset($student->tshirt_size) ? esc_html($student->tshirt_size) : ''
+                'tshirt_size' => isset($student->tshirt_size) ? esc_html($student->tshirt_size) : '',
+                'sex' => isset($student->sex) ? esc_html($student->sex) : ''
             );
         }
         
@@ -3125,15 +3126,18 @@ class QBO_Teams {
                         var studentsDiv = document.getElementById('team-students-list');
                         var alumniDiv = document.getElementById('team-alumni-list');
                         if (resp.success && Array.isArray(resp.data) && resp.data.length) {
-                            var students = [];
-                            var alumni = [];
-                            resp.data.forEach(function(student) {
-                                if ((student.grade || '').toLowerCase() === 'alumni') {
-                                    alumni.push(student);
-                                } else {
-                                    students.push(student);
-                                }
-                            });
+                    var students = [];
+                    var alumni = [];
+                    resp.data.forEach(function(student) {
+                        if ((student.grade || '').toLowerCase() === 'alumni') {
+                            alumni.push(student);
+                        } else {
+                            students.push(student);
+                        }
+                    });
+                    // Expose globally for modal use
+                    window.qboStudents = students;
+                    window.qboAlumni = alumni;
                             // Students table
                             if (students.length) {
                         var html = '<table class="wp-list-table widefat fixed striped">';
@@ -3427,8 +3431,8 @@ class QBO_Teams {
                                                 var htmlA = '<table class="wp-list-table widefat fixed striped">';
                                                 htmlA += '<thead><tr>';
                                                 htmlA += '<th>Name</th>';
-                                htmlA += '<th style="width: 45px;">First Year</th>';
-                                htmlA += '<th style="width: 90px;">T-Shirt Size</th>';
+                                                htmlA += '<th style="width: 45px;">First Year</th>';
+                                                htmlA += '<th style="width: 90px;">T-Shirt Size</th>';
                                                 htmlA += '<th>Parent Name</th>';
                                                 htmlA += '<th nowrap style="width: 45px;">Balance</th>';
                                                 htmlA += '<th style="width: 45px;">Status</th>';
@@ -4123,6 +4127,14 @@ class QBO_Teams {
                         <input type="hidden" name="team_id" value="<?php echo intval($team_id); ?>" />
                         <table class="form-table">
                             <tr><th><label for="first_name">First Name *</label></th><td><input type="text" id="first_name" name="first_name" required class="regular-text" /></td></tr>
+                            <tr><th><label for="last_name">Last Name *</label></th><td><input type="text" id="last_name" name="last_name" required class="regular-text" /></td></tr>
+                            <tr><th><label for="sex">Sex</label></th><td>
+                                <select id="sex" name="sex" class="regular-text" required>
+                                    <option value="">Unspecified</option>
+                                    <option value="Male">Male</option>
+                                    <option value="Female">Female</option>
+                                </select>
+                            </td></tr>
                             <tr><th><label for="tshirt_size">T-Shirt Size</label></th><td>
                                 <select id="tshirt_size" name="tshirt_size" class="regular-text" required>
                                     <option value="">Select size...</option>
@@ -4140,8 +4152,7 @@ class QBO_Teams {
                                     <option value="A5XL">Adult 5XL</option>
                                     <option value="A6XL">Adult 6XL</option>
                                 </select>
-                            </td></tr>
-                            <tr><th><label for="last_name">Last Name *</label></th><td><input type="text" id="last_name" name="last_name" required class="regular-text" /></td></tr>
+                            </td></tr>                            
                             <tr><th><label for="grade">Grade Level</label></th><td>
                                 <select id="grade" name="grade" class="regular-text">
                                     <option value="">Select grade...</option>
@@ -4211,6 +4222,14 @@ class QBO_Teams {
                         <input type="hidden" name="student_id" id="edit-student-id" />
                         <table class="form-table">
                             <tr><th><label for="edit-student-first-name">First Name *</label></th><td><input type="text" id="edit-student-first-name" name="first_name" required class="regular-text" /></td></tr>
+                            <tr><th><label for="edit-student-last-name">Last Name *</label></th><td><input type="text" id="edit-student-last-name" name="last_name" required class="regular-text" /></td></tr>
+                            <tr><th><label for="edit-sex">Sex</label></th><td>
+                                <select id="edit-sex" name="sex" class="regular-text" required>
+                                    <option value="">Unspecified</option>
+                                    <option value="Male">Male</option>
+                                    <option value="Female">Female</option>
+                                </select>
+                            </td></tr>
                             <tr><th><label for="edit-tshirt-size">T-Shirt Size</label></th><td>
                                 <select id="edit-tshirt-size" name="tshirt_size" class="regular-text" required>
                                     <option value="">Select size...</option>
@@ -4228,8 +4247,7 @@ class QBO_Teams {
                                     <option value="A5XL">Adult 5XL</option>
                                     <option value="A6XL">Adult 6XL</option>
                                 </select>
-                            </td></tr>
-                            <tr><th><label for="edit-student-last-name">Last Name *</label></th><td><input type="text" id="edit-student-last-name" name="last_name" required class="regular-text" /></td></tr>
+                            </td></tr>                            
                             <tr><th><label for="edit-student-grade">Grade Level</label></th><td>
                                 <select id="edit-student-grade" name="grade" class="regular-text">
                                     <option value="">Select grade...</option>
@@ -4384,6 +4402,7 @@ class QBO_Teams {
         $first_year_first = sanitize_text_field($_POST['first_year_first']);
         $customer_id = sanitize_text_field($_POST['customer_id']);
         $tshirt_size = isset($_POST['tshirt_size']) ? sanitize_text_field($_POST['tshirt_size']) : '';
+        $sex = isset($_POST['sex']) ? sanitize_text_field($_POST['sex']) : '';
 
         // ...debug output removed...
 
@@ -4397,9 +4416,10 @@ class QBO_Teams {
                     'grade' => $grade,
                     'first_year_first' => $first_year_first,
                     'customer_id' => !empty($customer_id) ? $customer_id : null,
-                    'tshirt_size' => $tshirt_size
+                    'tshirt_size' => $tshirt_size,
+                    'sex' => $sex
                 ),
-                array('%d', '%s', '%s', '%s', '%s', '%s', '%s')
+                array('%d', '%s', '%s', '%s', '%s', '%s', '%s', '%s')
             );
             
             if ($result === false) {
@@ -4428,6 +4448,7 @@ class QBO_Teams {
         $first_year_first = sanitize_text_field($_POST['first_year_first']);
         $customer_id = sanitize_text_field($_POST['customer_id']);
         $tshirt_size = isset($_POST['tshirt_size']) ? sanitize_text_field($_POST['tshirt_size']) : '';
+        $sex = isset($_POST['sex']) ? sanitize_text_field($_POST['sex']) : '';
 
         // ...debug output removed...
 
@@ -4440,10 +4461,11 @@ class QBO_Teams {
                     'grade' => $grade,
                     'first_year_first' => $first_year_first,
                     'customer_id' => !empty($customer_id) ? $customer_id : null,
-                    'tshirt_size' => $tshirt_size
+                    'tshirt_size' => $tshirt_size,
+                    'sex' => $sex
                 ),
                 array('id' => $student_id),
-                array('%s', '%s', '%s', '%s', '%s', '%s'),
+                array('%s', '%s', '%s', '%s', '%s', '%s', '%s'),
                 array('%d')
             );
             

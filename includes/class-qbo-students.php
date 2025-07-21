@@ -349,7 +349,7 @@ class QBO_Students {
                                     <td>
                                         <?php echo esc_html($student->customer_name ?: 'No Customer'); ?>
                                         <?php if ($student->is_multiple_students): ?>
-                                            <span class="customer-student-count" style="color: #666; font-size: 0.9em;">(<?php echo $student->customer_student_count; ?> students)</span>
+                                            <span class="customer-student-count" style="color: #666; fonize: 0.9em;">(<?php echo $student->customer_student_count; ?> students)</span>
                                         <?php endif; ?>
                                     </td>
                                     <td><?php echo esc_html($student->first_year_first); ?></td>
