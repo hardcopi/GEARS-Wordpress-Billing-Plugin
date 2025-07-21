@@ -2516,6 +2516,12 @@ class QBO_Teams {
         }
         ?>
         
+        <style>
+            .qbo-tab-content {
+                width: 100%;
+            }
+        </style>
+
         <div class="wrap">
             <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
                 <h1><?php echo esc_html($team->team_name); ?>
@@ -3145,6 +3151,7 @@ class QBO_Teams {
                         html += '<th>Student Name</th>';
                         html += '<th style="width: 45px;">Grade</th>';
                         html += '<th style="width: 90px;">T-Shirt Size</th>';
+                        html += '<th style="width: 60px;">Sex</th>';
                         html += '<th style="width: 45px;">First Year</th>';
                         html += '<th>Parent Name</th>';
                         html += '<th nowrap style="width: 45px;">Balance</th>';
@@ -3161,7 +3168,8 @@ class QBO_Teams {
                                 else gradeDisplay = gradeDisplay + 'th Grade';
                             }
                             html += '<td>' + gradeDisplay + '</td>';
-                            html += '<td>' + (student.tshirt_size || 'N/A') + '</td>';
+                        html += '<td>' + (student.tshirt_size || 'N/A') + '</td>';
+                        html += '<td>' + (student.sex || 'N/A') + '</td>';
                             html += '<td>' + (student.first_year_first || 'N/A') + '</td>';
                             html += '<td>' + student.parent_name + '</td>';
                             html += '<td nowrap>$' + parseFloat(student.balance).toFixed(2) + '</td>';
@@ -3392,6 +3400,7 @@ class QBO_Teams {
                                                 html += '<th>Student Name</th>';
                                                 html += '<th style="width: 45px;">Grade</th>';
                                                 html += '<th style="width: 90px;">T-Shirt Size</th>';
+                                                html += '<th style="width: 60px;">Sex</th>';
                                                 html += '<th style="width: 45px;">First Year</th>';
                                                 html += '<th>Parent Name</th>';
                                                 html += '<th nowrap style="width: 45px;">Balance</th>';
@@ -3409,6 +3418,7 @@ class QBO_Teams {
                                                     }
                                                     html += '<td>' + gradeDisplay + '</td>';
                                                     html += '<td>' + (student.tshirt_size || 'N/A') + '</td>';
+                                                    html += '<td>' + (student.sex || 'N/A') + '</td>';
                                                     html += '<td>' + (student.first_year_first || 'N/A') + '</td>';
                                                     html += '<td>' + student.parent_name + '</td>';
                                                     html += '<td nowrap>$' + parseFloat(student.balance).toFixed(2) + '</td>';
@@ -3416,8 +3426,11 @@ class QBO_Teams {
                                                     html += '<td nowrap><span class="status-badge ' + statusClass + '">' + student.status + '</span></td>';
                                                     html += '<td nowrap>';
                                                     if (student.customer_id) {
-                                                        html += '<button type="button" class="button button-small edit-student-btn" data-student-id="' + student.student_id + '">Edit</button> ';
+                                                        html += '<a href="' + qboCustomerListVars.invoicesPageUrl + '&member_id=' + encodeURIComponent(student.customer_id) + '" class="button button-small view-student-invoices">Details</a> ';
                                                     }
+                                                    html += '<button type="button" class="button button-small edit-student-btn" data-student-id="' + student.student_id + '">Edit</button> ';
+                                                    html += '<button type="button" class="button button-small button-link-delete delete-student-btn" data-student-id="' + student.student_id + '" data-student-name="' + student.student_name + '">Delete</button>';
+
                                                     html += '</td>';
                                                     html += '</tr>';
                                                 });
@@ -3433,6 +3446,7 @@ class QBO_Teams {
                                                 htmlA += '<th>Name</th>';
                                                 htmlA += '<th style="width: 45px;">First Year</th>';
                                                 htmlA += '<th style="width: 90px;">T-Shirt Size</th>';
+                                                htmlA += '<th style="width: 60px;">Sex</th>';
                                                 htmlA += '<th>Parent Name</th>';
                                                 htmlA += '<th nowrap style="width: 45px;">Balance</th>';
                                                 htmlA += '<th style="width: 45px;">Status</th>';
@@ -3442,8 +3456,9 @@ class QBO_Teams {
                                                 alumni.forEach(function(student) {
                                                     htmlA += '<tr>';
                                                     htmlA += '<td><strong>' + student.student_name + '</strong></td>';
-                                    htmlA += '<td>' + (student.first_year_first || 'N/A') + '</td>';
-                                    htmlA += '<td>' + (student.tshirt_size || 'N/A') + '</td>';
+                                                    htmlA += '<td>' + (student.sex || 'N/A') + '</td>';
+                                                    htmlA += '<td>' + (student.tshirt_size || 'N/A') + '</td>';
+                                                    htmlA += '<td>' + (student.sex || 'N/A') + '</td>';
                                                     htmlA += '<td>' + student.parent_name + '</td>';
                                                     htmlA += '<td nowrap>$' + parseFloat(student.balance).toFixed(2) + '</td>';
                                                     var statusClass = student.status === 'Active' ? 'status-active' : 'status-inactive';
@@ -3501,6 +3516,7 @@ class QBO_Teams {
                         html += '<th>Student Name</th>';
                         html += '<th style="width: 45px;">Grade</th>';
                         html += '<th style="width: 90px;">T-Shirt Size</th>';
+                        html += '<th style="width: 60px;">Sex</th>';
                         html += '<th style="width: 45px;">First Year</th>';
                         html += '<th>Parent Name</th>';
                         html += '<th nowrap style="width: 45px;">Balance</th>';
@@ -3518,6 +3534,7 @@ class QBO_Teams {
                             }
                             html += '<td>' + gradeDisplay + '</td>';
                             html += '<td>' + (student.tshirt_size || 'N/A') + '</td>';
+                            html += '<td>' + (student.sex || 'N/A') + '</td>';
                             html += '<td>' + (student.first_year_first || 'N/A') + '</td>';
                             html += '<td>' + student.parent_name + '</td>';
                             html += '<td nowrap>$' + parseFloat(student.balance).toFixed(2) + '</td>';
@@ -3525,8 +3542,11 @@ class QBO_Teams {
                             html += '<td nowrap><span class="status-badge ' + statusClass + '">' + student.status + '</span></td>';
                             html += '<td nowrap>';
                             if (student.customer_id) {
-                                html += '<button type="button" class="button button-small edit-student-btn" data-student-id="' + student.student_id + '">Edit</button> ';
+                                html += '<a href="' + qboCustomerListVars.invoicesPageUrl + '&member_id=' + encodeURIComponent(student.customer_id) + '" class="button button-small view-student-invoices">Details</a> ';
                             }
+                            html += '<button type="button" class="button button-small edit-student-btn" data-student-id="' + student.student_id + '">Edit</button> ';
+                            html += '<button type="button" class="button button-small button-link-delete delete-student-btn" data-student-id="' + student.student_id + '" data-student-name="' + student.student_name + '">Delete</button>';
+
                             html += '</td>';
                             html += '</tr>';
                         });
@@ -3627,6 +3647,7 @@ class QBO_Teams {
                         html += '<th>Student Name</th>';
                         html += '<th style="width: 45px;">Grade</th>';
                         html += '<th style="width: 90px;">T-Shirt Size</th>';
+                        html += '<th style="width: 60px;">Sex</th>';
                         html += '<th style="width: 45px;">First Year</th>';
                         html += '<th>Parent Name</th>';
                         html += '<th nowrap style="width: 45px;">Balance</th>';
@@ -3644,6 +3665,7 @@ class QBO_Teams {
                             }
                             html += '<td>' + gradeDisplay + '</td>';
                             html += '<td>' + (student.tshirt_size || 'N/A') + '</td>';
+                            html += '<td>' + (student.sex || 'N/A') + '</td>';
                             html += '<td>' + (student.first_year_first || 'N/A') + '</td>';
                             html += '<td>' + student.parent_name + '</td>';
                             html += '<td nowrap>$' + parseFloat(student.balance).toFixed(2) + '</td>';
@@ -3651,8 +3673,11 @@ class QBO_Teams {
                             html += '<td nowrap><span class="status-badge ' + statusClass + '">' + student.status + '</span></td>';
                             html += '<td nowrap>';
                             if (student.customer_id) {
-                                html += '<button type="button" class="button button-small edit-student-btn" data-student-id="' + student.student_id + '">Edit</button> ';
+                                html += '<a href="' + qboCustomerListVars.invoicesPageUrl + '&member_id=' + encodeURIComponent(student.customer_id) + '" class="button button-small view-student-invoices">Details</a> ';
                             }
+                            html += '<button type="button" class="button button-small edit-student-btn" data-student-id="' + student.student_id + '">Edit</button> ';
+                            html += '<button type="button" class="button button-small button-link-delete delete-student-btn" data-student-id="' + student.student_id + '" data-student-name="' + student.student_name + '">Delete</button>';
+
                             html += '</td>';
                             html += '</tr>';
                         });
@@ -3682,9 +3707,12 @@ class QBO_Teams {
                                                     var statusClass = student.status === 'Active' ? 'status-active' : 'status-inactive';
                                                     htmlA += '<td nowrap><span class="status-badge ' + statusClass + '">' + student.status + '</span></td>';
                                                     htmlA += '<td nowrap>';
-                                                    if (student.customer_id) {
-                                                        htmlA += '<button type="button" class="button button-small edit-student-btn" data-student-id="' + student.student_id + '">Edit</button> ';
-                                                    }
+                            if (student.customer_id) {
+                                html += '<a href="' + qboCustomerListVars.invoicesPageUrl + '&member_id=' + encodeURIComponent(student.customer_id) + '" class="button button-small view-student-invoices">Details</a> ';
+                            }
+                            html += '<button type="button" class="button button-small edit-student-btn" data-student-id="' + student.student_id + '">Edit</button> ';
+                            html += '<button type="button" class="button button-small button-link-delete delete-student-btn" data-student-id="' + student.student_id + '" data-student-name="' + student.student_name + '">Delete</button>';
+
                                                     htmlA += '</td>';
                                                     htmlA += '</tr>';
                                                 });
@@ -3734,6 +3762,7 @@ class QBO_Teams {
                         html += '<th>Student Name</th>';
                         html += '<th style="width: 45px;">Grade</th>';
                         html += '<th style="width: 90px;">T-Shirt Size</th>';
+                        html += '<th style="width: 60px;">Sex</th>';
                         html += '<th style="width: 45px;">First Year</th>';
                         html += '<th>Parent Name</th>';
                         html += '<th nowrap style="width: 45px;">Balance</th>';
@@ -3751,6 +3780,7 @@ class QBO_Teams {
                             }
                             html += '<td>' + gradeDisplay + '</td>';
                             html += '<td>' + (student.tshirt_size || 'N/A') + '</td>';
+                            html += '<td>' + (student.sex || 'N/A') + '</td>';
                             html += '<td>' + (student.first_year_first || 'N/A') + '</td>';
                             html += '<td>' + student.parent_name + '</td>';
                             html += '<td nowrap>$' + parseFloat(student.balance).toFixed(2) + '</td>';
@@ -3758,8 +3788,10 @@ class QBO_Teams {
                             html += '<td nowrap><span class="status-badge ' + statusClass + '">' + student.status + '</span></td>';
                             html += '<td nowrap>';
                             if (student.customer_id) {
-                                html += '<button type="button" class="button button-small edit-student-btn" data-student-id="' + student.student_id + '">Edit</button> ';
+                                html += '<a href="' + qboCustomerListVars.invoicesPageUrl + '&member_id=' + encodeURIComponent(student.customer_id) + '" class="button button-small view-student-invoices">Details</a> ';
                             }
+                            html += '<button type="button" class="button button-small edit-student-btn" data-student-id="' + student.student_id + '">Edit</button> ';
+                            html += '<button type="button" class="button button-small button-link-delete delete-student-btn" data-student-id="' + student.student_id + '" data-student-name="' + student.student_name + '">Delete</button>';
                             html += '</td>';
                             html += '</tr>';
                         });
@@ -3789,9 +3821,12 @@ class QBO_Teams {
                                                     var statusClass = student.status === 'Active' ? 'status-active' : 'status-inactive';
                                                     htmlA += '<td nowrap><span class="status-badge ' + statusClass + '">' + student.status + '</span></td>';
                                                     htmlA += '<td nowrap>';
-                                                    if (student.customer_id) {
-                                                        htmlA += '<button type="button" class="button button-small edit-student-btn" data-student-id="' + student.student_id + '">Edit</button> ';
-                                                    }
+                            if (student.customer_id) {
+                                html += '<a href="' + qboCustomerListVars.invoicesPageUrl + '&member_id=' + encodeURIComponent(student.customer_id) + '" class="button button-small view-student-invoices">Details</a> ';
+                            }
+                            html += '<button type="button" class="button button-small edit-student-btn" data-student-id="' + student.student_id + '">Edit</button> ';
+                            html += '<button type="button" class="button button-small button-link-delete delete-student-btn" data-student-id="' + student.student_id + '" data-student-name="' + student.student_name + '">Delete</button>';
+
                                                     htmlA += '</td>';
                                                     htmlA += '</tr>';
                                                 });
