@@ -2596,6 +2596,83 @@ class QBO_Teams {
                                     <img src="<?php echo esc_url($team->team_photo); ?>" alt="Team Photo" class="team-photo">
                                 </div>
                             <?php endif; ?>
+                        </div>
+                        <!-- Team Info Edit Forms (Full) -->
+                        <div class="team-info-edit-forms" style="margin-top:24px;">
+                            <div class="sidebar-section">
+                                <h3>Edit Team Info</h3>
+                                <form method="post" enctype="multipart/form-data">
+                                    <input type="hidden" name="update_team" value="1" />
+                                    <input type="hidden" name="team_id" value="<?php echo intval($team_id); ?>" />
+                                    <?php wp_nonce_field('update_team_action', 'team_edit_nonce'); ?>
+                                    <table class="form-table">
+                                        <tr>
+                                            <th><label for="edit_team_name">Team Name</label></th>
+                                            <td><input type="text" id="edit_team_name" name="team_name" value="<?php echo esc_attr($team->team_name); ?>" required class="regular-text" /></td>
+                                        </tr>
+                                        <tr>
+                                            <th><label for="edit_team_number">Team Number</label></th>
+                                            <td><input type="text" id="edit_team_number" name="team_number" value="<?php echo esc_attr($team->team_number); ?>" class="regular-text" /></td>
+                                        </tr>
+                                        <tr>
+                                            <th><label for="edit_team_logo">Team Logo</label></th>
+                                            <td>
+                                                <input type="text" id="edit_team_logo" name="logo" value="<?php echo esc_url($team->logo); ?>" class="regular-text" />
+                                                <button type="button" class="button button-secondary" id="upload_team_logo_btn">Select Image</button>
+                                                <?php if (!empty($team->logo)): ?>
+                                                    <div style="margin-top:8px;"><img id="edit_team_logo_preview" src="<?php echo esc_url($team->logo); ?>" alt="Team Logo Preview" style="max-width:120px;max-height:120px;" /></div>
+                                                <?php else: ?>
+                                                    <div style="margin-top:8px;"><img id="edit_team_logo_preview" src="" alt="Team Logo Preview" style="display:none;max-width:120px;max-height:120px;" /></div>
+                                                <?php endif; ?>
+                                            </td>
+                                        </tr>
+                                        <tr>
+                                            <th><label for="edit_team_program">Program</label></th>
+                                            <td>
+                                                <select id="edit_team_program" name="program" class="regular-text">
+                                                    <option value="">Select program...</option>
+                                                    <option value="FTC" <?php selected(strtoupper($team->program), 'FTC'); ?>>FTC</option>
+                                                    <option value="FLL" <?php selected(strtoupper($team->program), 'FLL'); ?>>FLL</option>
+                                                    <option value="Other" <?php if (!in_array(strtoupper($team->program), ['FTC','FLL'])) echo 'selected'; ?>>Other</option>
+                                                </select>
+                                            </td>
+                                        </tr>
+                                        <tr>
+                                            <th><label for="edit_team_website">Website</label></th>
+                                            <td><input type="url" id="edit_team_website" name="website" value="<?php echo esc_url($team->website); ?>" class="regular-text" /></td>
+                                        </tr>
+                                        <tr>
+                                            <th><label for="edit_team_facebook">Facebook</label></th>
+                                            <td><input type="url" id="edit_team_facebook" name="facebook" value="<?php echo esc_url($team->facebook); ?>" class="regular-text" /></td>
+                                        </tr>
+                                        <tr>
+                                            <th><label for="edit_team_twitter">Twitter</label></th>
+                                            <td><input type="url" id="edit_team_twitter" name="twitter" value="<?php echo esc_url($team->twitter); ?>" class="regular-text" /></td>
+                                        </tr>
+                                        <tr>
+                                            <th><label for="edit_team_instagram">Instagram</label></th>
+                                            <td><input type="url" id="edit_team_instagram" name="instagram" value="<?php echo esc_url($team->instagram); ?>" class="regular-text" /></td>
+                                        </tr>
+                                        <tr>
+                                            <th><label for="edit_team_photo">Team Photo</label></th>
+                                            <td>
+                                                <input type="text" id="edit_team_photo" name="team_photo" value="<?php echo esc_url($team->team_photo); ?>" class="regular-text" />
+                                                <button type="button" class="button button-secondary" id="upload_team_photo_btn">Select Image</button>
+                                                <?php if (!empty($team->team_photo)): ?>
+                                                    <div style="margin-top:8px;"><img id="edit_team_photo_preview" src="<?php echo esc_url($team->team_photo); ?>" alt="Team Photo Preview" style="max-width:120px;max-height:120px;" /></div>
+                                                <?php else: ?>
+                                                    <div style="margin-top:8px;"><img id="edit_team_photo_preview" src="" alt="Team Photo Preview" style="display:none;max-width:120px;max-height:120px;" /></div>
+                                                <?php endif; ?>
+                                            </td>
+                                        </tr>
+                                        <tr>
+                                            <th><label for="edit_team_description">Description</label></th>
+                                            <td><textarea id="edit_team_description" name="description" rows="3" style="width:100%;"><?php echo esc_textarea($team->description); ?></textarea></td>
+                                        </tr>
+                                    </table>
+                                    <button type="submit" class="button button-primary" style="width:100%;">Save Team Info</button>
+                                </form>
+                            </div>
                             <?php
                             // Fetch previous team names from history table
                             $table_team_name_history = $wpdb->prefix . 'gears_team_name_history';
@@ -2624,6 +2701,40 @@ class QBO_Teams {
                                     <input type="number" name="old_team_year" id="old_team_year" min="1900" max="<?php echo esc_attr(date('Y')); ?>" required style="width:100%;margin-bottom:8px;" />
                                     <button type="submit" class="button button-primary" style="width:100%;">Add Old Name</button>
                                 </form>
+                            </div>
+                            <div class="sidebar-section">
+                                <h3>Associated Bank Account</h3>
+                                <form method="post">
+                                    <input type="hidden" name="update_team" value="1" />
+                                    <input type="hidden" name="team_id" value="<?php echo intval($team_id); ?>" />
+                                    <?php wp_nonce_field('update_team_action', 'team_edit_nonce'); ?>
+                                    <select name="bank_account_id" style="width:100%;margin-bottom:8px;">
+                                        <option value="">-- None --</option>
+                                        <?php
+                                        // Fetch all bank accounts from QBO
+                                        $bank_accounts = array();
+                                        if (method_exists($this->core, 'fetch_bank_accounts')) {
+                                            $bank_accounts = $this->core->fetch_bank_accounts();
+                                        }
+                                        foreach ($bank_accounts as $acct): 
+                                            $selected = (strval($team->bank_account_id ?? '') === strval($acct['Id'])) ? 'selected' : '';
+                                        ?>
+                                            <option value="<?php echo esc_attr($acct['Id']); ?>" <?php echo $selected; ?>><?php echo esc_html($acct['Name']); ?></option>
+                                        <?php endforeach; ?>
+                                    </select>
+                                    <button type="submit" class="button button-primary" style="width:100%;">Save Bank Account</button>
+                                </form>
+                                <?php if ($team->bank_account_id): ?>
+                                    <p style="margin-top:10px;"><strong>Current:</strong> <?php
+                                        $current = array_filter($bank_accounts, function($a) use ($team) { return $a['Id'] == $team->bank_account_id; });
+                                        if ($current) {
+                                            $acct = array_values($current)[0];
+                                            echo esc_html($acct['Name']);
+                                        } else {
+                                            echo esc_html($team->bank_account_id);
+                                        }
+                                    ?></p>
+                                <?php endif; ?>
                             </div>
                         </div>
                     </div>
@@ -2659,167 +2770,50 @@ class QBO_Teams {
                     </div>
                 </div>
 
-                <!-- Ledger Tab -->
-                <div class="qbo-tab-content" id="tab-ledger" style="display:none;">
-                    <div class="team-details-sidebar">
-                        <?php
-                        // Fetch ledger for the attached bank account
-                        $ledger_entries = array();
-                        if (method_exists($this->core, 'fetch_bank_account_ledger')) {
-                            $ledger_entries = $this->core->fetch_bank_account_ledger($team->bank_account_id);
-                        }
-                        // DEBUG: Output raw ledger entries for troubleshooting
-                        if (isset($_GET['debug_ledger']) && $_GET['debug_ledger'] == '1') {
-                            echo '<pre style="background:#fffbe6;border:1px solid #e0c97f;padding:10px;max-height:400px;overflow:auto;font-size:12px;">';
-                            echo "<strong>DEBUG: Raw $ledger_entries</strong>\n";
-                            var_dump($ledger_entries);
-                            echo '</pre>';
-                        }
-                        ?>
-                        <div class="sidebar-section" id="team-bank-ledger-section">
-                            <h3>Bank Account Ledger</h3>
-                            <?php
-                            // Try to fetch the true ending balance from QBO account endpoint
-                            $ending_balance = null;
-                            if (!empty($team->bank_account_id) && method_exists($this->core, 'fetch_qbo_account_balance')) {
-                                $ending_balance = $this->core->fetch_qbo_account_balance($team->bank_account_id);
-                            }
-                            // Fallback to last ledger entry if not available
-                            if ($ending_balance === null && is_array($ledger_entries) && count($ledger_entries) > 0) {
-                                $ending_balance = isset($ledger_entries[count($ledger_entries)-1]['balance']) ? $ledger_entries[count($ledger_entries)-1]['balance'] : 0;
-                            }
-                            ?>
-                            <div style="margin-bottom: 1em; font-size: 1.2em; font-weight: bold;">
-                                <?php if ($ending_balance !== null && $ending_balance !== ''): ?>
-                                    Ending Balance: $<?php echo number_format((float)$ending_balance, 2); ?>
-                                <?php else: ?>
-                                    <span style="color:#a00;">Ending balance not available.</span>
-                                <?php endif; ?>
-                            </div>
-                            <?php
-                            // DEBUG: Show a summary count of each type in the ledger
-                            if (is_array($ledger_entries) && count($ledger_entries) > 0) {
-                                $type_counts = array();
-                                foreach ($ledger_entries as $entry) {
-                                    $t = $entry['type'] ?? 'UNKNOWN';
-                                    if (!isset($type_counts[$t])) $type_counts[$t] = 0;
-                                    $type_counts[$t]++;
-                                }
-                                echo '<div style="background:#e6f7ff;border:1px solid #91d5ff;padding:6px 10px;margin-bottom:8px;font-size:12px;">';
-                                echo '<strong>DEBUG: Ledger Entry Type Counts:</strong> ';
-                                foreach ($type_counts as $t => $c) {
-                                    echo esc_html($t) . ': ' . intval($c) . ' &nbsp; ';
-                                }
-                                echo '</div>';
-                            }
-                            ?>
-                            <?php if (is_array($ledger_entries) && count($ledger_entries) > 0) : ?>
-                                <table class="wp-list-table widefat fixed striped">
-                                    <thead>
-                                        <tr>
-                                            <th>Date</th>
-                                            <th>Type</th>
-                                            <th>Payee</th>
-                                            <th>Payment</th>
-                                            <th>Deposit</th>
-                                            <th>Running Balance</th>
-                                        </tr>
-                                    </thead>
-                                    <tbody>
-                                        <?php 
-                                        $running_balance = 0;
-                                        // Show all entry types with clear columns
-                                        foreach ($ledger_entries as $entry) :
-                                            $type = $entry['type'] ?? '';
-                                            // Use 'payee' if present, else fallback to description
-                                            $payee = $entry['payee'] ?? ($entry['description'] ?? '');
-                                            $amount = isset($entry['amount']) ? (float)$entry['amount'] : 0;
-                                            // For BillPayment and Expenditure, show as Payment (negative)
-                                            // For Deposit, show as Deposit (positive)
-                                            // For Transfer, show as Payment or Deposit based on sign
-                                            // For JournalEntry, show as Payment if negative, Deposit if positive
-                                            $payment = '';
-                                            $deposit = '';
-                                            // Expenditures (Expense, Check, BillPayment) should always show as Payment (negative outflow)
-                                            if ($type === 'Expenditure' || $type === 'Expense' || $type === 'Check' || $type === 'BillPayment') {
-                                                $payment = '$' . number_format(abs($amount), 2);
-                                            } elseif ($type === 'Deposit') {
-                                                $deposit = '$' . number_format($amount, 2);
-                                            } elseif ($type === 'Transfer') {
-                                                if ($amount < 0) {
-                                                    $payment = '$' . number_format(abs($amount), 2);
-                                                } else {
-                                                    $deposit = '$' . number_format($amount, 2);
-                                                }
-                                            } elseif ($type === 'JournalEntry') {
-                                                if ($amount < 0) {
-                                                    $payment = '$' . number_format(abs($amount), 2);
-                                                } else {
-                                                    $deposit = '$' . number_format($amount, 2);
-                                                }
-                                            }
-                                            // Calculate running balance if not present
-                                            if (isset($entry['balance']) && $entry['balance'] !== '') {
-                                                $running_balance = (float)$entry['balance'];
-                                            } else {
-                                                $running_balance += $amount;
-                                            }
-                                        ?>
-                                            <tr>
-                                                <td><?php echo esc_html($entry['date'] ?? ''); ?></td>
-                                                <td><?php echo esc_html($type); ?></td>
-                                                <td><?php echo esc_html($payee); ?></td>
-                                                <td><?php echo $payment; ?></td>
-                                                <td><?php echo $deposit; ?></td>
-                                                <td><?php echo '$' . number_format($running_balance, 2); ?></td>
-                                            </tr>
-                                        <?php endforeach; ?>
-                                    </tbody>
-                                </table>
-                            <?php else : ?>
-                                <p>No ledger entries found for this account.</p>
-                            <?php endif; ?>
-                        </div>
-                        <?php
-                        // Fetch all bank accounts from QBO
-                        $bank_accounts = array();
-                        if (method_exists($this->core, 'fetch_bank_accounts')) {
-                            $bank_accounts = $this->core->fetch_bank_accounts();
-                        }
-                        ?>
-                        <div class="sidebar-section">
-                            <h3>Associated Bank Account</h3>
-                            <form method="post">
-                                <input type="hidden" name="update_team" value="1" />
-                                <input type="hidden" name="team_id" value="<?php echo intval($team_id); ?>" />
-                                <?php wp_nonce_field('update_team_action', 'team_edit_nonce'); ?>
-                                <select name="bank_account_id" style="width:100%;margin-bottom:8px;">
-                                    <option value="">-- None --</option>
-                                    <?php foreach ($bank_accounts as $acct): 
-                                        $selected = (strval($team->bank_account_id ?? '') === strval($acct['Id'])) ? 'selected' : '';
-                                    ?>
-                                        <option value="<?php echo esc_attr($acct['Id']); ?>" <?php echo $selected; ?>><?php echo esc_html($acct['Name']); ?></option>
-                                    <?php endforeach; ?>
-                                </select>
-                                <button type="submit" class="button button-primary" style="width:100%;">Save Bank Account</button>
-                            </form>
-                            <?php if ($team->bank_account_id): ?>
-                                <p style="margin-top:10px;"><strong>Current:</strong> <?php
-                                    $current = array_filter($bank_accounts, function($a) use ($team) { return $a['Id'] == $team->bank_account_id; });
-                                    if ($current) {
-                                        $acct = array_values($current)[0];
-                                        echo esc_html($acct['Name']);
-                                    } else {
-                                        echo esc_html($team->bank_account_id);
-                                    }
-                                ?></p>
-                            <?php endif; ?>
-                        </div>
-                    </div>
-                </div>
+                <!-- Bank Account Association moved to Team Info tab -->
             </div>
         
         <script type="text/javascript">
+        // Media uploader for logo and photo
+        jQuery(document).ready(function($) {
+            var logoUploader, photoUploader;
+            $('#upload_team_logo_btn').on('click', function(e) {
+                e.preventDefault();
+                if (logoUploader) {
+                    logoUploader.open();
+                    return;
+                }
+                logoUploader = wp.media({
+                    title: 'Select Team Logo',
+                    button: { text: 'Use this image' },
+                    multiple: false
+                });
+                logoUploader.on('select', function() {
+                    var attachment = logoUploader.state().get('selection').first().toJSON();
+                    $('#edit_team_logo').val(attachment.url);
+                    $('#edit_team_logo_preview').attr('src', attachment.url).show();
+                });
+                logoUploader.open();
+            });
+            $('#upload_team_photo_btn').on('click', function(e) {
+                e.preventDefault();
+                if (photoUploader) {
+                    photoUploader.open();
+                    return;
+                }
+                photoUploader = wp.media({
+                    title: 'Select Team Photo',
+                    button: { text: 'Use this image' },
+                    multiple: false
+                });
+                photoUploader.on('select', function() {
+                    var attachment = photoUploader.state().get('selection').first().toJSON();
+                    $('#edit_team_photo').val(attachment.url);
+                    $('#edit_team_photo_preview').attr('src', attachment.url).show();
+                });
+                photoUploader.open();
+            });
+        });
         // Make sure ajaxurl is available
         if (typeof ajaxurl === 'undefined') {
             var ajaxurl = '<?php echo admin_url('admin-ajax.php'); ?>';
