@@ -1018,193 +1018,99 @@ class QBO_Teams {
      */
     private function render_page_html($teams, $archived_teams = array()) {
         ?>
-        <style>
-            /* Tab Navigation Styles for Team Details Page */
-            .qbo-tabs-nav {
-                background: #fff;
-                border-radius: 12px;
-                box-shadow: 0 2px 8px rgba(0,0,0,0.07);
-                margin-bottom: 32px;
-                padding: 0 12px;
-                display: flex;
-                align-items: center;
-                min-height: 56px;
+        <style type="text/css">
+            /* Team Details Tab Navigation - Seamlessly Connected */
+            nav[id="teamTabs"] {
+                background: #f1f1f1 !important;
+                border-radius: 0 !important;
+                margin-bottom: 0 !important;
+                padding: 0 !important;
+                border: none !important;
+                display: flex !important;
+                flex-wrap: wrap !important;
+                gap: 0 !important;
+                position: relative !important;
+                z-index: 2 !important;
             }
-            .qbo-tabs {
-                display: flex;
-                gap: 0;
-                list-style: none;
-                padding: 0;
-                margin: 0;
-                width: 100%;
+            
+            nav[id="teamTabs"] a {
+                display: inline-block !important;
+                padding: 12px 20px !important;
+                color: #646970 !important;
+                font-weight: 600 !important;
+                text-decoration: none !important;
+                border: 1px solid #c3c4c7 !important;
+                border-bottom: none !important;
+                border-radius: 4px 4px 0 0 !important;
+                background: #f6f7f7 !important;
+                margin-right: 1px !important;
+                position: relative !important;
+                transition: all 0.2s ease !important;
+                cursor: pointer !important;
+                font-size: 14px !important;
             }
-            .qbo-tab-link {
-                display: block;
-                padding: 14px 32px 14px 32px;
-                color: #2c3e50;
-                text-decoration: none;
-                font-weight: 600;
-                border: none;
-                background: none;
-                border-radius: 10px 10px 0 0;
-                border-bottom: 3px solid transparent;
-                margin-right: 2px;
-                transition: background 0.2s, color 0.2s, border-bottom 0.2s, box-shadow 0.2s;
-                cursor: pointer;
-                font-size: 17px;
-                position: relative;
-                z-index: 1;
+            
+            nav[id="teamTabs"] a:hover {
+                background: #fff !important;
+                color: #0073aa !important;
+                text-decoration: none !important;
+                border-color: #8c8f94 !important;
             }
-            .qbo-tab-link:hover {
-                background: #f0f4f8;
-                color: #007cba;
+            
+            nav[id="teamTabs"] a.active {
+                color: #0073aa !important;
+                background: #fff !important;
+                border-color: #c3c4c7 !important;
+                border-bottom: 1px solid #fff !important;
+                margin-bottom: -1px !important;
+                z-index: 3 !important;
+                text-decoration: none !important;
             }
-            .qbo-tab-link.active {
-                color: #007cba;
-                background: #f8f9fa;
-                border-bottom: 3px solid #007cba;
-                box-shadow: 0 2px 8px rgba(0,124,186,0.07);
-                z-index: 2;
+            
+            /* Content area that seamlessly connects */
+            .tab-content {
+                background: #fff !important;
+                border: 1px solid #c3c4c7 !important;
+                border-radius: 0 0 4px 4px !important;
+                padding: 20px !important;
+                margin-top: 0 !important;
+                position: relative !important;
+                z-index: 1 !important;
+                min-height: 400px !important;
             }
-            @media (max-width: 600px) {
-                .qbo-tabs-nav {
-                    border-radius: 8px;
-                    min-height: 0;
-                    padding: 0 2px;
+            
+            .tab-pane {
+                display: none !important;
+            }
+            
+            .tab-pane.show.active {
+                display: block !important;
+            }
+            
+            /* Remove any margins that might create gaps */
+            nav[id="teamTabs"] + .tab-content {
+                margin-top: 0 !important;
+                border-top: 1px solid #c3c4c7 !important;
+            }
+            
+            /* Ensure active tab covers the top border of content */
+            nav[id="teamTabs"] a.active + * ~ .tab-content,
+            nav[id="teamTabs"]:has(a.active) + .tab-content {
+                border-top: none !important;
+            }
+            
+            @media (max-width: 768px) {
+                nav[id="teamTabs"] a {
+                    padding: 10px 16px !important;
+                    font-size: 13px !important;
+                    margin-right: 1px !important;
                 }
-                .qbo-tabs {
-                    flex-direction: column;
-                }
-                .qbo-tab-link {
-                    padding: 10px 12px;
-                    font-size: 15px;
-                    border-radius: 8px 8px 0 0;
-                }
-            }
-            /* Tab Navigation Styles (copied from teams list page for details page) */
-            .qbo-tabs-nav {
-                background: #fff;
-                border-radius: 12px;
-                box-shadow: 0 2px 8px rgba(0,0,0,0.07);
-                margin-bottom: 32px;
-                padding: 0 12px;
-                display: flex;
-                align-items: center;
-                min-height: 56px;
-            }
-            .qbo-tabs {
-                display: flex;
-                gap: 0;
-                list-style: none;
-                padding: 0;
-                margin: 0;
-                width: 100%;
-            }
-            .qbo-tab-link {
-                display: block;
-                padding: 14px 32px 14px 32px;
-                color: #2c3e50;
-                text-decoration: none;
-                font-weight: 600;
-                border: none;
-                background: none;
-                border-radius: 10px 10px 0 0;
-                border-bottom: 3px solid transparent;
-                margin-right: 2px;
-                transition: background 0.2s, color 0.2s, border-bottom 0.2s, box-shadow 0.2s;
-                cursor: pointer;
-                font-size: 17px;
-                position: relative;
-                z-index: 1;
-            }
-            .qbo-tab-link:hover {
-                background: #f0f4f8;
-                color: #007cba;
-            }
-            .qbo-tab-link.active {
-                color: #007cba;
-                background: #f8f9fa;
-                border-bottom: 3px solid #007cba;
-                box-shadow: 0 2px 8px rgba(0,124,186,0.07);
-                z-index: 2;
-            }
-            @media (max-width: 600px) {
-                .qbo-tabs-nav {
-                    border-radius: 8px;
-                    min-height: 0;
-                    padding: 0 2px;
-                }
-                .qbo-tabs {
-                    flex-direction: column;
-                }
-                .qbo-tab-link {
-                    padding: 10px 12px;
-                    font-size: 15px;
-                    border-radius: 8px 8px 0 0;
+                
+                .tab-content {
+                    padding: 16px !important;
                 }
             }
-            /* Tab Navigation Styles */
-            .qbo-tabs-nav {
-                background: #fff;
-                border-radius: 12px;
-                box-shadow: 0 2px 8px rgba(0,0,0,0.07);
-                margin-bottom: 32px;
-                padding: 0 12px;
-                display: flex;
-                align-items: center;
-                min-height: 56px;
-            }
-            .qbo-tabs {
-                display: flex;
-                gap: 0;
-                list-style: none;
-                padding: 0;
-                margin: 0;
-                width: 100%;
-            }
-            .qbo-tab-link {
-                display: block;
-                padding: 14px 32px 14px 32px;
-                color: #2c3e50;
-                text-decoration: none;
-                font-weight: 600;
-                border: none;
-                background: none;
-                border-radius: 10px 10px 0 0;
-                border-bottom: 3px solid transparent;
-                margin-right: 2px;
-                transition: background 0.2s, color 0.2s, border-bottom 0.2s, box-shadow 0.2s;
-                cursor: pointer;
-                font-size: 17px;
-                position: relative;
-                z-index: 1;
-            }
-            .qbo-tab-link:hover {
-                background: #f0f4f8;
-                color: #007cba;
-            }
-            .qbo-tab-link.active {
-                color: #007cba;
-                background: #f8f9fa;
-                border-bottom: 3px solid #007cba;
-                box-shadow: 0 2px 8px rgba(0,124,186,0.07);
-                z-index: 2;
-            }
-            @media (max-width: 600px) {
-                .qbo-tabs-nav {
-                    border-radius: 8px;
-                    min-height: 0;
-                    padding: 0 2px;
-                }
-                .qbo-tabs {
-                    flex-direction: column;
-                }
-                .qbo-tab-link {
-                    padding: 10px 12px;
-                    font-size: 15px;
-                    border-radius: 8px 8px 0 0;
-                }
-            }
+            
             /* Program Logo Styling */
             .program-logo {
                 height: 24px;
@@ -2481,19 +2387,17 @@ class QBO_Teams {
             </div>
 
             <!-- Tab Navigation -->
-            <nav class="qbo-tabs-nav">
-                <ul class="qbo-tabs">
-                    <li><a href="#" class="qbo-tab-link active" data-tab="tab-team-info">Team Info</a></li>
-                    <li><a href="#" class="qbo-tab-link" data-tab="tab-mentors">Mentors</a></li>
-                    <li><a href="#" class="qbo-tab-link" data-tab="tab-members">Members</a></li>
-                    <li><a href="#" class="qbo-tab-link" data-tab="tab-alumni">Alumni</a></li>
-                    <li><a href="#" class="qbo-tab-link" data-tab="tab-ledger">Ledger</a></li>
-                </ul>
+            <nav class="nav nav-tabs mb-4" id="teamTabs" role="tablist">
+                <a class="nav-link active" id="team-info-tab" data-bs-toggle="tab" href="#tab-team-info" role="tab" aria-controls="tab-team-info" aria-selected="true">Team Info</a>
+                <a class="nav-link" id="mentors-tab" data-bs-toggle="tab" href="#tab-mentors" role="tab" aria-controls="tab-mentors" aria-selected="false">Mentors</a>
+                <a class="nav-link" id="members-tab" data-bs-toggle="tab" href="#tab-members" role="tab" aria-controls="tab-members" aria-selected="false">Members</a>
+                <a class="nav-link" id="alumni-tab" data-bs-toggle="tab" href="#tab-alumni" role="tab" aria-controls="tab-alumni" aria-selected="false">Alumni</a>
+                <a class="nav-link" id="ledger-tab" data-bs-toggle="tab" href="#tab-ledger" role="tab" aria-controls="tab-ledger" aria-selected="false">Ledger</a>
             </nav>
 
-            <div class="team-details-container">
+            <div class="tab-content">
                 <!-- Team Info Tab -->
-                <div class="qbo-tab-content" id="tab-team-info" style="display:block;">
+                <div class="tab-pane fade show active" id="tab-team-info" role="tabpanel" aria-labelledby="team-info-tab">
                     <div class="team-details-main">
                         <div class="team-main-info">
                             <?php if (!empty($team->program)): ?>
@@ -2707,37 +2611,55 @@ class QBO_Teams {
                 </div>
 
                 <!-- Mentors Tab -->
-                <div class="qbo-tab-content" id="tab-mentors" style="display:none;">
+                <div class="tab-pane fade" id="tab-mentors" role="tabpanel" aria-labelledby="mentors-tab">
                     <div class="team-section" id="team-mentors-section">
                         <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px;">
                             <h2 style="margin: 0;">Team Mentors</h2>
                             <button id="add-mentor-btn" class="button button-primary button-small">Add New Mentor</button>
                         </div>
-                        <div id="team-mentors-list">Loading...</div>
+                        <?php 
+                        // Include the Mentors List Table class
+                        if (!class_exists('QBO_Mentors_List_Table')) {
+                            require_once plugin_dir_path(__FILE__) . 'class-qbo-mentors-list-table.php';
+                        }
+                        QBO_Mentors_List_Table::render_mentors_table($team_id);
+                        ?>
                     </div>
                 </div>
 
                 <!-- Members Tab -->
-                <div class="qbo-tab-content" id="tab-members" style="display:none;">
+                <div class="tab-pane fade" id="tab-members" role="tabpanel" aria-labelledby="members-tab">
                     <div class="team-section" id="team-students-section">
                         <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px;">
                             <h2 style="margin: 0;">Students in this Team</h2>
                             <button id="add-student-btn" class="button button-primary button-small">Add New Student</button>
                         </div>
-                        <div id="team-students-list">Loading...</div>
+                        <?php 
+                        // Include the Students List Table class
+                        if (!class_exists('QBO_Students_List_Table')) {
+                            require_once plugin_dir_path(__FILE__) . 'class-qbo-students-list-table.php';
+                        }
+                        QBO_Students_List_Table::render_students_table($team_id, false);
+                        ?>
                     </div>
                 </div>
 
                 <!-- Alumni Tab -->
-                <div class="qbo-tab-content" id="tab-alumni" style="display:none;">
+                <div class="tab-pane fade" id="tab-alumni" role="tabpanel" aria-labelledby="alumni-tab">
                     <div class="team-section" id="team-alumni-section">
                         <h2>Alumni of this Team</h2>
-                        <div id="team-alumni-list">Loading...</div>
+                        <?php 
+                        // Include the Students List Table class
+                        if (!class_exists('QBO_Students_List_Table')) {
+                            require_once plugin_dir_path(__FILE__) . 'class-qbo-students-list-table.php';
+                        }
+                        QBO_Students_List_Table::render_students_table($team_id, true);
+                        ?>
                     </div>
                 </div>
 
                 <!-- Ledger Tab Content -->
-                <div class="qbo-tab-content" id="tab-ledger" style="display:none;">
+                <div class="tab-pane fade" id="tab-ledger" role="tabpanel" aria-labelledby="ledger-tab">
                     <div class="team-section" id="team-ledger-section">
                         <h2>Bank Account Register</h2>
                         <?php
@@ -2991,7 +2913,7 @@ class QBO_Teams {
                         <?php } ?>
                     </div>
                 </div>
-            </div>
+            </div> <!-- End tab-content -->
         
         <script type="text/javascript">
         // Media uploader for logo and photo
@@ -3043,23 +2965,68 @@ class QBO_Teams {
         qboCustomerListVars.invoicesPageUrl = "<?php echo esc_js(admin_url('admin.php?page=qbo-view-invoices')); ?>";
         qboCustomerListVars.nonce = "<?php echo wp_create_nonce('qbo_get_customers'); ?>";
 
-        // Tab switching logic
+        // Bootstrap-style tabs with state persistence
         document.addEventListener('DOMContentLoaded', function() {
-            var tabLinks = document.querySelectorAll('.qbo-tab-link');
-            var tabContents = document.querySelectorAll('.qbo-tab-content');
-            tabLinks.forEach(function(link) {
-                link.addEventListener('click', function(e) {
-                    e.preventDefault();
-                    var tab = this.getAttribute('data-tab');
-                    // Remove active from all links
-                    tabLinks.forEach(function(l) { l.classList.remove('active'); });
-                    // Hide all tab contents
-                    tabContents.forEach(function(tc) { tc.style.display = 'none'; });
-                    // Show selected tab
-                    document.getElementById(tab).style.display = 'block';
-                    this.classList.add('active');
+            // Initialize custom tab functionality
+            var tabNav = document.querySelector('.nav.nav-tabs');
+            if (tabNav) {
+                // Get hash from URL or localStorage
+                var savedTab = window.location.hash || localStorage.getItem('activeTeamTab') || '#tab-team-info';
+                
+                // Clean up hash if needed
+                if (savedTab.startsWith('#')) {
+                    savedTab = savedTab.substring(1);
+                }
+                
+                // Set initial active tab
+                var activeTabLink = document.querySelector('.nav-link[href="#' + savedTab + '"]');
+                var activeTabPane = document.getElementById(savedTab);
+                
+                if (activeTabLink && activeTabPane) {
+                    // Remove active classes from all tabs
+                    document.querySelectorAll('.nav-link').forEach(function(link) {
+                        link.classList.remove('active');
+                        link.setAttribute('aria-selected', 'false');
+                    });
+                    document.querySelectorAll('.tab-pane').forEach(function(pane) {
+                        pane.classList.remove('show', 'active');
+                    });
+                    
+                    // Activate selected tab
+                    activeTabLink.classList.add('active');
+                    activeTabLink.setAttribute('aria-selected', 'true');
+                    activeTabPane.classList.add('show', 'active');
+                }
+                
+                // Add click handlers for state persistence
+                document.querySelectorAll('.nav.nav-tabs .nav-link').forEach(function(link) {
+                    link.addEventListener('click', function(e) {
+                        e.preventDefault();
+                        var targetTab = this.getAttribute('href');
+                        
+                        // Save to localStorage and update URL hash
+                        localStorage.setItem('activeTeamTab', targetTab);
+                        history.replaceState(null, null, targetTab);
+                        
+                        // Remove active from all
+                        document.querySelectorAll('.nav-link').forEach(function(l) {
+                            l.classList.remove('active');
+                            l.setAttribute('aria-selected', 'false');
+                        });
+                        document.querySelectorAll('.tab-pane').forEach(function(pane) {
+                            pane.classList.remove('show', 'active');
+                        });
+                        
+                        // Activate clicked tab
+                        this.classList.add('active');
+                        this.setAttribute('aria-selected', 'true');
+                        var targetPane = document.querySelector(targetTab);
+                        if (targetPane) {
+                            targetPane.classList.add('show', 'active');
+                        }
+                    });
                 });
-            });
+            }
         });
         </script>
 
@@ -3070,121 +3037,30 @@ class QBO_Teams {
                 // Load mentors for this team
                 loadTeamMentors();
                 
-                // Fetch and display students for this team
+                // Load students data for modal use
                 if (typeof qboCustomerListVars !== 'undefined') {
                     jQuery.post(ajaxurl, {
                         action: 'qbo_get_team_students',
                         team_id: teamId,
                         nonce: qboCustomerListVars.nonce
                     }, function(resp) {
-                        var studentsDiv = document.getElementById('team-students-list');
-                        var alumniDiv = document.getElementById('team-alumni-list');
                         if (resp.success && Array.isArray(resp.data) && resp.data.length) {
-                    var students = [];
-                    var alumni = [];
-                    resp.data.forEach(function(student) {
-                        if ((student.grade || '').toLowerCase() === 'alumni') {
-                            alumni.push(student);
-                        } else {
-                            students.push(student);
-                        }
-                    });
-                    // Expose globally for modal use
-                    window.qboStudents = students;
-                    window.qboAlumni = alumni;
-                            // Students table
-                            if (students.length) {
-                        var html = '<table class="wp-list-table widefat fixed striped">';
-                        html += '<thead><tr>';
-                        html += '<th>Student Name</th>';
-                        html += '<th style="width: 45px;">Grade</th>';
-                        html += '<th style="width: 90px;">T-Shirt Size</th>';
-                        html += '<th style="width: 60px;">Sex</th>';
-                        html += '<th style="width: 45px;">First Year</th>';
-                        html += '<th>Parent Name</th>';
-                        html += '<th nowrap style="width: 45px;">Balance</th>';
-                        html += '<th style="width: 45px;">Status</th>';
-                        html += '<th>Actions</th>';
-                        html += '</tr></thead>';
-                        html += '<tbody>';
-                        students.forEach(function(student) {
-                            html += '<tr>';
-                            html += '<td><strong>' + student.student_name + '</strong></td>';
-                            var gradeDisplay = student.grade || 'N/A';
-                            if (gradeDisplay && gradeDisplay !== 'N/A' && gradeDisplay.toLowerCase() !== 'alumni') {
-                                if (gradeDisplay === 'K') gradeDisplay = 'Kindergarten';
-                                else gradeDisplay = gradeDisplay + 'th Grade';
-                            }
-                            html += '<td>' + gradeDisplay + '</td>';
-                        html += '<td>' + (student.tshirt_size || 'N/A') + '</td>';
-                        html += '<td>' + (student.sex || 'N/A') + '</td>';
-                            html += '<td>' + (student.first_year_first || 'N/A') + '</td>';
-                            html += '<td>' + student.parent_name + '</td>';
-                            html += '<td nowrap>$' + parseFloat(student.balance).toFixed(2) + '</td>';
-                            var statusClass = student.status === 'Active' ? 'status-active' : 'status-inactive';
-                            html += '<td nowrap><span class="status-badge ' + statusClass + '">' + student.status + '</span></td>';
-                            html += '<td nowrap>';
-                            if (student.customer_id) {
-                                html += '<a href="' + qboCustomerListVars.invoicesPageUrl + '&member_id=' + encodeURIComponent(student.customer_id) + '" class="button button-small view-student-invoices">Details</a> ';
-                            }
-                            html += '<button type="button" class="button button-small edit-student-btn" data-student-id="' + student.student_id + '">Edit</button> ';
-                            html += '<button type="button" class="button button-small button-link-delete delete-student-btn" data-student-id="' + student.student_id + '" data-student-name="' + student.student_name + '">Delete</button>';
-                            html += '</td>';
-                            html += '</tr>';
-                        });
-                        html += '</tbody></table>';
-                        studentsDiv.innerHTML = html;
-                            } else {
-                                studentsDiv.innerHTML = '<em>No students assigned to this team.</em>';
-                            }
-                            // Alumni table
-                            if (alumni.length) {
-                                var htmlA = '<table class="wp-list-table widefat fixed striped">';
-                                htmlA += '<thead><tr>';
-                                htmlA += '<th>Name</th>';
-                                htmlA += '<th style="width: 45px;">First Year</th>';
-                                htmlA += '<th>Parent Name</th>';
-                                htmlA += '<th nowrap style="width: 45px;">Balance</th>';
-                                htmlA += '<th style="width: 45px;">Status</th>';
-                                htmlA += '<th>Actions</th>';
-                                htmlA += '</tr></thead>';
-                                html += '<tbody>';
-                                alumni.forEach(function(student) {
-                                    htmlA += '<tr>';
-                                    htmlA += '<td><strong>' + student.student_name + '</strong></td>';
-                                    htmlA += '<td>' + (student.first_year_first || 'N/A') + '</td>';
-                                    htmlA += '<td>' + student.parent_name + '</td>';
-                                    htmlA += '<td>$' + parseFloat(student.balance).toFixed(2) + '</td>';
-                                    // Add status column with styling
-                                    var statusClass = student.status === 'Active' ? 'status-active' : 'status-inactive';
-                                    htmlA += '<td nowrap><span class="status-badge ' + statusClass + '">' + student.status + '</span></td>';
-                                    htmlA += '<td>';
-                                    if (student.customer_id) {
-                                        htmlA += '<a href="' + qboCustomerListVars.invoicesPageUrl + '&member_id=' + encodeURIComponent(student.customer_id) + '" class="button button-small view-student-invoices">' +
-                                               'Details</a> ';
-                                    }
-                                    // Add Edit and Delete buttons for alumni
-                                    htmlA += '<button type="button" class="button button-small edit-student-btn" data-student-id="' + student.student_id + '">Edit</button> ';
-                                    htmlA += '<button type="button" class="button button-small button-link-delete delete-student-btn" data-student-id="' + student.student_id + '" data-student-name="' + student.student_name + '">Delete</button>';
-                                    htmlA += '</td>';
-                                    htmlA += '</tr>';
-                                });
-                                htmlA += '</tbody></table>';
-                                alumniDiv.innerHTML = htmlA;
-                            } else {
-                                alumniDiv.innerHTML = '<em>No alumni for this team.</em>';
-                            }
-                        } else {
-                            studentsDiv.innerHTML = '<em>No students assigned to this team.</em>';
-                            alumniDiv.innerHTML = '<em>No alumni for this team.</em>';
+                            var students = [];
+                            var alumni = [];
+                            resp.data.forEach(function(student) {
+                                if ((student.grade || '').toLowerCase() === 'alumni') {
+                                    alumni.push(student);
+                                } else {
+                                    students.push(student);
+                                }
+                            });
+                            // Expose globally for modal use
+                            window.qboStudents = students;
+                            window.qboAlumni = alumni;
                         }
                     }).fail(function() {
-                        document.getElementById('team-students-list').innerHTML = '<em>Error loading students.</em>';
-                        document.getElementById('team-alumni-list').innerHTML = '<em>Error loading alumni.</em>';
+                        console.log('Error loading students data for modals.');
                     });
-                } else {
-                    document.getElementById('team-students-list').innerHTML = '<em>Unable to load students (missing nonce).</em>';
-                    document.getElementById('team-alumni-list').innerHTML = '<em>Unable to load alumni (missing nonce).</em>';
                 }
                 
                 // Add modal handlers

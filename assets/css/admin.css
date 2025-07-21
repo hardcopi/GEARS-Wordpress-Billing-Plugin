@@ -2,6 +2,83 @@
  * Admin CSS for QBO Recurring Billing Plugin
  */
 
+/* Team Details Tab Navigation Styling */
+.wrap nav.nav.nav-tabs,
+nav.nav.nav-tabs#teamTabs,
+.nav.nav-tabs {
+    background: #fff !important;
+    border-radius: 12px !important;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.07) !important;
+    margin-bottom: 32px !important;
+    padding: 8px 12px !important;
+    border-bottom: 1px solid #ddd !important;
+    display: flex !important;
+    flex-wrap: wrap !important;
+    gap: 4px !important;
+    list-style: none !important;
+}
+
+.wrap nav.nav.nav-tabs .nav-link,
+nav.nav.nav-tabs#teamTabs .nav-link,
+.nav.nav-tabs .nav-link {
+    display: inline-block !important;
+    padding: 14px 24px !important;
+    color: #2c3e50 !important;
+    font-weight: 600 !important;
+    text-decoration: none !important;
+    border: 1px solid #ddd !important;
+    border-radius: 8px 8px 0 0 !important;
+    background: #f9f9f9 !important;
+    margin-bottom: -1px !important;
+    position: relative !important;
+    transition: all 0.2s ease !important;
+    cursor: pointer !important;
+    font-size: 16px !important;
+    border-bottom: 3px solid transparent !important;
+}
+
+.wrap nav.nav.nav-tabs .nav-link:hover,
+nav.nav.nav-tabs#teamTabs .nav-link:hover,
+.nav.nav-tabs .nav-link:hover {
+    background: #f0f4f8 !important;
+    color: #007cba !important;
+    text-decoration: none !important;
+    border-color: #bbb !important;
+    border-bottom-color: transparent !important;
+}
+
+.wrap nav.nav.nav-tabs .nav-link.active,
+nav.nav.nav-tabs#teamTabs .nav-link.active,
+.nav.nav-tabs .nav-link.active {
+    color: #007cba !important;
+    background: #fff !important;
+    border-color: #ddd !important;
+    border-bottom: 3px solid #007cba !important;
+    box-shadow: 0 2px 4px rgba(0,124,186,0.1) !important;
+    z-index: 2 !important;
+    text-decoration: none !important;
+}
+
+.wrap .tab-content,
+.tab-content {
+    background: #fff !important;
+    border: 1px solid #ddd !important;
+    border-radius: 0 8px 8px 8px !important;
+    padding: 24px !important;
+    margin-top: -1px !important;
+    position: relative !important;
+    z-index: 1 !important;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.05) !important;
+}
+
+.tab-pane {
+    display: none !important;
+}
+
+.tab-pane.show.active {
+    display: block !important;
+}
+
 /* Additional styling for better plugin page appearance */
 .qbo-admin-page {
     padding-bottom: 50px;
@@ -40,4 +117,63 @@
 .status-inactive {
     color: #d63638;
     font-weight: 600;
+}
+
+/* Status badge styling for list tables */
+.status-badge {
+    display: inline-block;
+    padding: 2px 8px;
+    border-radius: 3px;
+    font-size: 11px;
+    font-weight: 600;
+    text-transform: uppercase;
+    white-space: nowrap;
+}
+
+.status-badge.status-active {
+    background-color: #d4edda;
+    color: #155724;
+    border: 1px solid #c3e6cb;
+}
+
+.status-badge.status-inactive {
+    background-color: #f8d7da;
+    color: #721c24;
+    border: 1px solid #f5c6cb;
+}
+
+/* Students and Mentors list table improvements */
+.students-table .wp-list-table th,
+.alumni-table .wp-list-table th,
+.mentors-table .wp-list-table th {
+    white-space: nowrap;
+}
+
+.students-table .wp-list-table td,
+.alumni-table .wp-list-table td,
+.mentors-table .wp-list-table td {
+    vertical-align: middle;
+}
+
+/* Filter controls styling */
+.students-table .tablenav .actions select,
+.alumni-table .tablenav .actions select,
+.mentors-table .tablenav .actions select {
+    margin-right: 5px;
+}
+
+/* Responsive table improvements */
+@media screen and (max-width: 782px) {
+    .students-table .wp-list-table td,
+    .alumni-table .wp-list-table td,
+    .mentors-table .wp-list-table td {
+        font-size: 13px;
+    }
+    
+    .students-table .button-small,
+    .alumni-table .button-small,
+    .mentors-table .button-small {
+        font-size: 11px;
+        padding: 2px 5px;
+    }
 }
