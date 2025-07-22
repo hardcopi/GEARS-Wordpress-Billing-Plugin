@@ -1574,8 +1574,22 @@ class QBO_Teams {
                                 <td><strong><?php echo esc_html($team->team_name); ?></strong></td>
                                 <td><?php echo esc_html($team->team_number); ?></td>
                                 <td><?php echo $this->get_program_display($team->program); ?></td>
-                                <td><?php echo intval($team->mentor_count); ?></td>
-                                <td><?php echo intval($team->student_count); ?></td>
+                                <td><?php 
+                                    $mentor_count = intval($team->mentor_count);
+                                    if ($mentor_count == 0) {
+                                        echo '<span style="color: #d63638; font-weight: bold;">' . $mentor_count . '</span>';
+                                    } else {
+                                        echo $mentor_count;
+                                    }
+                                ?></td>
+                                <td><?php 
+                                    $student_count = intval($team->student_count);
+                                    if ($student_count < 3) {
+                                        echo '<span style="color: #d63638; font-weight: bold;">' . $student_count . '</span>';
+                                    } else {
+                                        echo $student_count;
+                                    }
+                                ?></td>
                                 <td><?php echo !empty($team->hall_of_fame) ? '<span class="dashicons dashicons-yes-alt" style="color: #00a32a;" title="Hall of Fame Team"></span>' : ''; ?></td>
                                 <td>
                                     <a href="<?php echo admin_url('admin.php?page=qbo-teams&action=view&team_id=' . intval($team->id)); ?>" class="button button-small">Edit</a>
@@ -1613,8 +1627,22 @@ class QBO_Teams {
                                     <td><strong><?php echo esc_html($team->team_name); ?></strong> <span style="color: #999; font-size: 11px;">(Past)</span></td>
                                     <td><?php echo esc_html($team->team_number); ?></td>
                                     <td><?php echo $this->get_program_display($team->program); ?></td>
-                                    <td><?php echo intval($team->mentor_count); ?></td>
-                                    <td><?php echo intval($team->student_count); ?></td>
+                                    <td><?php 
+                                        $mentor_count = intval($team->mentor_count);
+                                        if ($mentor_count == 0) {
+                                            echo '<span style="color: #d63638; font-weight: bold;">' . $mentor_count . '</span>';
+                                        } else {
+                                            echo $mentor_count;
+                                        }
+                                    ?></td>
+                                    <td><?php 
+                                        $student_count = intval($team->student_count);
+                                        if ($student_count < 3) {
+                                            echo '<span style="color: #d63638; font-weight: bold;">' . $student_count . '</span>';
+                                        } else {
+                                            echo $student_count;
+                                        }
+                                    ?></td>
                                     <td><?php echo !empty($team->hall_of_fame) ? '<span class="dashicons dashicons-yes-alt" style="color: #00a32a;" title="Hall of Fame Team"></span>' : ''; ?></td>
                                     <td>
                                         <a href="<?php echo admin_url('admin.php?page=qbo-teams&action=view&team_id=' . intval($team->id)); ?>" class="button button-small">Edit</a>
