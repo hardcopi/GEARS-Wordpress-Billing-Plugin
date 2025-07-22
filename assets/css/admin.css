@@ -39,6 +39,10 @@
     box-shadow: 0 4px 12px rgba(0,124,186,0.3);
 }
 
+#actions {
+    width: 150px;
+}
+
 .team-info-grid {
     display: grid;
     grid-template-columns: 2fr 1fr;

@@ -909,7 +909,7 @@ class QBO_Teams {
                                 <th>Amount</th>
                                 <th>Balance</th>
                                 <th>Status</th>
-                                <th>Actions</th>
+                                <th style="width: 150px;">Actions</th>
                             </tr>
                         </thead>
                         <tbody>
@@ -1564,7 +1564,7 @@ class QBO_Teams {
                         <th>Mentors</th>
                         <th>Students</th>
                         <th>Hall of Fame</th>
-                        <th>Actions</th>
+                        <th style="width: 150px;">Actions</th>
                     </tr>
                 </thead>
                 <tbody>
@@ -1618,7 +1618,7 @@ class QBO_Teams {
                                 <th>Mentors</th>
                                 <th>Students</th>
                                 <th>Hall of Fame</th>
-                                <th>Actions</th>
+                                <th style="width: 150px;">Actions</th>
                             </tr>
                         </thead>
                         <tbody>
@@ -1954,23 +1954,50 @@ class QBO_Teams {
         $students = $wpdb->get_results($wpdb->prepare("SELECT * FROM $table_students WHERE team_id = %d ORDER BY last_name, first_name", $team_id));
         $result = array();
         $active_recurring_lookup = array();
-        // Optionally, build $active_recurring_lookup here if needed
+        
+        // Build lookup of customers with active recurring invoices from cache
+        $recurring_cache = get_option('qbo_recurring_invoices_cache', array());
+        if (isset($recurring_cache['data']) && is_array($recurring_cache['data'])) {
+            foreach ($recurring_cache['data'] as $invoice) {
+                // Check customer reference in the invoice
+                $customer_id = null;
+                if (isset($invoice['customer_ref']['value'])) {
+                    $customer_id = $invoice['customer_ref']['value'];
+                } elseif (isset($invoice['Invoice']['CustomerRef']['value'])) {
+                    $customer_id = $invoice['Invoice']['CustomerRef']['value'];
+                }
+                
+                if ($customer_id) {
+                    $active_recurring_lookup[$customer_id] = true;
+                }
+            }
+        }
         foreach ($students as $student) {
             $student_name = trim($student->first_name . ' ' . $student->last_name);
             $parent_name = '';
             $customer_info = array();
-            if (is_object($this->core) && is_callable([$this->core, 'get_customer_info'])) {
-                try {
-                    $customer_info = $this->core->get_customer_info($student->customer_id);
-                } catch (Throwable $e) {
-                    // Log or ignore, but do not break AJAX
-                    $customer_info = array();
+            
+            // Only try to get customer info if customer_id exists and is not empty
+            if (!empty($student->customer_id)) {
+                // Get customer info from local cache only (no API calls)
+                $cache = get_option('qbo_recurring_billing_customers_cache', array());
+                $customer_info = array();
+                
+                if (isset($cache['data']) && is_array($cache['data'])) {
+                    foreach ($cache['data'] as $cached_customer) {
+                        if (isset($cached_customer['Id']) && $cached_customer['Id'] == $student->customer_id) {
+                            $customer_info = $cached_customer;
+                            break;
+                        }
+                    }
                 }
             }
+            
             $display_name = isset($customer_info['DisplayName']) ? $customer_info['DisplayName'] : '';
             $company_name = isset($customer_info['CompanyName']) ? $customer_info['CompanyName'] : '';
             $first_name = isset($customer_info['GivenName']) ? $customer_info['GivenName'] : '';
             $last_name = isset($customer_info['FamilyName']) ? $customer_info['FamilyName'] : '';
+            
             if (!empty($display_name)) {
                 $parent_name = $display_name;
             } elseif (!empty($company_name)) {
@@ -1978,7 +2005,13 @@ class QBO_Teams {
             } elseif (!empty($first_name) || !empty($last_name)) {
                 $parent_name = trim($first_name . ' ' . $last_name);
             } else {
-                $parent_name = 'Unknown Customer';
+                // If we reach here, either customer_id is empty or the API call failed/returned no useful data
+                if (empty($student->customer_id)) {
+                    $parent_name = 'No Parent Linked';
+                } else {
+                    // Customer ID exists but no useful data was returned
+                    $parent_name = 'No Parent Linked'; // Change from 'Unknown Customer' to be more user-friendly
+                }
             }
             $balance = 0.00;
             if (!empty($student->customer_id) && is_object($this->core) && method_exists($this->core, 'fetch_customer_invoices') && is_callable([$this->core, 'fetch_customer_invoices'])) {
@@ -2821,7 +2854,7 @@ class QBO_Teams {
                         if (!class_exists('QBO_Students_List_Table')) {
                             require_once plugin_dir_path(__FILE__) . 'class-qbo-students-list-table.php';
                         }
-                        QBO_Students_List_Table::render_students_table($team_id, false);
+                        QBO_Students_List_Table::render_students_table($team_id, false, $this->core);
                         ?>
                     </div>
                 </div>
@@ -2835,7 +2868,7 @@ class QBO_Teams {
                         if (!class_exists('QBO_Students_List_Table')) {
                             require_once plugin_dir_path(__FILE__) . 'class-qbo-students-list-table.php';
                         }
-                        QBO_Students_List_Table::render_students_table($team_id, true);
+                        QBO_Students_List_Table::render_students_table($team_id, true, $this->core);
                         ?>
                     </div>
                 </div>
@@ -3420,6 +3453,18 @@ class QBO_Teams {
                     }
                 });
                 
+                // Handle no-customer button clicks (using event delegation)
+                $(document).on('click', '.no-customer-btn', function() {
+                    var studentName = $(this).text().replace('Details', '').trim();
+                    if (!studentName) {
+                        // Try to get student name from the row
+                        var row = $(this).closest('tr');
+                        var nameCell = row.find('td:first-child');
+                        studentName = nameCell.find('strong').text() || nameCell.text() || 'this student';
+                    }
+                    showNoCustomerPopup(studentName);
+                });
+                
                 // Handle form submissions via AJAX
                 $('#add-mentor-form').submit(function(e) {
                     e.preventDefault();
@@ -3579,7 +3624,7 @@ class QBO_Teams {
                         html += '<th>Parent Name</th>';
                         html += '<th nowrap style="width: 45px;">Balance</th>';
                         html += '<th style="width: 45px;">Status</th>';
-                        html += '<th>Actions</th>';
+                        html += '<th style="width: 150px;">Actions</th>';
                         html += '</tr></thead>';
                         html += '<tbody>';
                         students.forEach(function(student) {
@@ -3594,13 +3639,15 @@ class QBO_Teams {
                             html += '<td>' + (student.tshirt_size || 'N/A') + '</td>';
                             html += '<td>' + (student.sex || 'N/A') + '</td>';
                             html += '<td>' + (student.first_year_first || 'N/A') + '</td>';
-                            html += '<td>' + student.parent_name + '</td>';
+                            html += '<td>' + (student.parent_name || 'No Parent Linked') + '</td>';
                             html += '<td nowrap>$' + parseFloat(student.balance).toFixed(2) + '</td>';
                             var statusClass = student.status === 'Active' ? 'status-active' : 'status-inactive';
                             html += '<td nowrap><span class="status-badge ' + statusClass + '">' + student.status + '</span></td>';
                             html += '<td nowrap>';
                             if (student.customer_id) {
                                 html += '<a href="' + qboCustomerListVars.invoicesPageUrl + '&member_id=' + encodeURIComponent(student.customer_id) + '" class="button button-small view-student-invoices">Details</a> ';
+                            } else {
+                                html += '<button type="button" class="button button-small no-customer-btn">Details</button> ';
                             }
                             html += '<button type="button" class="button button-small edit-student-btn" data-student-id="' + student.student_id + '">Edit</button> ';
                             html += '<button type="button" class="button button-small button-link-delete delete-student-btn" data-student-id="' + student.student_id + '" data-student-name="' + student.student_name + '">Delete</button>';
@@ -3622,23 +3669,25 @@ class QBO_Teams {
                                                 htmlA += '<th>Parent Name</th>';
                                                 htmlA += '<th nowrap style="width: 45px;">Balance</th>';
                                                 htmlA += '<th style="width: 45px;">Status</th>';
-                                                htmlA += '<th>Actions</th>';
+                                                htmlA += '<th style="width: 150px;">Actions</th>';
                                                 htmlA += '</tr></thead>';
                                                 htmlA += '<tbody>';
                                                 alumni.forEach(function(student) {
                                                     htmlA += '<tr>';
                                                     htmlA += '<td><strong>' + student.student_name + '</strong></td>';
                                                     htmlA += '<td>' + (student.first_year_first || 'N/A') + '</td>';
-                                                    htmlA += '<td>' + student.parent_name + '</td>';
+                                                    htmlA += '<td>' + (student.parent_name || 'No Parent Linked') + '</td>';
                                                     htmlA += '<td nowrap>$' + parseFloat(student.balance).toFixed(2) + '</td>';
                                                     var statusClass = student.status === 'Active' ? 'status-active' : 'status-inactive';
                                                     htmlA += '<td nowrap><span class="status-badge ' + statusClass + '">' + student.status + '</span></td>';
                                                     htmlA += '<td nowrap>';
-                            if (student.customer_id) {
-                                html += '<a href="' + qboCustomerListVars.invoicesPageUrl + '&member_id=' + encodeURIComponent(student.customer_id) + '" class="button button-small view-student-invoices">Details</a> ';
-                            }
-                            html += '<button type="button" class="button button-small edit-student-btn" data-student-id="' + student.student_id + '">Edit</button> ';
-                            html += '<button type="button" class="button button-small button-link-delete delete-student-btn" data-student-id="' + student.student_id + '" data-student-name="' + student.student_name + '">Delete</button>';
+                                                    if (student.customer_id) {
+                                                        htmlA += '<a href="' + qboCustomerListVars.invoicesPageUrl + '&member_id=' + encodeURIComponent(student.customer_id) + '" class="button button-small view-student-invoices">Details</a> ';
+                                                    } else {
+                                                        htmlA += '<button type="button" class="button button-small no-customer-btn">Details</button> ';
+                                                    }
+                                                    htmlA += '<button type="button" class="button button-small edit-student-btn" data-student-id="' + student.student_id + '">Edit</button> ';
+                                                    htmlA += '<button type="button" class="button button-small button-link-delete delete-student-btn" data-student-id="' + student.student_id + '" data-student-name="' + student.student_name + '">Delete</button>';
 
                                                     htmlA += '</td>';
                                                     htmlA += '</tr>';
@@ -3694,7 +3743,7 @@ class QBO_Teams {
                         html += '<th>Parent Name</th>';
                         html += '<th nowrap style="width: 45px;">Balance</th>';
                         html += '<th style="width: 45px;">Status</th>';
-                        html += '<th>Actions</th>';
+                        html += '<th style="width: 150px;">Actions</th>';
                         html += '</tr></thead>';
                         html += '<tbody>';
                         students.forEach(function(student) {
@@ -3709,13 +3758,15 @@ class QBO_Teams {
                             html += '<td>' + (student.tshirt_size || 'N/A') + '</td>';
                             html += '<td>' + (student.sex || 'N/A') + '</td>';
                             html += '<td>' + (student.first_year_first || 'N/A') + '</td>';
-                            html += '<td>' + student.parent_name + '</td>';
+                            html += '<td>' + (student.parent_name || 'No Parent Linked') + '</td>';
                             html += '<td nowrap>$' + parseFloat(student.balance).toFixed(2) + '</td>';
                             var statusClass = student.status === 'Active' ? 'status-active' : 'status-inactive';
                             html += '<td nowrap><span class="status-badge ' + statusClass + '">' + student.status + '</span></td>';
                             html += '<td nowrap>';
                             if (student.customer_id) {
                                 html += '<a href="' + qboCustomerListVars.invoicesPageUrl + '&member_id=' + encodeURIComponent(student.customer_id) + '" class="button button-small view-student-invoices">Details</a> ';
+                            } else {
+                                html += '<button type="button" class="button button-small no-customer-btn">Details</button> ';
                             }
                             html += '<button type="button" class="button button-small edit-student-btn" data-student-id="' + student.student_id + '">Edit</button> ';
                             html += '<button type="button" class="button button-small button-link-delete delete-student-btn" data-student-id="' + student.student_id + '" data-student-name="' + student.student_name + '">Delete</button>';
@@ -3736,23 +3787,25 @@ class QBO_Teams {
                                                 htmlA += '<th>Parent Name</th>';
                                                 htmlA += '<th nowrap style="width: 45px;">Balance</th>';
                                                 htmlA += '<th style="width: 45px;">Status</th>';
-                                                htmlA += '<th>Actions</th>';
+                                                htmlA += '<th style="width: 150px;">Actions</th>';
                                                 htmlA += '</tr></thead>';
                                                 htmlA += '<tbody>';
                                                 alumni.forEach(function(student) {
                                                     htmlA += '<tr>';
                                                     htmlA += '<td><strong>' + student.student_name + '</strong></td>';
                                                     htmlA += '<td>' + (student.first_year_first || 'N/A') + '</td>';
-                                                    htmlA += '<td>' + student.parent_name + '</td>';
+                                                    htmlA += '<td>' + (student.parent_name || 'No Parent Linked') + '</td>';
                                                     htmlA += '<td nowrap>$' + parseFloat(student.balance).toFixed(2) + '</td>';
                                                     var statusClass = student.status === 'Active' ? 'status-active' : 'status-inactive';
                                                     htmlA += '<td nowrap><span class="status-badge ' + statusClass + '">' + student.status + '</span></td>';
                                                     htmlA += '<td nowrap>';
-                            if (student.customer_id) {
-                                html += '<a href="' + qboCustomerListVars.invoicesPageUrl + '&member_id=' + encodeURIComponent(student.customer_id) + '" class="button button-small view-student-invoices">Details</a> ';
-                            }
-                            html += '<button type="button" class="button button-small edit-student-btn" data-student-id="' + student.student_id + '">Edit</button> ';
-                            html += '<button type="button" class="button button-small button-link-delete delete-student-btn" data-student-id="' + student.student_id + '" data-student-name="' + student.student_name + '">Delete</button>';
+                                                    if (student.customer_id) {
+                                                        htmlA += '<a href="' + qboCustomerListVars.invoicesPageUrl + '&member_id=' + encodeURIComponent(student.customer_id) + '" class="button button-small view-student-invoices">Details</a> ';
+                                                    } else {
+                                                        htmlA += '<button type="button" class="button button-small no-customer-btn">Details</button> ';
+                                                    }
+                                                    htmlA += '<button type="button" class="button button-small edit-student-btn" data-student-id="' + student.student_id + '">Edit</button> ';
+                                                    htmlA += '<button type="button" class="button button-small button-link-delete delete-student-btn" data-student-id="' + student.student_id + '" data-student-name="' + student.student_name + '">Delete</button>';
 
                                                     htmlA += '</td>';
                                                     htmlA += '</tr>';
@@ -3900,6 +3953,11 @@ class QBO_Teams {
                 });
             }
             
+            // Function to show popup when student has no customer connection
+            function showNoCustomerPopup(studentName) {
+                alert('Student "' + studentName + '" is not connected to any parent/customer account. Please edit the student to associate them with a parent customer before viewing Details.');
+            }
+            
             function deleteStudent(studentId, studentName) {
                 jQuery.ajax({
                     url: ajaxurl,
@@ -3941,7 +3999,7 @@ class QBO_Teams {
                             html += '<th>Name</th>';
                             html += '<th>Email</th>';
                             html += '<th>Phone</th>';
-                            html += '<th align=right>Actions</th>';
+                            html += '<th align=right style="width: 150px;">Actions</th>';
                             html += '</tr></thead>';
                             html += '<tbody>';
                             

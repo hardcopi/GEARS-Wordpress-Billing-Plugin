@@ -7,6 +7,7 @@ class QBO_Students_List_Table extends WP_List_Table {
     private $team_id;
     private $students;
     private $show_alumni;
+    private $core;
 
     public function __construct($args = array()) {
         parent::__construct([
@@ -17,6 +18,7 @@ class QBO_Students_List_Table extends WP_List_Table {
         ]);
         $this->team_id = isset($args['team_id']) ? intval($args['team_id']) : 0;
         $this->show_alumni = isset($args['show_alumni']) ? $args['show_alumni'] : false;
+        $this->core = isset($args['core']) ? $args['core'] : null;
     }
 
     public function get_columns() {
@@ -122,27 +124,84 @@ class QBO_Students_List_Table extends WP_List_Table {
             case 'first_year_first':
                 return esc_html($item->first_year_first ?: 'N/A');
             case 'parent_name':
-                // For now, we'll need to fetch parent name from QuickBooks or leave empty
-                // This would require integrating with the core customer lookup logic
-                return 'N/A'; // TODO: Implement parent name lookup
+                // Get parent name from local cache only (no API calls)
+                if (!empty($item->customer_id)) {
+                    $parent_name = '';
+                    
+                    // Get customer info from local cache only
+                    $cache = get_option('qbo_recurring_billing_customers_cache', array());
+                    
+                    if (isset($cache['data']) && is_array($cache['data'])) {
+                        foreach ($cache['data'] as $cached_customer) {
+                            if (isset($cached_customer['Id']) && $cached_customer['Id'] == $item->customer_id) {
+                                $display_name = isset($cached_customer['DisplayName']) ? $cached_customer['DisplayName'] : '';
+                                $company_name = isset($cached_customer['CompanyName']) ? $cached_customer['CompanyName'] : '';
+                                $first_name = isset($cached_customer['GivenName']) ? $cached_customer['GivenName'] : '';
+                                $last_name = isset($cached_customer['FamilyName']) ? $cached_customer['FamilyName'] : '';
+                                
+                                if (!empty($display_name)) {
+                                    $parent_name = $display_name;
+                                } elseif (!empty($company_name)) {
+                                    $parent_name = $company_name;
+                                } elseif (!empty($first_name) || !empty($last_name)) {
+                                    $parent_name = trim($first_name . ' ' . $last_name);
+                                }
+                                break;
+                            }
+                        }
+                    }
+                    
+                    // If we still don't have a parent name, show fallback
+                    return !empty($parent_name) ? esc_html($parent_name) : 'No Parent Linked';
+                } else {
+                    return 'No Parent Linked';
+                }
             case 'balance':
                 // For now, return 0 - this would require QuickBooks integration
                 return '$0.00'; // TODO: Implement balance calculation
             case 'status':
-                // For now, return Active - this would require recurring invoice lookup
-                $status = 'Active'; // TODO: Implement status lookup
+                // Check for recurring invoices to determine status
+                $status = 'Inactive';
+                
+                if (!empty($item->customer_id)) {
+                    // Get recurring invoices from local cache only
+                    $recurring_cache = get_option('qbo_recurring_invoices_cache', array());
+                    
+                    if (isset($recurring_cache['data']) && is_array($recurring_cache['data'])) {
+                        foreach ($recurring_cache['data'] as $invoice) {
+                            // Check if this recurring invoice belongs to the customer
+                            $customer_matches = false;
+                            
+                            if (isset($invoice['customer_ref']['value']) && $invoice['customer_ref']['value'] == $item->customer_id) {
+                                $customer_matches = true;
+                            } elseif (isset($invoice['Invoice']['CustomerRef']['value']) && $invoice['Invoice']['CustomerRef']['value'] == $item->customer_id) {
+                                $customer_matches = true;
+                            }
+                            
+                            if ($customer_matches) {
+                                $status = 'Active';
+                                break;
+                            }
+                        }
+                    }
+                }
+                
                 $class = ($status === 'Active') ? 'status-active' : 'status-inactive';
                 return '<span class="status-badge ' . esc_attr($class) . '">' . esc_html($status) . '</span>';
             case 'actions':
                 $actions = [];
                 
-                // Add Details/View Invoices link if customer_id exists
+                // Always add Details button - it will either go to customer page or show popup
+                $student_name = trim($item->first_name . ' ' . $item->last_name);
                 if (!empty($item->customer_id)) {
-                    $invoices_url = admin_url('admin.php?page=qbo-recurring-invoices&member_id=' . urlencode($item->customer_id));
+                    // If customer_id exists, link to customer detail page
+                    $invoices_url = admin_url('admin.php?page=qbo-view-invoices&member_id=' . urlencode($item->customer_id));
                     $actions[] = '<a href="' . esc_url($invoices_url) . '" class="button button-small">Details</a>';
+                } else {
+                    // If no customer_id, show button that triggers popup
+                    $actions[] = '<button type="button" class="button button-small no-customer-btn" onclick="showNoCustomerPopup(\'' . esc_js($student_name) . '\')">Details</button>';
                 }
                 
-                $student_name = trim($item->first_name . ' ' . $item->last_name);
                 $actions[] = '<a href="#" class="button button-small edit-student-btn" data-student-id="' . esc_attr($item->id) . '">Edit</a>';
                 $actions[] = '<a href="#" class="button button-small button-link-delete delete-student-btn" data-student-id="' . esc_attr($item->id) . '" data-student-name="' . esc_attr($student_name) . '">Delete</a>';
                 
@@ -284,10 +343,11 @@ class QBO_Students_List_Table extends WP_List_Table {
     /**
      * Render the complete table with search and filters
      */
-    public static function render_students_table($team_id, $show_alumni = false) {
+    public static function render_students_table($team_id, $show_alumni = false, $core = null) {
         $list_table = new self(array(
             'team_id' => $team_id,
-            'show_alumni' => $show_alumni
+            'show_alumni' => $show_alumni,
+            'core' => $core
         ));
         
         $list_table->process_bulk_action();

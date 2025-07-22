@@ -207,7 +207,7 @@ class QBO_Mentors {
                             <th>Address</th>
                             <th>Notes</th>
                             <th>Created</th>
-                            <th>Actions</th>
+                            <th style="width: 150px;">Actions</th>
                         </tr>
                     </thead>
                     <tbody>

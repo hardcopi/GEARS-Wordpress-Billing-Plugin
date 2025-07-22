@@ -781,7 +781,7 @@ public function fetch_bank_account_ledger($account_id, $limit = 100) {
         $invoices = $this->fetch_customer_invoices($customer_id);
         echo '<table class="wp-list-table widefat fixed striped">';
         echo '<thead><tr>';
-        echo '<th>Invoice #</th><th>Date</th><th>Due Date</th><th>Amount</th><th>Balance</th><th>Status</th><th>Actions</th>';
+        echo '<th>Invoice #</th><th>Date</th><th>Due Date</th><th>Amount</th><th>Balance</th><th>Status</th><th style="width: 150px;">Actions</th>';
         echo '</tr></thead>';
         echo '<tbody>';
         foreach ($invoices as $invoice) {

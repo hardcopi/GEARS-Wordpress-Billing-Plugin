@@ -352,7 +352,7 @@ private function render_customer_table($customers_page, $orderby, $order, $searc
     echo '<th><a href="' . $sort_url('Team') . '">Team' . $sort_indicator('Team') . '</a></th>'; // New column
     echo '<th><a href="' . $sort_url('Student') . '">Student' . $sort_indicator('Student') . '</a></th>'; // New column
     echo '<th><a href="' . $sort_url('Balance') . '">Balance' . $sort_indicator('Balance') . '</a></th>';
-    echo '<th>Actions</th>';
+    echo '<th style="width: 150px;">Actions</th>';
     echo '</tr>';
     echo '</thead>';
     echo '<tbody>';

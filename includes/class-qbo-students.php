@@ -319,7 +319,7 @@ class QBO_Students {
                             <th scope="col">Team</th>
                             <th scope="col">Customer</th>
                             <th scope="col">First Year in FIRST</th>
-                            <th scope="col">Actions</th>
+                            <th scope="col" style="width: 150px;">Actions</th>
                         </tr>
                     </thead>
                     <tbody>
