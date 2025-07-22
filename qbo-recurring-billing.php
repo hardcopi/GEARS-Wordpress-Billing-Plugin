@@ -26,6 +26,7 @@ require_once QBO_PLUGIN_DIR . 'includes/class-qbo-settings.php';
 require_once QBO_PLUGIN_DIR . 'includes/class-qbo-customers.php';
 require_once QBO_PLUGIN_DIR . 'includes/class-qbo-recurring-invoices.php';
 require_once QBO_PLUGIN_DIR . 'includes/class-qbo-teams.php';
+require_once QBO_PLUGIN_DIR . 'includes/class-qbo-teams-list-table.php';
 require_once QBO_PLUGIN_DIR . 'includes/class-qbo-students.php';
 require_once QBO_PLUGIN_DIR . 'includes/class-qbo-mentors.php';
 
