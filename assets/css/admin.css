@@ -22,10 +22,21 @@
     display: inline-block;
 }
 
+/* Program logo styling for tables and general use */
 .program-logo {
     max-width: 300px;
     height: auto;
     filter: drop-shadow(0 4px 8px rgba(0,0,0,0.1));
+}
+
+/* Program logo styling specifically for teams list table */
+.wp-list-table .program-logo {
+    height: 24px;
+    width: auto;
+    max-width: none;
+    vertical-align: middle;
+    border-radius: 2px;
+    filter: none;
 }
 
 .program-badge {

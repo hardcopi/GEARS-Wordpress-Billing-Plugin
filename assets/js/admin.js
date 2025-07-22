@@ -12,7 +12,7 @@ if (typeof jQuery === 'undefined') {
     // Add a class to the body to help identify plugin pages
     $('body').addClass('qbo-admin-page');
     
-    // Any additional admin JS can be added 1111here
+    // Any additional admin JS can be added here
 
     // Handler to populate edit student modal fields
     $(document).on('click', '.edit-student-btn', function() {
@@ -36,5 +36,84 @@ if (typeof jQuery === 'undefined') {
         $('#edit-student-id').val(student.student_id || '');
         // If you have other fields, set them here
     });
+
+    // Teams Archive/Restore functionality
+    // Handle archive team button clicks
+    $(document).on('click', '.archive-team-btn', function() {
+        var teamId = $(this).data('team-id');
+        var teamName = $(this).data('team-name');
+        
+        if (confirm('Are you sure you want to move "' + teamName + '" to past teams? This will hide it from the main teams list but preserve all data.')) {
+            archiveTeam(teamId);
+        }
+    });
+    
+    // Handle restore team button clicks
+    $(document).on('click', '.restore-team-btn', function() {
+        var teamId = $(this).data('team-id');
+        var teamName = $(this).data('team-name');
+        
+        if (confirm('Are you sure you want to restore "' + teamName + '"? This will make it visible in the main teams list again.')) {
+            restoreTeam(teamId);
+        }
+    });
+
+    // Archive team function
+    function archiveTeam(teamId) {
+        $.ajax({
+            url: ajaxurl,
+            type: 'POST',
+            data: {
+                action: 'qbo_archive_team',
+                team_id: teamId,
+                nonce: $('#team_nonce').val() || ''
+            },
+            beforeSend: function() {
+                $('.archive-team-btn[data-team-id="' + teamId + '"]').prop('disabled', true).text('Archiving...');
+            },
+            success: function(response) {
+                if (response.success) {
+                    // Refresh the page to update the table
+                    location.reload();
+                } else {
+                    alert('Error archiving team: ' + (response.data || 'Unknown error'));
+                    $('.archive-team-btn[data-team-id="' + teamId + '"]').prop('disabled', false).text('Move to Past');
+                }
+            },
+            error: function() {
+                alert('Error archiving team. Please try again.');
+                $('.archive-team-btn[data-team-id="' + teamId + '"]').prop('disabled', false).text('Move to Past');
+            }
+        });
+    }
+    
+    // Restore team function
+    function restoreTeam(teamId) {
+        $.ajax({
+            url: ajaxurl,
+            type: 'POST',
+            data: {
+                action: 'qbo_restore_team',
+                team_id: teamId,
+                nonce: $('#team_nonce').val() || ''
+            },
+            beforeSend: function() {
+                $('.restore-team-btn[data-team-id="' + teamId + '"]').prop('disabled', true).text('Restoring...');
+            },
+            success: function(response) {
+                if (response.success) {
+                    // Refresh the page to update the table
+                    location.reload();
+                } else {
+                    alert('Error restoring team: ' + (response.data || 'Unknown error'));
+                    $('.restore-team-btn[data-team-id="' + teamId + '"]').prop('disabled', false).text('Restore');
+                }
+            },
+            error: function() {
+                alert('Error restoring team. Please try again.');
+                $('.restore-team-btn[data-team-id="' + teamId + '"]').prop('disabled', false).text('Restore');
+            }
+        });
+    }
     });
 }

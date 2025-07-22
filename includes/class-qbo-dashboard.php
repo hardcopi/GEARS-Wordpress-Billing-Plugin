@@ -29,6 +29,7 @@ class QBO_Dashboard {
                 <div id="dashboard-widgets" class="metabox-holder">
                     <div class="postbox-container" style="width: 49%; float: left; margin-right: 2%;">
                         <?php $this->render_quick_stats(); ?>
+                        <?php $this->render_charts(); ?>
                         <?php $this->render_recent_activity(); ?>
                     </div>
                     <div class="postbox-container" style="width: 49%; float: left;">
@@ -43,6 +44,9 @@ class QBO_Dashboard {
             
             <?php $this->render_connection_status(); ?>
         </div>
+        
+        <!-- Include Chart.js from CDN -->
+        <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
         
         <style>
         .dashboard-widget {
