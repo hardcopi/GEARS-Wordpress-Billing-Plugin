@@ -2374,6 +2374,64 @@ class QBO_Teams {
             .qbo-tab-content {
                 width: 100%;
             }
+            
+            /* Ensure tab functionality works properly */
+            nav[id="teamTabs"] {
+                background: #fff !important;
+                padding: 8px 12px !important;
+                display: flex !important;
+                flex-wrap: wrap !important;
+                gap: 4px !important;
+                list-style: none !important;
+                margin: 0 0 -1px 0 !important;
+                position: relative !important;
+                z-index: 2 !important;
+            }
+            
+            nav[id="teamTabs"] .nav-link {
+                display: inline-block !important;
+                padding: 14px 24px !important;
+                color: #2c3e50 !important;
+                font-weight: 600 !important;
+                text-decoration: none !important;
+                border: 1px solid #ddd !important;
+                border-radius: 8px 8px 0 0 !important;
+                background: #f9f9f9 !important;
+                margin-bottom: -1px !important;
+                position: relative !important;
+                transition: all 0.2s ease !important;
+                cursor: pointer !important;
+                font-size: 16px !important;
+                border-bottom: 3px solid transparent !important;
+            }
+            
+            nav[id="teamTabs"] .nav-link.active {
+                color: #007cba !important;
+                background: #fff !important;
+                border-color: #ddd !important;
+                border-bottom: 3px solid #007cba !important;
+                box-shadow: 0 2px 4px rgba(0,124,186,0.1) !important;
+                z-index: 2 !important;
+            }
+            
+            .tab-content {
+                background: #fff !important;
+                border-radius: 0 8px 8px 8px !important;
+                padding: 24px !important;
+                margin-top: -1px !important;
+                position: relative !important;
+                z-index: 1 !important;
+                box-shadow: 0 2px 8px rgba(0,0,0,0.05) !important;
+                border: 1px solid #ddd !important;
+            }
+            
+            .tab-pane {
+                display: none !important;
+            }
+            
+            .tab-pane.show.active {
+                display: block !important;
+            }
         </style>
 
         <div class="wrap">
@@ -2388,161 +2446,264 @@ class QBO_Teams {
 
             <!-- Tab Navigation -->
             <nav class="nav nav-tabs mb-4" id="teamTabs" role="tablist">
-                <a class="nav-link active" id="team-info-tab" data-bs-toggle="tab" href="#tab-team-info" role="tab" aria-controls="tab-team-info" aria-selected="true">Team Info</a>
-                <a class="nav-link" id="mentors-tab" data-bs-toggle="tab" href="#tab-mentors" role="tab" aria-controls="tab-mentors" aria-selected="false">Mentors</a>
-                <a class="nav-link" id="members-tab" data-bs-toggle="tab" href="#tab-members" role="tab" aria-controls="tab-members" aria-selected="false">Members</a>
-                <a class="nav-link" id="alumni-tab" data-bs-toggle="tab" href="#tab-alumni" role="tab" aria-controls="tab-alumni" aria-selected="false">Alumni</a>
-                <a class="nav-link" id="ledger-tab" data-bs-toggle="tab" href="#tab-ledger" role="tab" aria-controls="tab-ledger" aria-selected="false">Ledger</a>
+                <a class="nav-link active" id="team-info-tab" href="#tab-team-info" role="tab" aria-controls="tab-team-info" aria-selected="true">Team Info</a>
+                <a class="nav-link" id="mentors-tab" href="#tab-mentors" role="tab" aria-controls="tab-mentors" aria-selected="false">Mentors</a>
+                <a class="nav-link" id="members-tab" href="#tab-members" role="tab" aria-controls="tab-members" aria-selected="false">Members</a>
+                <a class="nav-link" id="alumni-tab" href="#tab-alumni" role="tab" aria-controls="tab-alumni" aria-selected="false">Alumni</a>
+                <a class="nav-link" id="ledger-tab" href="#tab-ledger" role="tab" aria-controls="tab-ledger" aria-selected="false">Ledger</a>
             </nav>
 
             <div class="tab-content">
                 <!-- Team Info Tab -->
                 <div class="tab-pane fade show active" id="tab-team-info" role="tabpanel" aria-labelledby="team-info-tab">
-                    <div class="team-details-main">
-                        <div class="team-main-info">
+                    <div class="team-info-container">
+                        <!-- Header Section with Program Logo -->
+                        <div class="team-header-section">
                             <?php if (!empty($team->program)): ?>
-                                <div style="margin-bottom:10px;">
+                                <div class="program-logo-container">
                                 <?php
                                 $program = strtolower(trim($team->program));
                                 if ($program === 'ftc') {
-                                    echo '<img src="https://gears.org.in/wp-content/uploads/2025/07/FIRSTTech_iconHorz_RGB.png" alt="FTC Logo" style="width:250px;max-width:100%;height:auto;vertical-align:middle;">';
+                                    echo '<img src="https://gears.org.in/wp-content/uploads/2025/07/FIRSTTech_iconHorz_RGB.png" alt="FTC Logo" class="program-logo">';
                                 } elseif ($program === 'fll') {
-                                    echo '<img src="https://gears.org.in/wp-content/uploads/2025/07/FIRSTLego_iconHorz_RGB.png" alt="FLL Logo" style="width:250px;max-width:100%;height:auto;vertical-align:middle;">';
+                                    echo '<img src="https://gears.org.in/wp-content/uploads/2025/07/FIRSTLego_iconHorz_RGB.png" alt="FLL Logo" class="program-logo">';
                                 } else {
-                                    echo '<strong>Program:</strong> ' . esc_html($team->program);
+                                    echo '<div class="program-badge"><span class="program-name">' . esc_html($team->program) . '</span></div>';
                                 }
                                 ?>
                                 </div>
                             <?php endif; ?>
                         </div>
-                        <?php if (!empty($team->description)): ?>
-                        <div class="team-section">
-                            <h2>Description</h2>
-                            <p><?php echo esc_html($team->description); ?></p>
-                        </div>
-                        <?php endif; ?>
-                        <!-- Sidebar Info (Logo, Social, Bank, etc.) -->
-                        <div class="team-details-sidebar" style="margin-top:24px;">
-                            <?php if (!empty($team->logo)): ?>
-                                <div class="sidebar-section">
-                                    <h3>Team Logo</h3>
-                                    <img src="<?php echo esc_url($team->logo); ?>" alt="Team Logo" class="team-logo">
+
+                        <!-- Main Content Grid -->
+                        <div class="team-info-grid">
+                            <!-- Left Column: Team Overview -->
+                            <div class="team-overview-column">
+                                <!-- Team Description Card -->
+                                <?php if (!empty($team->description)): ?>
+                                <div class="info-card description-card">
+                                    <div class="card-header">
+                                        <h3><i class="dashicons dashicons-text-page"></i> About This Team</h3>
+                                    </div>
+                                    <div class="card-content">
+                                        <p><?php echo nl2br(esc_html($team->description)); ?></p>
+                                    </div>
                                 </div>
-                            <?php endif; ?>
-                            <?php if (!empty($team->website) || !empty($team->facebook) || !empty($team->twitter) || !empty($team->instagram)): ?>
-                                <div class="sidebar-section">
-                                    <h3>Contact & Social Media</h3>
-                                    <?php if (!empty($team->website)): ?>
-                                        <div class="team-website">
-                                            <a href="<?php echo esc_url($team->website); ?>" target="_blank" rel="noopener">
-                                                <span class="dashicons dashicons-admin-site-alt3"></span> Visit Website
-                                            </a>
+                                <?php endif; ?>
+
+                                <!-- Team Assets Card -->
+                                <?php if (!empty($team->logo) || !empty($team->team_photo)): ?>
+                                <div class="info-card assets-card">
+                                    <div class="card-header">
+                                        <h3><i class="dashicons dashicons-format-image"></i> Team Gallery</h3>
+                                    </div>
+                                    <div class="card-content">
+                                        <div class="team-assets-grid">
+                                            <?php if (!empty($team->logo)): ?>
+                                                <div class="asset-item">
+                                                    <h4>Team Logo</h4>
+                                                    <div class="image-container">
+                                                        <img src="<?php echo esc_url($team->logo); ?>" alt="Team Logo" class="team-logo">
+                                                    </div>
+                                                </div>
+                                            <?php endif; ?>
+                                            <?php if (!empty($team->team_photo)): ?>
+                                                <div class="asset-item">
+                                                    <h4>Team Photo</h4>
+                                                    <div class="image-container">
+                                                        <img src="<?php echo esc_url($team->team_photo); ?>" alt="Team Photo" class="team-photo">
+                                                    </div>
+                                                </div>
+                                            <?php endif; ?>
                                         </div>
-                                    <?php endif; ?>
-                                    <?php if (!empty($team->facebook) || !empty($team->twitter) || !empty($team->instagram)): ?>
-                                        <div class="team-social-links">
-                                            <?php if (!empty($team->facebook)): ?>
-                                                <a href="<?php echo esc_url($team->facebook); ?>" target="_blank" rel="noopener">
-                                                    <span class="dashicons dashicons-facebook"></span> Facebook
-                                                </a>
-                                            <?php endif; ?>
-                                            <?php if (!empty($team->twitter)): ?>
-                                                <a href="<?php echo esc_url($team->twitter); ?>" target="_blank" rel="noopener">
-                                                    <span class="dashicons dashicons-twitter"></span> Twitter
-                                                </a>
-                                            <?php endif; ?>
-                                            <?php if (!empty($team->instagram)): ?>
-                                                <a href="<?php echo esc_url($team->instagram); ?>" target="_blank" rel="noopener">
-                                                    <span class="dashicons dashicons-instagram"></span> Instagram
-                                                </a>
-                                            <?php endif; ?>
-                                        </div>
-                                    <?php endif; ?>
+                                    </div>
                                 </div>
-                            <?php endif; ?>
-                            <?php if (!empty($team->team_photo)): ?>
-                                <div class="sidebar-section">
-                                    <h3>Team Photo</h3>
-                                    <img src="<?php echo esc_url($team->team_photo); ?>" alt="Team Photo" class="team-photo">
-                                </div>
-                            <?php endif; ?>
-                        </div>
-                        <!-- Team Info Edit Forms (Full) -->
-                        <div class="team-info-edit-forms" style="margin-top:24px;">
-                            <div class="sidebar-section">
-                                <h3>Edit Team Info</h3>
-                                <form method="post" enctype="multipart/form-data">
-                                    <input type="hidden" name="update_team" value="1" />
-                                    <input type="hidden" name="team_id" value="<?php echo intval($team_id); ?>" />
-                                    <?php wp_nonce_field('update_team_action', 'team_edit_nonce'); ?>
-                                    <table class="form-table">
-                                        <tr>
-                                            <th><label for="edit_team_name">Team Name</label></th>
-                                            <td><input type="text" id="edit_team_name" name="team_name" value="<?php echo esc_attr($team->team_name); ?>" required class="regular-text" /></td>
-                                        </tr>
-                                        <tr>
-                                            <th><label for="edit_team_number">Team Number</label></th>
-                                            <td><input type="text" id="edit_team_number" name="team_number" value="<?php echo esc_attr($team->team_number); ?>" class="regular-text" /></td>
-                                        </tr>
-                                        <tr>
-                                            <th><label for="edit_team_logo">Team Logo</label></th>
-                                            <td>
-                                                <input type="text" id="edit_team_logo" name="logo" value="<?php echo esc_url($team->logo); ?>" class="regular-text" />
-                                                <button type="button" class="button button-secondary" id="upload_team_logo_btn">Select Image</button>
-                                                <?php if (!empty($team->logo)): ?>
-                                                    <div style="margin-top:8px;"><img id="edit_team_logo_preview" src="<?php echo esc_url($team->logo); ?>" alt="Team Logo Preview" style="max-width:120px;max-height:120px;" /></div>
-                                                <?php else: ?>
-                                                    <div style="margin-top:8px;"><img id="edit_team_logo_preview" src="" alt="Team Logo Preview" style="display:none;max-width:120px;max-height:120px;" /></div>
+                                <?php endif; ?>
+                            </div>
+
+                            <!-- Right Column: Contact & Actions -->
+                            <div class="team-actions-column">
+                                <!-- Contact & Social Media Card -->
+                                <?php if (!empty($team->website) || !empty($team->facebook) || !empty($team->twitter) || !empty($team->instagram)): ?>
+                                <div class="info-card contact-card">
+                                    <div class="card-header">
+                                        <h3><i class="dashicons dashicons-networking"></i> Connect with Team</h3>
+                                    </div>
+                                    <div class="card-content">
+                                        <?php if (!empty($team->website)): ?>
+                                            <div class="contact-item primary-contact">
+                                                <a href="<?php echo esc_url($team->website); ?>" target="_blank" rel="noopener" class="contact-link primary">
+                                                    <i class="dashicons dashicons-admin-site-alt3"></i>
+                                                    <span>Visit Website</span>
+                                                    <i class="dashicons dashicons-external"></i>
+                                                </a>
+                                            </div>
+                                        <?php endif; ?>
+                                        
+                                        <?php if (!empty($team->facebook) || !empty($team->twitter) || !empty($team->instagram)): ?>
+                                            <div class="social-links-grid">
+                                                <?php if (!empty($team->facebook)): ?>
+                                                    <a href="<?php echo esc_url($team->facebook); ?>" target="_blank" rel="noopener" class="social-link facebook">
+                                                        <i class="dashicons dashicons-facebook"></i>
+                                                        <span>Facebook</span>
+                                                    </a>
                                                 <?php endif; ?>
-                                            </td>
-                                        </tr>
-                                        <tr>
-                                            <th><label for="edit_team_program">Program</label></th>
-                                            <td>
-                                                <select id="edit_team_program" name="program" class="regular-text">
+                                                <?php if (!empty($team->twitter)): ?>
+                                                    <a href="<?php echo esc_url($team->twitter); ?>" target="_blank" rel="noopener" class="social-link twitter">
+                                                        <i class="dashicons dashicons-twitter"></i>
+                                                        <span>Twitter</span>
+                                                    </a>
+                                                <?php endif; ?>
+                                                <?php if (!empty($team->instagram)): ?>
+                                                    <a href="<?php echo esc_url($team->instagram); ?>" target="_blank" rel="noopener" class="social-link instagram">
+                                                        <i class="dashicons dashicons-instagram"></i>
+                                                        <span>Instagram</span>
+                                                    </a>
+                                                <?php endif; ?>
+                                            </div>
+                                        <?php endif; ?>
+                                    </div>
+                                </div>
+                                <?php endif; ?>
+
+                                <!-- Quick Actions Card -->
+                                <div class="info-card actions-card">
+                                    <div class="card-header">
+                                        <h3><i class="dashicons dashicons-admin-tools"></i> Quick Actions</h3>
+                                    </div>
+                                    <div class="card-content">
+                                        <div class="action-buttons">
+                                            <button type="button" class="action-btn edit-btn" onclick="toggleEditMode()">
+                                                <i class="dashicons dashicons-edit"></i>
+                                                <span>Edit Team Info</span>
+                                            </button>
+                                            <button type="button" class="action-btn history-btn" onclick="toggleHistorySection()">
+                                                <i class="dashicons dashicons-backup"></i>
+                                                <span>Name History</span>
+                                            </button>
+                                            <button type="button" class="action-btn bank-btn" onclick="toggleBankSection()">
+                                                <i class="dashicons dashicons-money-alt"></i>
+                                                <span>Bank Account</span>
+                                            </button>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Collapsible Edit Section -->
+                        <div class="edit-section" id="editSection" style="display: none;">
+                            <div class="info-card edit-card">
+                                <div class="card-header">
+                                    <h3><i class="dashicons dashicons-edit"></i> Edit Team Information</h3>
+                                    <button type="button" class="close-btn" onclick="toggleEditMode()">
+                                        <i class="dashicons dashicons-no-alt"></i>
+                                    </button>
+                                </div>
+                                <div class="card-content">
+                                    <form method="post" enctype="multipart/form-data" class="team-edit-form">
+                                        <input type="hidden" name="update_team" value="1" />
+                                        <input type="hidden" name="team_id" value="<?php echo intval($team_id); ?>" />
+                                        <?php wp_nonce_field('update_team_action', 'team_edit_nonce'); ?>
+                                        
+                                        <div class="form-grid">
+                                            <div class="form-group">
+                                                <label for="edit_team_name" class="form-label">Team Name <span class="required">*</span></label>
+                                                <input type="text" id="edit_team_name" name="team_name" value="<?php echo esc_attr($team->team_name); ?>" required class="form-input" />
+                                            </div>
+                                            
+                                            <div class="form-group">
+                                                <label for="edit_team_number" class="form-label">Team Number</label>
+                                                <input type="text" id="edit_team_number" name="team_number" value="<?php echo esc_attr($team->team_number); ?>" class="form-input" />
+                                            </div>
+                                            
+                                            <div class="form-group">
+                                                <label for="edit_team_program" class="form-label">Program</label>
+                                                <select id="edit_team_program" name="program" class="form-input">
                                                     <option value="">Select program...</option>
                                                     <option value="FTC" <?php selected(strtoupper($team->program), 'FTC'); ?>>FTC</option>
                                                     <option value="FLL" <?php selected(strtoupper($team->program), 'FLL'); ?>>FLL</option>
                                                     <option value="Other" <?php if (!in_array(strtoupper($team->program), ['FTC','FLL'])) echo 'selected'; ?>>Other</option>
                                                 </select>
-                                            </td>
-                                        </tr>
-                                        <tr>
-                                            <th><label for="edit_team_website">Website</label></th>
-                                            <td><input type="url" id="edit_team_website" name="website" value="<?php echo esc_url($team->website); ?>" class="regular-text" /></td>
-                                        </tr>
-                                        <tr>
-                                            <th><label for="edit_team_facebook">Facebook</label></th>
-                                            <td><input type="url" id="edit_team_facebook" name="facebook" value="<?php echo esc_url($team->facebook); ?>" class="regular-text" /></td>
-                                        </tr>
-                                        <tr>
-                                            <th><label for="edit_team_twitter">Twitter</label></th>
-                                            <td><input type="url" id="edit_team_twitter" name="twitter" value="<?php echo esc_url($team->twitter); ?>" class="regular-text" /></td>
-                                        </tr>
-                                        <tr>
-                                            <th><label for="edit_team_instagram">Instagram</label></th>
-                                            <td><input type="url" id="edit_team_instagram" name="instagram" value="<?php echo esc_url($team->instagram); ?>" class="regular-text" /></td>
-                                        </tr>
-                                        <tr>
-                                            <th><label for="edit_team_photo">Team Photo</label></th>
-                                            <td>
-                                                <input type="text" id="edit_team_photo" name="team_photo" value="<?php echo esc_url($team->team_photo); ?>" class="regular-text" />
-                                                <button type="button" class="button button-secondary" id="upload_team_photo_btn">Select Image</button>
-                                                <?php if (!empty($team->team_photo)): ?>
-                                                    <div style="margin-top:8px;"><img id="edit_team_photo_preview" src="<?php echo esc_url($team->team_photo); ?>" alt="Team Photo Preview" style="max-width:120px;max-height:120px;" /></div>
+                                            </div>
+                                            
+                                            <div class="form-group full-width">
+                                                <label for="edit_team_description" class="form-label">Description</label>
+                                                <textarea id="edit_team_description" name="description" rows="4" class="form-input"><?php echo esc_textarea($team->description); ?></textarea>
+                                            </div>
+                                            
+                                            <div class="form-group">
+                                                <label for="edit_team_logo" class="form-label">Team Logo URL</label>
+                                                <div class="file-input-group">
+                                                    <input type="text" id="edit_team_logo" name="logo" value="<?php echo esc_url($team->logo); ?>" class="form-input" />
+                                                    <button type="button" class="btn-secondary" id="upload_team_logo_btn">Choose Image</button>
+                                                </div>
+                                                <?php if (!empty($team->logo)): ?>
+                                                    <div class="image-preview">
+                                                        <img id="edit_team_logo_preview" src="<?php echo esc_url($team->logo); ?>" alt="Team Logo Preview" />
+                                                    </div>
                                                 <?php else: ?>
-                                                    <div style="margin-top:8px;"><img id="edit_team_photo_preview" src="" alt="Team Photo Preview" style="display:none;max-width:120px;max-height:120px;" /></div>
+                                                    <div class="image-preview" style="display:none;">
+                                                        <img id="edit_team_logo_preview" src="" alt="Team Logo Preview" />
+                                                    </div>
                                                 <?php endif; ?>
-                                            </td>
-                                        </tr>
-                                        <tr>
-                                            <th><label for="edit_team_description">Description</label></th>
-                                            <td><textarea id="edit_team_description" name="description" rows="3" style="width:100%;"><?php echo esc_textarea($team->description); ?></textarea></td>
-                                        </tr>
-                                    </table>
-                                    <button type="submit" class="button button-primary" style="width:100%;">Save Team Info</button>
-                                </form>
+                                            </div>
+                                            
+                                            <div class="form-group">
+                                                <label for="edit_team_photo" class="form-label">Team Photo URL</label>
+                                                <div class="file-input-group">
+                                                    <input type="text" id="edit_team_photo" name="team_photo" value="<?php echo esc_url($team->team_photo); ?>" class="form-input" />
+                                                    <button type="button" class="btn-secondary" id="upload_team_photo_btn">Choose Image</button>
+                                                </div>
+                                                <?php if (!empty($team->team_photo)): ?>
+                                                    <div class="image-preview">
+                                                        <img id="edit_team_photo_preview" src="<?php echo esc_url($team->team_photo); ?>" alt="Team Photo Preview" />
+                                                    </div>
+                                                <?php else: ?>
+                                                    <div class="image-preview" style="display:none;">
+                                                        <img id="edit_team_photo_preview" src="" alt="Team Photo Preview" />
+                                                    </div>
+                                                <?php endif; ?>
+                                            </div>
+                                            
+                                            <div class="form-group">
+                                                <label for="edit_team_website" class="form-label">Website</label>
+                                                <input type="url" id="edit_team_website" name="website" value="<?php echo esc_url($team->website); ?>" class="form-input" placeholder="https://" />
+                                            </div>
+                                            
+                                            <div class="form-group">
+                                                <label for="edit_team_facebook" class="form-label">Facebook</label>
+                                                <input type="url" id="edit_team_facebook" name="facebook" value="<?php echo esc_url($team->facebook); ?>" class="form-input" placeholder="https://facebook.com/" />
+                                            </div>
+                                            
+                                            <div class="form-group">
+                                                <label for="edit_team_twitter" class="form-label">Twitter</label>
+                                                <input type="url" id="edit_team_twitter" name="twitter" value="<?php echo esc_url($team->twitter); ?>" class="form-input" placeholder="https://twitter.com/" />
+                                            </div>
+                                            
+                                            <div class="form-group">
+                                                <label for="edit_team_instagram" class="form-label">Instagram</label>
+                                                <input type="url" id="edit_team_instagram" name="instagram" value="<?php echo esc_url($team->instagram); ?>" class="form-input" placeholder="https://instagram.com/" />
+                                            </div>
+                                        </div>
+                                        
+                                        <div class="form-actions">
+                                            <button type="submit" class="btn-primary">
+                                                <i class="dashicons dashicons-yes"></i>
+                                                Save Changes
+                                            </button>
+                                            <button type="button" class="btn-secondary" onclick="toggleEditMode()">
+                                                <i class="dashicons dashicons-dismiss"></i>
+                                                Cancel
+                                            </button>
+                                        </div>
+                                    </form>
+                                </div>
                             </div>
+                        </div>
+
+                        <!-- Collapsible History Section -->
+                        <div class="history-section" id="historySection" style="display: none;">
                             <?php
                             // Fetch previous team names from history table
                             $table_team_name_history = $wpdb->prefix . 'gears_team_name_history';
@@ -2550,61 +2711,121 @@ class QBO_Teams {
                                 "SELECT team_name, year FROM $table_team_name_history WHERE team_id = %d ORDER BY year DESC",
                                 $team_id
                             ));
-                            if (!empty($name_history)) : ?>
-                                <div class="sidebar-section">
-                                    <h3>Previous Team Names</h3>
-                                    <ul style="list-style: disc inside; padding-left: 1em;">
-                                    <?php foreach ($name_history as $history) : ?>
-                                        <li><strong><?php echo esc_html($history->team_name); ?></strong> (<?php echo esc_html($history->year); ?>)</li>
-                                    <?php endforeach; ?>
-                                    </ul>
+                            ?>
+                            <div class="info-card history-card">
+                                <div class="card-header">
+                                    <h3><i class="dashicons dashicons-backup"></i> Team Name History</h3>
+                                    <button type="button" class="close-btn" onclick="toggleHistorySection()">
+                                        <i class="dashicons dashicons-no-alt"></i>
+                                    </button>
                                 </div>
-                            <?php endif; ?>
-                            <div class="sidebar-section">
-                                <h3>Add Old Team Name</h3>
-                                <form method="post">
-                                    <input type="hidden" name="add_old_team_name" value="1" />
-                                    <?php wp_nonce_field('add_old_team_name_' . $team_id, 'add_old_team_name_nonce'); ?>
-                                    <label for="old_team_name">Team Name</label><br />
-                                    <input type="text" name="old_team_name" id="old_team_name" required style="width:100%;margin-bottom:8px;" />
-                                    <label for="old_team_year">Year</label><br />
-                                    <input type="number" name="old_team_year" id="old_team_year" min="1900" max="<?php echo esc_attr(date('Y')); ?>" required style="width:100%;margin-bottom:8px;" />
-                                    <button type="submit" class="button button-primary" style="width:100%;">Add Old Name</button>
-                                </form>
+                                <div class="card-content">
+                                    <?php if (!empty($name_history)): ?>
+                                        <div class="history-list">
+                                            <h4>Previous Names</h4>
+                                            <ul class="name-history-list">
+                                                <?php foreach ($name_history as $history): ?>
+                                                    <li>
+                                                        <strong><?php echo esc_html($history->team_name); ?></strong>
+                                                        <span class="year-badge"><?php echo esc_html($history->year); ?></span>
+                                                    </li>
+                                                <?php endforeach; ?>
+                                            </ul>
+                                        </div>
+                                    <?php endif; ?>
+                                    
+                                    <div class="add-history-form">
+                                        <h4>Add Historical Name</h4>
+                                        <form method="post" class="inline-form">
+                                            <input type="hidden" name="add_old_team_name" value="1" />
+                                            <?php wp_nonce_field('add_old_team_name_' . $team_id, 'add_old_team_name_nonce'); ?>
+                                            <div class="form-row">
+                                                <div class="form-group">
+                                                    <label for="old_team_name" class="form-label">Team Name</label>
+                                                    <input type="text" name="old_team_name" id="old_team_name" required class="form-input" />
+                                                </div>
+                                                <div class="form-group">
+                                                    <label for="old_team_year" class="form-label">Year</label>
+                                                    <input type="number" name="old_team_year" id="old_team_year" min="1900" max="<?php echo esc_attr(date('Y')); ?>" required class="form-input" />
+                                                </div>
+                                                <div class="form-group">
+                                                    <button type="submit" class="btn-primary">
+                                                        <i class="dashicons dashicons-plus-alt"></i>
+                                                        Add
+                                                    </button>
+                                                </div>
+                                            </div>
+                                        </form>
+                                    </div>
+                                </div>
                             </div>
-                            <div class="sidebar-section">
-                                <h3>Associated Bank Account</h3>
-                                <form method="post">
-                                    <input type="hidden" name="update_team" value="1" />
-                                    <input type="hidden" name="team_id" value="<?php echo intval($team_id); ?>" />
-                                    <?php wp_nonce_field('update_team_action', 'team_edit_nonce'); ?>
-                                    <select name="bank_account_id" style="width:100%;margin-bottom:8px;">
-                                        <option value="">-- None --</option>
-                                        <?php
-                                        // Fetch all bank accounts from QBO
-                                        $bank_accounts = array();
-                                        if (method_exists($this->core, 'fetch_bank_accounts')) {
-                                            $bank_accounts = $this->core->fetch_bank_accounts();
-                                        }
-                                        foreach ($bank_accounts as $acct): 
-                                            $selected = (strval($team->bank_account_id ?? '') === strval($acct['Id'])) ? 'selected' : '';
-                                        ?>
-                                            <option value="<?php echo esc_attr($acct['Id']); ?>" <?php echo $selected; ?>><?php echo esc_html($acct['Name']); ?></option>
-                                        <?php endforeach; ?>
-                                    </select>
-                                    <button type="submit" class="button button-primary" style="width:100%;">Save Bank Account</button>
-                                </form>
-                                <?php if ($team->bank_account_id): ?>
-                                    <p style="margin-top:10px;"><strong>Current:</strong> <?php
-                                        $current = array_filter($bank_accounts, function($a) use ($team) { return $a['Id'] == $team->bank_account_id; });
-                                        if ($current) {
-                                            $acct = array_values($current)[0];
-                                            echo esc_html($acct['Name']);
-                                        } else {
-                                            echo esc_html($team->bank_account_id);
-                                        }
-                                    ?></p>
-                                <?php endif; ?>
+                        </div>
+
+                        <!-- Collapsible Bank Section -->
+                        <div class="bank-section" id="bankSection" style="display: none;">
+                            <div class="info-card bank-card">
+                                <div class="card-header">
+                                    <h3><i class="dashicons dashicons-money-alt"></i> Bank Account Association</h3>
+                                    <button type="button" class="close-btn" onclick="toggleBankSection()">
+                                        <i class="dashicons dashicons-no-alt"></i>
+                                    </button>
+                                </div>
+                                <div class="card-content">
+                                    <?php
+                                    // Fetch all bank accounts from QBO
+                                    $bank_accounts = array();
+                                    if (method_exists($this->core, 'fetch_bank_accounts')) {
+                                        $bank_accounts = $this->core->fetch_bank_accounts();
+                                    }
+                                    ?>
+                                    <?php if ($team->bank_account_id): ?>
+                                        <div class="current-account">
+                                            <h4>Current Association</h4>
+                                            <div class="account-info">
+                                                <i class="dashicons dashicons-yes-alt"></i>
+                                                <span>
+                                                    <?php
+                                                    $current = array_filter($bank_accounts, function($a) use ($team) { return $a['Id'] == $team->bank_account_id; });
+                                                    if ($current) {
+                                                        $acct = array_values($current)[0];
+                                                        echo esc_html($acct['Name']);
+                                                    } else {
+                                                        echo esc_html($team->bank_account_id);
+                                                    }
+                                                    ?>
+                                                </span>
+                                            </div>
+                                        </div>
+                                    <?php endif; ?>
+                                    
+                                    <div class="bank-form">
+                                        <h4><?php echo $team->bank_account_id ? 'Change' : 'Set'; ?> Bank Account</h4>
+                                        <form method="post" class="inline-form">
+                                            <input type="hidden" name="update_team" value="1" />
+                                            <input type="hidden" name="team_id" value="<?php echo intval($team_id); ?>" />
+                                            <?php wp_nonce_field('update_team_action', 'team_edit_nonce'); ?>
+                                            <div class="form-row">
+                                                <div class="form-group flex-grow">
+                                                    <label for="bank_account_id" class="form-label">Bank Account</label>
+                                                    <select name="bank_account_id" class="form-input" id="bank_account_id">
+                                                        <option value="">-- None --</option>
+                                                        <?php foreach ($bank_accounts as $acct): 
+                                                            $selected = (strval($team->bank_account_id ?? '') === strval($acct['Id'])) ? 'selected' : '';
+                                                        ?>
+                                                            <option value="<?php echo esc_attr($acct['Id']); ?>" <?php echo $selected; ?>><?php echo esc_html($acct['Name']); ?></option>
+                                                        <?php endforeach; ?>
+                                                    </select>
+                                                </div>
+                                                <div class="form-group">
+                                                    <button type="submit" class="btn-primary">
+                                                        <i class="dashicons dashicons-yes"></i>
+                                                        Save
+                                                    </button>
+                                                </div>
+                                            </div>
+                                        </form>
+                                    </div>
+                                </div>
                             </div>
                         </div>
                     </div>
@@ -2965,11 +3186,79 @@ class QBO_Teams {
         qboCustomerListVars.invoicesPageUrl = "<?php echo esc_js(admin_url('admin.php?page=qbo-view-invoices')); ?>";
         qboCustomerListVars.nonce = "<?php echo wp_create_nonce('qbo_get_customers'); ?>";
 
+        // Enhanced Team Info page functionality
+        function toggleEditMode() {
+            var editSection = document.getElementById('editSection');
+            if (editSection.style.display === 'none') {
+                editSection.style.display = 'flex';
+                document.body.style.overflow = 'hidden'; // Prevent background scroll
+            } else {
+                editSection.style.display = 'none';
+                document.body.style.overflow = 'auto';
+            }
+        }
+        
+        function toggleHistorySection() {
+            var historySection = document.getElementById('historySection');
+            if (historySection.style.display === 'none') {
+                historySection.style.display = 'flex';
+                document.body.style.overflow = 'hidden';
+            } else {
+                historySection.style.display = 'none';
+                document.body.style.overflow = 'auto';
+            }
+        }
+        
+        function toggleBankSection() {
+            var bankSection = document.getElementById('bankSection');
+            if (bankSection.style.display === 'none') {
+                bankSection.style.display = 'flex';
+                document.body.style.overflow = 'hidden';
+            } else {
+                bankSection.style.display = 'none';
+                document.body.style.overflow = 'auto';
+            }
+        }
+
+        // Close modals when clicking on overlay
+        document.addEventListener('DOMContentLoaded', function() {
+            // Add click handlers for modal overlays
+            ['editSection', 'historySection', 'bankSection'].forEach(function(sectionId) {
+                var section = document.getElementById(sectionId);
+                if (section) {
+                    section.addEventListener('click', function(e) {
+                        // Only close if clicking on the overlay, not the modal content
+                        if (e.target === section) {
+                            section.style.display = 'none';
+                            document.body.style.overflow = 'auto';
+                        }
+                    });
+                }
+            });
+
+            // Escape key to close modals
+            document.addEventListener('keydown', function(e) {
+                if (e.key === 'Escape') {
+                    ['editSection', 'historySection', 'bankSection'].forEach(function(sectionId) {
+                        var section = document.getElementById(sectionId);
+                        if (section && section.style.display !== 'none') {
+                            section.style.display = 'none';
+                            document.body.style.overflow = 'auto';
+                        }
+                    });
+                }
+            });
+        });
+
         // Bootstrap-style tabs with state persistence
         document.addEventListener('DOMContentLoaded', function() {
+            console.log('Initializing team tabs...');
+            
             // Initialize custom tab functionality
             var tabNav = document.querySelector('.nav.nav-tabs');
             if (tabNav) {
+                console.log('Tab navigation found');
+                
                 // Get hash from URL or localStorage
                 var savedTab = window.location.hash || localStorage.getItem('activeTeamTab') || '#tab-team-info';
                 
@@ -2978,9 +3267,14 @@ class QBO_Teams {
                     savedTab = savedTab.substring(1);
                 }
                 
+                console.log('Saved tab:', savedTab);
+                
                 // Set initial active tab
                 var activeTabLink = document.querySelector('.nav-link[href="#' + savedTab + '"]');
                 var activeTabPane = document.getElementById(savedTab);
+                
+                console.log('Active tab link:', activeTabLink);
+                console.log('Active tab pane:', activeTabPane);
                 
                 if (activeTabLink && activeTabPane) {
                     // Remove active classes from all tabs
@@ -2996,6 +3290,27 @@ class QBO_Teams {
                     activeTabLink.classList.add('active');
                     activeTabLink.setAttribute('aria-selected', 'true');
                     activeTabPane.classList.add('show', 'active');
+                    
+                    console.log('Activated tab:', savedTab);
+                } else {
+                    console.log('Could not find tab elements, defaulting to team-info');
+                    // Default to team info tab
+                    var defaultTabLink = document.querySelector('.nav-link[href="#tab-team-info"]');
+                    var defaultTabPane = document.getElementById('tab-team-info');
+                    
+                    if (defaultTabLink && defaultTabPane) {
+                        document.querySelectorAll('.nav-link').forEach(function(link) {
+                            link.classList.remove('active');
+                            link.setAttribute('aria-selected', 'false');
+                        });
+                        document.querySelectorAll('.tab-pane').forEach(function(pane) {
+                            pane.classList.remove('show', 'active');
+                        });
+                        
+                        defaultTabLink.classList.add('active');
+                        defaultTabLink.setAttribute('aria-selected', 'true');
+                        defaultTabPane.classList.add('show', 'active');
+                    }
                 }
                 
                 // Add click handlers for state persistence
@@ -3003,6 +3318,8 @@ class QBO_Teams {
                     link.addEventListener('click', function(e) {
                         e.preventDefault();
                         var targetTab = this.getAttribute('href');
+                        
+                        console.log('Tab clicked:', targetTab);
                         
                         // Save to localStorage and update URL hash
                         localStorage.setItem('activeTeamTab', targetTab);
@@ -3023,6 +3340,9 @@ class QBO_Teams {
                         var targetPane = document.querySelector(targetTab);
                         if (targetPane) {
                             targetPane.classList.add('show', 'active');
+                            console.log('Activated pane:', targetTab);
+                        } else {
+                            console.log('Could not find target pane:', targetTab);
                         }
                     });
                 });

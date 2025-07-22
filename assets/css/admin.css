@@ -2,6 +2,505 @@
  * Admin CSS for QBO Recurring Billing Plugin
  */
 
+/* Enhanced Team Info Page Styles */
+.team-info-container {
+    max-width: 1200px;
+    margin: 0 auto;
+    padding: 20px 0;
+}
+
+.team-header-section {
+    text-align: center;
+    margin-bottom: 32px;
+    padding: 24px;
+    background: linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%);
+    border-radius: 12px;
+    border: 1px solid #dee2e6;
+}
+
+.program-logo-container {
+    display: inline-block;
+}
+
+.program-logo {
+    max-width: 300px;
+    height: auto;
+    filter: drop-shadow(0 4px 8px rgba(0,0,0,0.1));
+}
+
+.program-badge {
+    display: inline-block;
+    padding: 12px 24px;
+    background: linear-gradient(135deg, #007cba 0%, #005a87 100%);
+    color: white;
+    border-radius: 25px;
+    font-weight: 600;
+    font-size: 18px;
+    box-shadow: 0 4px 12px rgba(0,124,186,0.3);
+}
+
+.team-info-grid {
+    display: grid;
+    grid-template-columns: 2fr 1fr;
+    gap: 32px;
+    margin-bottom: 32px;
+}
+
+@media (max-width: 1024px) {
+    .team-info-grid {
+        grid-template-columns: 1fr;
+        gap: 24px;
+    }
+}
+
+/* Card Styles */
+.info-card {
+    background: #fff;
+    border: 1px solid #e1e4e8;
+    border-radius: 12px;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.08);
+    margin-bottom: 24px;
+    overflow: hidden;
+    transition: box-shadow 0.3s ease, transform 0.2s ease;
+}
+
+.info-card:hover {
+    box-shadow: 0 4px 16px rgba(0,0,0,0.12);
+    transform: translateY(-2px);
+}
+
+.card-header {
+    background: linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%);
+    padding: 16px 24px;
+    border-bottom: 1px solid #e1e4e8;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+.card-header h3 {
+    margin: 0;
+    font-size: 18px;
+    font-weight: 600;
+    color: #2c3e50;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.card-header .dashicons {
+    color: #007cba;
+    font-size: 20px;
+}
+
+.close-btn {
+    background: none;
+    border: none;
+    color: #6c757d;
+    cursor: pointer;
+    padding: 4px;
+    border-radius: 4px;
+    transition: all 0.2s ease;
+}
+
+.close-btn:hover {
+    background: #dc3545;
+    color: white;
+}
+
+.card-content {
+    padding: 24px;
+}
+
+/* Description Card */
+.description-card .card-content p {
+    font-size: 16px;
+    line-height: 1.6;
+    color: #495057;
+    margin: 0;
+}
+
+/* Assets Card */
+.team-assets-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+    gap: 24px;
+}
+
+.asset-item h4 {
+    margin: 0 0 12px 0;
+    font-size: 14px;
+    font-weight: 600;
+    color: #6c757d;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+
+.image-container {
+    border: 2px dashed #dee2e6;
+    border-radius: 8px;
+    padding: 16px;
+    text-align: center;
+    background: #f8f9fa;
+    transition: all 0.3s ease;
+}
+
+.image-container:hover {
+    border-color: #007cba;
+    background: #f0f8ff;
+}
+
+.team-logo, .team-photo {
+    max-width: 100%;
+    max-height: 150px;
+    height: auto;
+    border-radius: 6px;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+}
+
+/* Contact Card */
+.contact-item.primary-contact {
+    margin-bottom: 20px;
+}
+
+.contact-link.primary {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    padding: 12px 20px;
+    background: linear-gradient(135deg, #007cba 0%, #005a87 100%);
+    color: white;
+    text-decoration: none;
+    border-radius: 8px;
+    font-weight: 600;
+    box-shadow: 0 4px 12px rgba(0,124,186,0.3);
+    transition: all 0.3s ease;
+}
+
+.contact-link.primary:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 6px 20px rgba(0,124,186,0.4);
+    color: white;
+}
+
+.social-links-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
+    gap: 12px;
+}
+
+.social-link {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 10px 14px;
+    background: #f8f9fa;
+    color: #495057;
+    text-decoration: none;
+    border-radius: 6px;
+    border: 1px solid #e9ecef;
+    transition: all 0.3s ease;
+    font-size: 14px;
+    font-weight: 500;
+}
+
+.social-link:hover {
+    color: white;
+    transform: translateY(-1px);
+    box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+}
+
+.social-link.facebook:hover {
+    background: #1877f2;
+    border-color: #1877f2;
+}
+
+.social-link.twitter:hover {
+    background: #1da1f2;
+    border-color: #1da1f2;
+}
+
+.social-link.instagram:hover {
+    background: linear-gradient(45deg, #f09433 0%, #e6683c 25%, #dc2743 50%, #cc2366 75%, #bc1888 100%);
+    border-color: #bc1888;
+}
+
+/* Actions Card */
+.action-buttons {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+}
+
+.action-btn {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 14px 18px;
+    background: #f8f9fa;
+    color: #495057;
+    border: 1px solid #dee2e6;
+    border-radius: 8px;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    font-size: 14px;
+    font-weight: 500;
+    text-align: left;
+    width: 100%;
+}
+
+.action-btn:hover {
+    background: #e9ecef;
+    color: #007cba;
+    border-color: #007cba;
+    transform: translateX(4px);
+}
+
+.action-btn .dashicons {
+    font-size: 18px;
+}
+
+/* Edit Section */
+.edit-section {
+    margin-top: 32px;
+    animation: slideDown 0.3s ease-out;
+}
+
+@keyframes slideDown {
+    from {
+        opacity: 0;
+        transform: translateY(-20px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+.team-edit-form {
+    max-width: none;
+}
+
+.form-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+    gap: 20px;
+    margin-bottom: 24px;
+}
+
+.form-group {
+    display: flex;
+    flex-direction: column;
+}
+
+.form-group.full-width {
+    grid-column: 1 / -1;
+}
+
+.form-group.flex-grow {
+    flex: 1;
+}
+
+.form-label {
+    font-weight: 600;
+    color: #2c3e50;
+    margin-bottom: 6px;
+    font-size: 14px;
+}
+
+.form-label .required {
+    color: #dc3545;
+}
+
+.form-input {
+    padding: 10px 12px;
+    border: 1px solid #ced4da;
+    border-radius: 6px;
+    font-size: 14px;
+    transition: all 0.3s ease;
+    background: #fff;
+}
+
+.form-input:focus {
+    outline: none;
+    border-color: #007cba;
+    box-shadow: 0 0 0 3px rgba(0,124,186,0.1);
+}
+
+.file-input-group {
+    display: flex;
+    gap: 8px;
+}
+
+.file-input-group .form-input {
+    flex: 1;
+}
+
+.image-preview {
+    margin-top: 12px;
+    text-align: center;
+}
+
+.image-preview img {
+    max-width: 120px;
+    max-height: 120px;
+    border-radius: 6px;
+    border: 1px solid #dee2e6;
+}
+
+.form-actions {
+    display: flex;
+    gap: 12px;
+    padding-top: 24px;
+    border-top: 1px solid #e9ecef;
+}
+
+.btn-primary {
+    background: linear-gradient(135deg, #007cba 0%, #005a87 100%);
+    color: white;
+    border: none;
+    padding: 12px 24px;
+    border-radius: 6px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.btn-primary:hover {
+    transform: translateY(-1px);
+    box-shadow: 0 4px 12px rgba(0,124,186,0.3);
+}
+
+.btn-secondary {
+    background: #6c757d;
+    color: white;
+    border: none;
+    padding: 12px 24px;
+    border-radius: 6px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.btn-secondary:hover {
+    background: #5a6268;
+    transform: translateY(-1px);
+}
+
+/* History Section */
+.history-section {
+    margin-top: 32px;
+    animation: slideDown 0.3s ease-out;
+}
+
+.name-history-list {
+    list-style: none;
+    padding: 0;
+    margin: 0;
+}
+
+.name-history-list li {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 12px 16px;
+    margin-bottom: 8px;
+    background: #f8f9fa;
+    border-radius: 6px;
+    border: 1px solid #e9ecef;
+}
+
+.year-badge {
+    background: #007cba;
+    color: white;
+    padding: 4px 8px;
+    border-radius: 4px;
+    font-size: 12px;
+    font-weight: 600;
+}
+
+.add-history-form {
+    margin-top: 24px;
+    padding-top: 24px;
+    border-top: 1px solid #e9ecef;
+}
+
+.add-history-form h4 {
+    margin-bottom: 16px;
+    color: #2c3e50;
+}
+
+.form-row {
+    display: flex;
+    gap: 12px;
+    align-items: end;
+}
+
+@media (max-width: 768px) {
+    .form-row {
+        flex-direction: column;
+        align-items: stretch;
+    }
+}
+
+/* Bank Section */
+.bank-section {
+    margin-top: 32px;
+    animation: slideDown 0.3s ease-out;
+}
+
+.current-account {
+    margin-bottom: 24px;
+    padding: 16px;
+    background: #d4edda;
+    border: 1px solid #c3e6cb;
+    border-radius: 6px;
+}
+
+.current-account h4 {
+    margin-bottom: 8px;
+    color: #155724;
+}
+
+.account-info {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    color: #155724;
+    font-weight: 600;
+}
+
+.account-info .dashicons {
+    color: #28a745;
+}
+
+.bank-form {
+    padding-top: 24px;
+    border-top: 1px solid #e9ecef;
+}
+
+.bank-form h4 {
+    margin-bottom: 16px;
+    color: #2c3e50;
+}
+
+/* Inline forms */
+.inline-form .form-row {
+    display: flex;
+    gap: 12px;
+    align-items: end;
+}
+
+.inline-form .form-group {
+    min-width: 0;
+}
+
 /* Team Details Tab Navigation Styling */
 .wrap nav.nav.nav-tabs, nav.nav.nav-tabs#teamTabs, .nav.nav-tabs {
     background: #fff !important;
@@ -168,5 +667,193 @@ nav.nav.nav-tabs#teamTabs .nav-link.active,
     .mentors-table .button-small {
         font-size: 11px;
         padding: 2px 5px;
+    }
+}
+
+/* Modal Overlay Styles for Team Sections */
+.edit-section,
+.history-section,
+.bank-section {
+    position: fixed !important;
+    top: 0 !important;
+    left: 0 !important;
+    width: 100% !important;
+    height: 100% !important;
+    background: rgba(0, 0, 0, 0.7) !important;
+    z-index: 9999 !important;
+    display: flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    padding: 20px !important;
+    box-sizing: border-box !important;
+}
+
+.edit-section[style*="display: none"],
+.history-section[style*="display: none"],
+.bank-section[style*="display: none"] {
+    display: none !important;
+}
+
+.edit-section .info-card,
+.history-section .info-card,
+.bank-section .info-card {
+    max-width: 800px !important;
+    max-height: 80vh !important;
+    width: 100% !important;
+    background: #fff !important;
+    border-radius: 12px !important;
+    box-shadow: 0 20px 40px rgba(0,0,0,0.3) !important;
+    overflow-y: auto !important;
+    position: relative !important;
+    margin: 0 !important;
+    animation: modalFadeIn 0.3s ease-out !important;
+}
+
+@keyframes modalFadeIn {
+    from {
+        opacity: 0;
+        transform: scale(0.9) translateY(-20px);
+    }
+    to {
+        opacity: 1;
+        transform: scale(1) translateY(0);
+    }
+}
+
+.edit-section .card-header,
+.history-section .card-header,
+.bank-section .card-header {
+    position: sticky !important;
+    top: 0 !important;
+    background: #fff !important;
+    border-radius: 12px 12px 0 0 !important;
+    z-index: 10 !important;
+    border-bottom: 2px solid #f1f1f1 !important;
+}
+
+.edit-section .close-btn,
+.history-section .close-btn,
+.bank-section .close-btn {
+    position: absolute !important;
+    top: 16px !important;
+    right: 16px !important;
+    background: transparent !important;
+    border: none !important;
+    font-size: 24px !important;
+    color: #666 !important;
+    cursor: pointer !important;
+    padding: 8px !important;
+    border-radius: 50% !important;
+    width: 40px !important;
+    height: 40px !important;
+    display: flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    transition: all 0.2s ease !important;
+}
+
+.edit-section .close-btn:hover,
+.history-section .close-btn:hover,
+.bank-section .close-btn:hover {
+    background: #f5f5f5 !important;
+    color: #333 !important;
+}
+
+.edit-section .card-content,
+.history-section .card-content,
+.bank-section .card-content {
+    max-height: none !important;
+    padding: 24px !important;
+}
+
+/* Ensure form elements work properly in modals */
+.edit-section .form-grid,
+.history-section .form-row,
+.bank-section .form-row {
+    display: flex !important;
+    flex-wrap: wrap !important;
+    gap: 16px !important;
+}
+
+.edit-section .form-group {
+    min-width: 200px !important;
+    flex: 1 !important;
+}
+
+.edit-section .form-group.full-width {
+    flex: 1 1 100% !important;
+}
+
+/* History section specific styles */
+.history-section .name-history-list {
+    list-style: none !important;
+    padding: 0 !important;
+    margin: 0 0 24px 0 !important;
+}
+
+.history-section .name-history-list li {
+    display: flex !important;
+    justify-content: space-between !important;
+    align-items: center !important;
+    padding: 12px 16px !important;
+    background: #f8f9fa !important;
+    border-radius: 8px !important;
+    margin-bottom: 8px !important;
+    border-left: 4px solid #007cba !important;
+}
+
+.history-section .year-badge {
+    background: #007cba !important;
+    color: white !important;
+    padding: 4px 12px !important;
+    border-radius: 15px !important;
+    font-size: 12px !important;
+    font-weight: 600 !important;
+}
+
+/* Bank section specific styles */
+.bank-section .current-account {
+    background: #e8f5e8 !important;
+    border: 1px solid #4caf50 !important;
+    border-radius: 8px !important;
+    padding: 16px !important;
+    margin-bottom: 24px !important;
+}
+
+.bank-section .account-info {
+    display: flex !important;
+    align-items: center !important;
+    gap: 8px !important;
+    color: #2e7d32 !important;
+    font-weight: 600 !important;
+}
+
+.bank-section .account-info .dashicons {
+    color: #4caf50 !important;
+}
+
+/* Responsive modal adjustments */
+@media screen and (max-width: 768px) {
+    .edit-section .info-card,
+    .history-section .info-card,
+    .bank-section .info-card {
+        max-width: 95% !important;
+        max-height: 90vh !important;
+        margin: 20px !important;
+    }
+    
+    .edit-section,
+    .history-section,
+    .bank-section {
+        padding: 10px !important;
+    }
+    
+    .edit-section .form-grid {
+        grid-template-columns: 1fr !important;
+    }
+    
+    .history-section .form-row,
+    .bank-section .form-row {
+        flex-direction: column !important;
     }
 }
