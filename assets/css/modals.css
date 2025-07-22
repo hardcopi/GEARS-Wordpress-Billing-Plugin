@@ -61,6 +61,18 @@
     font-weight: 600;
     margin-bottom: 5px;
     color: #23282d;
+    text-align: left !important;
+    display: block;
+    width: 100%;
+}
+
+.gears-modal .form-section .form-row label,
+.gears-modal .section-title + .form-row label,
+.gears-modal .form-row-group .form-row label {
+    text-align: left !important;
+    float: none !important;
+    display: block !important;
+    width: 100% !important;
 }
 
 .gears-modal .form-input {
@@ -115,6 +127,91 @@
 .gears-modal input[type="file"].form-input:hover {
     border-color: #007cba;
     background: #f0f8ff;
+}
+
+/* Form sections for better organization */
+.gears-modal .form-section {
+    margin-bottom: 30px;
+    padding-bottom: 20px;
+    border-bottom: 1px solid #f0f0f0;
+}
+
+.gears-modal .form-section:last-of-type {
+    border-bottom: none;
+    margin-bottom: 0;
+    padding-bottom: 0;
+}
+
+.gears-modal .section-title {
+    font-size: 16px;
+    font-weight: 600;
+    color: #23282d;
+    margin: 0 0 15px 0;
+    padding-bottom: 8px;
+    border-bottom: 2px solid #007cba;
+    display: inline-block;
+}
+
+/* Form row groups for side-by-side layout */
+.gears-modal .form-row-group {
+    display: flex;
+    gap: 15px;
+    margin-bottom: 20px;
+}
+
+.gears-modal .form-row.half-width {
+    flex: 1;
+    margin-bottom: 0;
+}
+
+/* Help text styling */
+.gears-modal .form-help {
+    font-size: 12px;
+    color: #666;
+    margin-top: 4px;
+    display: block;
+}
+
+/* Improved checkbox styling */
+.gears-modal .checkbox-row {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+
+.gears-modal .checkbox-label {
+    display: flex;
+    align-items: center;
+    cursor: pointer;
+    font-weight: 600;
+    margin-bottom: 0;
+}
+
+.gears-modal .checkbox-label input[type="checkbox"] {
+    margin-right: 10px;
+    transform: scale(1.1);
+}
+
+.gears-modal .checkbox-label .checkmark {
+    margin-left: 8px;
+}
+
+/* Responsive adjustments */
+@media (max-width: 600px) {
+    .gears-modal {
+        margin: 2% auto;
+        max-width: 95%;
+        padding: 15px;
+    }
+    
+    .gears-modal .form-row-group {
+        flex-direction: column;
+        gap: 0;
+    }
+    
+    .gears-modal .form-row.half-width {
+        margin-bottom: 20px;
+    }
 }
 
 /* Required field indicator */

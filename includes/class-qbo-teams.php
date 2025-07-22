@@ -112,15 +112,96 @@ class QBO_Teams {
         // Get all teams (excluding archived ones if the column exists)
         // First check if the archived column exists
         $column_exists = $wpdb->get_results("SHOW COLUMNS FROM $table_teams LIKE 'archived'");
+        $table_students = $wpdb->prefix . 'gears_students';
         
         if (!empty($column_exists)) {
             // Column exists, filter out archived teams for active list
-            $teams = $wpdb->get_results("SELECT * FROM $table_teams WHERE (archived = 0 OR archived IS NULL) ORDER BY team_name");
+            $query = "
+                SELECT t.*, 
+                       COALESCE(m.mentor_count, 0) as mentor_count,
+                       COALESCE(s.student_count, 0) as student_count
+                FROM $table_teams t
+                LEFT JOIN (
+                    SELECT team_id, COUNT(*) as mentor_count 
+                    FROM $table_mentors 
+                    WHERE team_id IS NOT NULL
+                    GROUP BY team_id
+                ) m ON t.id = m.team_id
+                LEFT JOIN (
+                    SELECT team_id, COUNT(*) as student_count 
+                    FROM $table_students 
+                    WHERE team_id IS NOT NULL AND (grade != 'Alumni' OR grade IS NULL)
+                    GROUP BY team_id
+                ) s ON t.id = s.team_id
+                WHERE (t.archived = 0 OR t.archived IS NULL) 
+                ORDER BY t.team_name
+            ";
+            $teams = $wpdb->get_results($query);
+            
+            // Check for database errors
+            if ($wpdb->last_error) {
+                error_log('QBO Teams Query Error: ' . $wpdb->last_error);
+                // Fallback to simple query if complex query fails
+                $teams = $wpdb->get_results("SELECT *, 0 as mentor_count, 0 as student_count FROM $table_teams WHERE (archived = 0 OR archived IS NULL) ORDER BY team_name");
+            }
+            
             // Get archived teams separately
-            $archived_teams = $wpdb->get_results("SELECT * FROM $table_teams WHERE archived = 1 ORDER BY team_name");
+            $archived_query = "
+                SELECT t.*, 
+                       COALESCE(m.mentor_count, 0) as mentor_count,
+                       COALESCE(s.student_count, 0) as student_count
+                FROM $table_teams t
+                LEFT JOIN (
+                    SELECT team_id, COUNT(*) as mentor_count 
+                    FROM $table_mentors 
+                    WHERE team_id IS NOT NULL
+                    GROUP BY team_id
+                ) m ON t.id = m.team_id
+                LEFT JOIN (
+                    SELECT team_id, COUNT(*) as student_count 
+                    FROM $table_students 
+                    WHERE team_id IS NOT NULL AND (grade != 'Alumni' OR grade IS NULL)
+                    GROUP BY team_id
+                ) s ON t.id = s.team_id
+                WHERE t.archived = 1 
+                ORDER BY t.team_name
+            ";
+            $archived_teams = $wpdb->get_results($archived_query);
+            
+            if ($wpdb->last_error) {
+                error_log('QBO Archived Teams Query Error: ' . $wpdb->last_error);
+                // Fallback to simple query if complex query fails
+                $archived_teams = $wpdb->get_results("SELECT *, 0 as mentor_count, 0 as student_count FROM $table_teams WHERE archived = 1 ORDER BY team_name");
+            }
         } else {
             // Column doesn't exist yet, get all teams as active
-            $teams = $wpdb->get_results("SELECT * FROM $table_teams ORDER BY team_name");
+            $query = "
+                SELECT t.*, 
+                       COALESCE(m.mentor_count, 0) as mentor_count,
+                       COALESCE(s.student_count, 0) as student_count
+                FROM $table_teams t
+                LEFT JOIN (
+                    SELECT team_id, COUNT(*) as mentor_count 
+                    FROM $table_mentors 
+                    WHERE team_id IS NOT NULL
+                    GROUP BY team_id
+                ) m ON t.id = m.team_id
+                LEFT JOIN (
+                    SELECT team_id, COUNT(*) as student_count 
+                    FROM $table_students 
+                    WHERE team_id IS NOT NULL AND (grade != 'Alumni' OR grade IS NULL)
+                    GROUP BY team_id
+                ) s ON t.id = s.team_id
+                ORDER BY t.team_name
+            ";
+            $teams = $wpdb->get_results($query);
+            
+            if ($wpdb->last_error) {
+                error_log('QBO Teams Query Error: ' . $wpdb->last_error);
+                // Fallback to simple query if complex query fails
+                $teams = $wpdb->get_results("SELECT *, 0 as mentor_count, 0 as student_count FROM $table_teams ORDER BY team_name");
+            }
+            
             $archived_teams = array();
         }
         
@@ -1134,6 +1215,11 @@ class QBO_Teams {
                 padding-bottom: 10px;
                 border-bottom: 1px solid #eee;
             }
+            /* Highlight table rows on mouseover */
+            .wp-list-table tr:hover {
+                background-color: #f0f6fb !important;
+                transition: background 0.2s;
+            }
             .team-logo-thumb, .team-photo-thumb {
                 width: 48px;
                 height: 48px;
@@ -1475,6 +1561,8 @@ class QBO_Teams {
                         <th>Team Name</th>
                         <th>Team Number</th>
                         <th>Program</th>
+                        <th>Mentors</th>
+                        <th>Students</th>
                         <th>Hall of Fame</th>
                         <th>Actions</th>
                     </tr>
@@ -1486,16 +1574,17 @@ class QBO_Teams {
                                 <td><strong><?php echo esc_html($team->team_name); ?></strong></td>
                                 <td><?php echo esc_html($team->team_number); ?></td>
                                 <td><?php echo $this->get_program_display($team->program); ?></td>
+                                <td><?php echo intval($team->mentor_count); ?></td>
+                                <td><?php echo intval($team->student_count); ?></td>
                                 <td><?php echo !empty($team->hall_of_fame) ? '<span class="dashicons dashicons-yes-alt" style="color: #00a32a;" title="Hall of Fame Team"></span>' : ''; ?></td>
                                 <td>
-                                    <a href="<?php echo admin_url('admin.php?page=qbo-teams&action=view&team_id=' . intval($team->id)); ?>" class="button button-small">View Details</a>
-                                    <button type="button" class="button button-small edit-team-btn" data-team-id="<?php echo intval($team->id); ?>">Edit</button>
+                                    <a href="<?php echo admin_url('admin.php?page=qbo-teams&action=view&team_id=' . intval($team->id)); ?>" class="button button-small">Edit</a>
                                     <button type="button" class="button button-small button-link-delete archive-team-btn" data-team-id="<?php echo intval($team->id); ?>" data-team-name="<?php echo esc_attr($team->team_name); ?>">Move to Past</button>
                                 </td>
                             </tr>
                         <?php endforeach; ?>
                     <?php else : ?>
-                        <tr><td colspan="5"><em>No teams found.</em></td></tr>
+                        <tr><td colspan="7"><em>No teams found.</em></td></tr>
                     <?php endif; ?>
                 </tbody>
             </table>
@@ -1512,6 +1601,8 @@ class QBO_Teams {
                                 <th>Team Name</th>
                                 <th>Team Number</th>
                                 <th>Program</th>
+                                <th>Mentors</th>
+                                <th>Students</th>
                                 <th>Hall of Fame</th>
                                 <th>Actions</th>
                             </tr>
@@ -1522,10 +1613,11 @@ class QBO_Teams {
                                     <td><strong><?php echo esc_html($team->team_name); ?></strong> <span style="color: #999; font-size: 11px;">(Past)</span></td>
                                     <td><?php echo esc_html($team->team_number); ?></td>
                                     <td><?php echo $this->get_program_display($team->program); ?></td>
+                                    <td><?php echo intval($team->mentor_count); ?></td>
+                                    <td><?php echo intval($team->student_count); ?></td>
                                     <td><?php echo !empty($team->hall_of_fame) ? '<span class="dashicons dashicons-yes-alt" style="color: #00a32a;" title="Hall of Fame Team"></span>' : ''; ?></td>
                                     <td>
-                                        <a href="<?php echo admin_url('admin.php?page=qbo-teams&action=view&team_id=' . intval($team->id)); ?>" class="button button-small">View Details</a>
-                                        <button type="button" class="button button-small edit-team-btn" data-team-id="<?php echo intval($team->id); ?>">Edit</button>
+                                        <a href="<?php echo admin_url('admin.php?page=qbo-teams&action=view&team_id=' . intval($team->id)); ?>" class="button button-small">Edit</a>
                                         <button type="button" class="button button-small button-primary restore-team-btn" data-team-id="<?php echo intval($team->id); ?>" data-team-name="<?php echo esc_attr($team->team_name); ?>">Restore</button>
                                     </td>
                                 </tr>
@@ -1537,170 +1629,108 @@ class QBO_Teams {
             
             <!-- Add Team Modal -->
             <div id="add-team-modal-overlay" class="gears-modal-overlay">
-                <div class="gears-modal" style="max-width: 600px;">
-                    <div class="gears-modal-header">
-                        <h2>Add New Team</h2>
-                        <span class="gears-modal-close">&times;</span>
-                    </div>
+                <div class="gears-modal" style="max-width: 650px;">
+                    <span class="gears-modal-close">&times;</span>
                     <div class="gears-modal-content">
+                        <h2 style="margin-top: 0; margin-bottom: 20px; font-size: 24px; color: #23282d;">Add New Team</h2>
+                        
                         <form id="add-team-form" method="post" enctype="multipart/form-data">
                             <?php wp_nonce_field('add_team_action', 'team_nonce'); ?>
                             <input type="hidden" name="add_team" value="1" />
                             
-                            <div class="form-row">
-                                <label for="team_name">Team Name <span style="color: red;">*</span></label>
-                                <input type="text" id="team_name" name="team_name" class="form-input" required />
+                            <!-- Basic Information Section -->
+                            <div class="form-section">
+                                <h3 class="section-title">Basic Information</h3>
+                                
+                                <div class="form-row">
+                                    <label for="team_name">Team Name <span style="color: #d63638;">*</span></label>
+                                    <input type="text" id="team_name" name="team_name" class="form-input" required />
+                                </div>
+                                
+                                <div class="form-row-group">
+                                    <div class="form-row half-width">
+                                        <label for="team_number">Team Number</label>
+                                        <input type="text" id="team_number" name="team_number" class="form-input" />
+                                    </div>
+                                    
+                                    <div class="form-row half-width">
+                                        <label for="program">Program</label>
+                                        <select id="program" name="program" class="form-input">
+                                            <option value="">Select Program</option>
+                                            <option value="FTC">FTC (FIRST Tech Challenge)</option>
+                                            <option value="FLL">FLL (FIRST LEGO League)</option>
+                                            <option value="Other">Other</option>
+                                        </select>
+                                    </div>
+                                </div>
+                                
+                                <div class="form-row">
+                                    <label for="description">Description</label>
+                                    <textarea id="description" name="description" class="form-input" rows="3" placeholder="Brief description of the team..."></textarea>
+                                </div>
                             </div>
                             
-                            <div class="form-row">
-                                <label for="team_number">Team Number</label>
-                                <input type="text" id="team_number" name="team_number" class="form-input" />
+                            <!-- Media Section -->
+                            <div class="form-section">
+                                <h3 class="section-title">Team Media</h3>
+                                
+                                <div class="form-row-group">
+                                    <div class="form-row half-width">
+                                        <label for="logo">Team Logo</label>
+                                        <input type="file" id="logo" name="logo" class="form-input" accept="image/*" />
+                                        <small class="form-help">PNG, JPG, or GIF format recommended</small>
+                                    </div>
+                                    
+                                    <div class="form-row half-width">
+                                        <label for="team_photo">Team Photo</label>
+                                        <input type="file" id="team_photo" name="team_photo" class="form-input" accept="image/*" />
+                                        <small class="form-help">Team group photo</small>
+                                    </div>
+                                </div>
                             </div>
                             
-                            <div class="form-row">
-                                <label for="program">Program</label>
-                                <select id="program" name="program" class="form-input">
-                                    <option value="">Select Program</option>
-                                    <option value="FTC">FTC (FIRST Tech Challenge)</option>
-                                    <option value="FLL">FLL (FIRST LEGO League)</option>
-                                    <option value="Other">Other</option>
-                                </select>
+                            <!-- Social Links Section -->
+                            <div class="form-section">
+                                <h3 class="section-title">Online Presence</h3>
+                                
+                                <div class="form-row">
+                                    <label for="website">Website</label>
+                                    <input type="url" id="website" name="website" class="form-input" placeholder="https://yourteamwebsite.com" />
+                                </div>
+                                
+                                <div class="form-row-group">
+                                    <div class="form-row half-width">
+                                        <label for="facebook">Facebook</label>
+                                        <input type="url" id="facebook" name="facebook" class="form-input" placeholder="https://facebook.com/..." />
+                                    </div>
+                                    
+                                    <div class="form-row half-width">
+                                        <label for="twitter">Twitter/X</label>
+                                        <input type="url" id="twitter" name="twitter" class="form-input" placeholder="https://x.com/..." />
+                                    </div>
+                                </div>
+                                
+                                <div class="form-row">
+                                    <label for="instagram">Instagram</label>
+                                    <input type="url" id="instagram" name="instagram" class="form-input" placeholder="https://instagram.com/..." />
+                                </div>
                             </div>
                             
-                            <div class="form-row">
-                                <label for="description">Description</label>
-                                <textarea id="description" name="description" class="form-input" rows="3" placeholder="Brief description of the team..."></textarea>
-                            </div>
-                            
-                            <div class="form-row">
-                                <label for="logo">Team Logo</label>
-                                <input type="file" id="logo" name="logo" class="form-input" accept="image/*" />
-                            </div>
-                            
-                            <div class="form-row">
-                                <label for="team_photo">Team Photo</label>
-                                <input type="file" id="team_photo" name="team_photo" class="form-input" accept="image/*" />
-                            </div>
-                            
-                            <div class="form-row">
-                                <label for="website">Website</label>
-                                <input type="url" id="website" name="website" class="form-input" placeholder="https://" />
-                            </div>
-                            
-                            <div class="form-row">
-                                <label for="facebook">Facebook</label>
-                                <input type="url" id="facebook" name="facebook" class="form-input" placeholder="https://facebook.com/..." />
-                            </div>
-                            
-                            <div class="form-row">
-                                <label for="twitter">Twitter/X</label>
-                                <input type="url" id="twitter" name="twitter" class="form-input" placeholder="https://x.com/..." />
-                            </div>
-                            
-                            <div class="form-row">
-                                <label for="instagram">Instagram</label>
-                                <input type="url" id="instagram" name="instagram" class="form-input" placeholder="https://instagram.com/..." />
-                            </div>
-                            
-                            <div class="form-row">
-                                <label>
-                                    <input type="checkbox" id="hall_of_fame" name="hall_of_fame" value="1" />
-                                    <span style="margin-left: 8px;">Hall of Fame Team</span>
-                                </label>
-                                <p style="font-size: 12px; color: #666; margin-top: 5px;">Check this box if this team is inducted into the Hall of Fame</p>
+                            <!-- Special Status Section -->
+                            <div class="form-section">
+                                <div class="form-row checkbox-row">
+                                    <label class="checkbox-label">
+                                        <input type="checkbox" id="hall_of_fame" name="hall_of_fame" value="1" />
+                                        <span class="checkmark"></span>
+                                        Hall of Fame Team
+                                    </label>
+                                    <small class="form-help">Check this if the team is inducted into the Hall of Fame</small>
+                                </div>
                             </div>
                             
                             <div class="form-actions">
                                 <button type="button" class="button" onclick="closeAddTeamModal()">Cancel</button>
                                 <button type="submit" name="add_team" class="button button-primary">Add Team</button>
-                            </div>
-                        </form>
-                    </div>
-                </div>
-            </div>
-            
-            <!-- Edit Team Modal -->
-            <div id="edit-team-modal-overlay" class="gears-modal-overlay">
-                <div class="gears-modal" style="max-width: 600px;">
-                    <div class="gears-modal-header">
-                        <h2>Edit Team</h2>
-                        <span class="gears-modal-close">&times;</span>
-                    </div>
-                    <div class="gears-modal-content">
-                        <form id="edit-team-form" method="post" enctype="multipart/form-data">
-                            <?php wp_nonce_field('update_team_action', 'team_edit_nonce'); ?>
-                            <input type="hidden" name="update_team" value="1" />
-                            <input type="hidden" name="team_id" id="edit-team-id" value="<?php echo isset($team) && isset($team->id) ? esc_attr($team->id) : ''; ?>" />
-                            
-                            <div class="form-row">
-                                <label for="edit_team_name">Team Name <span style="color: red;">*</span></label>
-                                <input type="text" id="edit_team_name" name="team_name" class="form-input" required />
-                            </div>
-                            
-                            <div class="form-row">
-                                <label for="edit_team_number">Team Number</label>
-                                <input type="text" id="edit_team_number" name="team_number" class="form-input" />
-                            </div>
-                            
-                            <div class="form-row">
-                                <label for="edit_program">Program</label>
-                                <select id="edit_program" name="program" class="form-input">
-                                    <option value="">Select Program</option>
-                                    <option value="FTC">FTC (FIRST Tech Challenge)</option>
-                                    <option value="FLL">FLL (FIRST LEGO League)</option>
-                                    <option value="FRC">FRC (FIRST Robotics Competition)</option>
-                                    <option value="Other">Other</option>
-                                </select>
-                            </div>
-                            
-                            <div class="form-row">
-                                <label for="edit_description">Description</label>
-                                <textarea id="edit_description" name="description" class="form-input" rows="4" placeholder="Brief description of the team..."></textarea>
-                            </div>
-                            
-                            <div class="form-row">
-                                <label for="edit_logo">Team Logo</label>
-                                <input type="file" id="edit_logo" name="logo" class="form-input" accept="image/*" />
-                                <div id="current-logo-preview" style="margin-top: 10px;"></div>
-                            </div>
-                            
-                            <div class="form-row">
-                                <label for="edit_team_photo">Team Photo</label>
-                                <input type="file" id="edit_team_photo" name="team_photo" class="form-input" accept="image/*" />
-                                <div id="current-photo-preview" style="margin-top: 10px;"></div>
-                            </div>
-                            
-                            <div class="form-row">
-                                <label for="edit_website">Website</label>
-                                <input type="url" id="edit_website" name="website" class="form-input" placeholder="https://" />
-                            </div>
-                            
-                            <div class="form-row">
-                                <label for="edit_facebook">Facebook</label>
-                                <input type="url" id="edit_facebook" name="facebook" class="form-input" placeholder="https://facebook.com/..." />
-                            </div>
-                            
-                            <div class="form-row">
-                                <label for="edit_twitter">Twitter/X</label>
-                                <input type="url" id="edit_twitter" name="twitter" class="form-input" placeholder="https://x.com/..." />
-                            </div>
-                            
-                            <div class="form-row">
-                                <label for="edit_instagram">Instagram</label>
-                                <input type="url" id="edit_instagram" name="instagram" class="form-input" placeholder="https://instagram.com/..." />
-                            </div>
-                            
-                            <div class="form-row">
-                                <label>
-                                    <input type="checkbox" id="edit_hall_of_fame" name="hall_of_fame" value="1" />
-                                    <span style="margin-left: 8px;">Hall of Fame Team</span>
-                                </label>
-                                <p style="font-size: 12px; color: #666; margin-top: 5px;">Check this box if this team is inducted into the Hall of Fame</p>
-                            </div>
-                            
-                            <div class="form-actions">
-                                <button type="button" class="button" onclick="closeEditTeamModal()">Cancel</button>
-                                <button type="submit" name="update_team" class="button button-primary">Update Team</button>
                             </div>
                         </form>
                     </div>
@@ -1726,16 +1756,6 @@ class QBO_Teams {
             document.getElementById('add-team-form').reset();
         }
         
-        // Edit Team Modal Functions
-        function openEditTeamModal() {
-            document.getElementById('edit-team-modal-overlay').classList.add('active');
-        }
-        
-        function closeEditTeamModal() {
-            document.getElementById('edit-team-modal-overlay').classList.remove('active');
-            document.getElementById('edit-team-form').reset();
-        }
-        
         // Event Listeners
         jQuery(document).ready(function($) {
             // Open modal when Add Team button is clicked
@@ -1744,20 +1764,10 @@ class QBO_Teams {
             });
             
             // Close modal when X or overlay is clicked
-            $('.gears-modal-close, #add-team-modal-overlay, #edit-team-modal-overlay').on('click', function(e) {
+            $('.gears-modal-close, #add-team-modal-overlay').on('click', function(e) {
                 if (e.target === this) {
-                    if ($(this).attr('id') === 'edit-team-modal-overlay' || $(this).closest('#edit-team-modal-overlay').length) {
-                        closeEditTeamModal();
-                    } else {
-                        closeAddTeamModal();
-                    }
+                    closeAddTeamModal();
                 }
-            });
-            
-            // Handle edit team button clicks
-            $('.edit-team-btn').on('click', function() {
-                var teamId = $(this).data('team-id');
-                loadTeamData(teamId);
             });
             
             // Handle archive team button clicks
@@ -1814,84 +1824,7 @@ class QBO_Teams {
                     }
                 });
             });
-            
-            // Handle edit team form submission
-            $('#edit-team-form').on('submit', function(e) {
-                e.preventDefault();
-                
-                var formData = new FormData(this);
-                formData.append('action', 'qbo_update_team');
-                var submitBtn = $(this).find('button[type="submit"]');
-                var originalText = submitBtn.text();
-                
-                // Disable submit button and show loading state
-                submitBtn.prop('disabled', true).text('Updating Team...');
-                
-                $.ajax({
-                    url: ajaxurl,
-                    type: 'POST',
-                    data: formData,
-                    processData: false,
-                    contentType: false,
-                    success: function(response) {
-                        if (response.success) {
-                            closeEditTeamModal();
-                            alert('Team updated successfully!');
-                            window.location.reload();
-                        } else {
-                            alert('Error: ' + (response.data || 'Unknown error'));
-                            submitBtn.prop('disabled', false).text(originalText);
-                        }
-                    },
-                    error: function(xhr, status, error) {
-                        alert('Error updating team: ' + error);
-                        submitBtn.prop('disabled', false).text(originalText);
-                    }
-                });
-            });
         });
-        
-        // Function to load team data for editing
-        function loadTeamData(teamId) {
-            jQuery.post(ajaxurl, {
-                action: 'qbo_get_team_data',
-                team_id: teamId,
-                nonce: '<?php echo wp_create_nonce('qbo_get_team_data'); ?>'
-            }, function(response) {
-                if (response.success && response.data) {
-                    var team = response.data;
-                    jQuery('#edit-team-id').val(teamId);
-                    jQuery('#edit_team_name').val(team.team_name || '');
-                    jQuery('#edit_team_number').val(team.team_number || '');
-                    jQuery('#edit_program').val(team.program || '');
-                    jQuery('#edit_description').val(team.description || '');
-                    jQuery('#edit_website').val(team.website || '');
-                    jQuery('#edit_facebook').val(team.facebook || '');
-                    jQuery('#edit_twitter').val(team.twitter || '');
-                    jQuery('#edit_instagram').val(team.instagram || '');
-                    jQuery('#edit_hall_of_fame').prop('checked', team.hall_of_fame == '1');
-                    
-                    // Show current images if they exist
-                    if (team.logo) {
-                        jQuery('#current-logo-preview').html('<img src="' + team.logo + '" style="max-width: 100px; height: auto;" alt="Current Logo">');
-                    } else {
-                        jQuery('#current-logo-preview').html('');
-                    }
-                    
-                    if (team.team_photo) {
-                        jQuery('#current-photo-preview').html('<img src="' + team.team_photo + '" style="max-width: 100px; height: auto;" alt="Current Photo">');
-                    } else {
-                        jQuery('#current-photo-preview').html('');
-                    }
-                    
-                    openEditTeamModal();
-                } else {
-                    alert('Error loading team data: ' + (response.data || 'Unknown error'));
-                }
-            }).fail(function() {
-                alert('Error loading team data. Please try again.');
-            });
-        }
         
         // Function to archive a team
         function archiveTeam(teamId) {
@@ -3383,13 +3316,48 @@ class QBO_Teams {
                     });
                 }
                 
-                // Add modal handlers
-                $('#add-mentor-btn').click(function() {
-                    openAddMentorModal();
+                // Use event delegation for buttons that might be in hidden tabs
+                $(document).on('click', '#add-mentor-btn', function(e) {
+                    e.preventDefault();
+                    console.log('Add Mentor button clicked - event delegation working');
+                    console.log('Button element:', this);
+                    console.log('typeof openAddMentorModal:', typeof openAddMentorModal);
+                    
+                    if (typeof openAddMentorModal === 'function') {
+                        console.log('Calling openAddMentorModal function');
+                        openAddMentorModal();
+                    } else {
+                        console.log('openAddMentorModal function not found - using fallback');
+                        alert('openAddMentorModal function not found - using fallback');
+                        $('#add-mentor-modal-overlay').addClass('active');
+                    }
                 });
                 
-                $('#add-student-btn').click(function() {
-                    openAddStudentModal();
+                $(document).on('click', '#add-student-btn', function(e) {
+                    e.preventDefault();
+                    console.log('Add Student button clicked - event delegation working');
+                    console.log('Button element:', this);
+                    console.log('typeof openAddStudentModal:', typeof openAddStudentModal);
+                    
+                    if (typeof openAddStudentModal === 'function') {
+                        console.log('Calling openAddStudentModal function');
+                        openAddStudentModal();
+                    } else {
+                        console.log('openAddStudentModal function not found - using fallback');
+                        alert('openAddStudentModal function not found - using fallback');
+                        $('#add-student-modal-overlay').addClass('active');
+                    }
+                });
+                
+                // Also try with more specific event delegation
+                $(document).on('click', 'button[id="add-mentor-btn"]', function(e) {
+                    e.preventDefault();
+                    console.log('Alternative Add Mentor button handler triggered');
+                });
+                
+                $(document).on('click', 'button[id="add-student-btn"]', function(e) {
+                    e.preventDefault();
+                    console.log('Alternative Add Student button handler triggered');
                 });
                 
                 // Handle edit mentor button clicks (using event delegation)
@@ -3518,228 +3486,15 @@ class QBO_Teams {
                             if ($successNotice.length > 0) {
                                 closeAddStudentModal();
                                 alert('Student added successfully!');
-                                // Reload only the students and alumni lists via AJAX
-                                if (typeof qboCustomerListVars !== 'undefined') {
-                                    jQuery.post(ajaxurl, {
-                                        action: 'qbo_get_team_students',
-                                        team_id: <?php echo intval($team_id); ?>,
-                                        nonce: qboCustomerListVars.nonce
-                                    }, function(resp) {
-                                        var studentsDiv = document.getElementById('team-students-list');
-                                        var alumniDiv = document.getElementById('team-alumni-list');
-                                        if (resp.success && Array.isArray(resp.data) && resp.data.length) {
-                                            var students = [];
-                                            var alumni = [];
-                                            resp.data.forEach(function(student) {
-                                                if ((student.grade || '').toLowerCase() === 'alumni') {
-                                                    alumni.push(student);
-                                                } else {
-                                                    students.push(student);
-                                                }
-                                            });
-                                            // Students table
-                                            if (students.length) {
-                                                var html = '<table class="wp-list-table widefat fixed striped">';
-                                                html += '<thead><tr>';
-                                                html += '<th>Student Name</th>';
-                                                html += '<th style="width: 45px;">Grade</th>';
-                                                html += '<th style="width: 90px;">T-Shirt Size</th>';
-                                                html += '<th style="width: 60px;">Sex</th>';
-                                                html += '<th style="width: 45px;">First Year</th>';
-                                                html += '<th>Parent Name</th>';
-                                                html += '<th nowrap style="width: 45px;">Balance</th>';
-                                                html += '<th style="width: 45px;">Status</th>';
-                                                html += '<th>Actions</th>';
-                                                html += '</tr></thead>';
-                                                html += '<tbody>';
-                                                students.forEach(function(student) {
-                                                    html += '<tr>';
-                                                    html += '<td><strong>' + student.student_name + '</strong></td>';
-                                                    var gradeDisplay = student.grade || 'N/A';
-                                                    if (gradeDisplay && gradeDisplay !== 'N/A' && gradeDisplay.toLowerCase() !== 'alumni') {
-                                                        if (gradeDisplay === 'K') gradeDisplay = 'Kindergarten';
-                                                        else gradeDisplay = gradeDisplay + 'th Grade';
-                                                    }
-                                                    html += '<td>' + gradeDisplay + '</td>';
-                                                    html += '<td>' + (student.tshirt_size || 'N/A') + '</td>';
-                                                    html += '<td>' + (student.sex || 'N/A') + '</td>';
-                                                    html += '<td>' + (student.first_year_first || 'N/A') + '</td>';
-                                                    html += '<td>' + student.parent_name + '</td>';
-                                                    html += '<td nowrap>$' + parseFloat(student.balance).toFixed(2) + '</td>';
-                                                    var statusClass = student.status === 'Active' ? 'status-active' : 'status-inactive';
-                                                    html += '<td nowrap><span class="status-badge ' + statusClass + '">' + student.status + '</span></td>';
-                                                    html += '<td nowrap>';
-                                                    if (student.customer_id) {
-                                                        html += '<a href="' + qboCustomerListVars.invoicesPageUrl + '&member_id=' + encodeURIComponent(student.customer_id) + '" class="button button-small view-student-invoices">Details</a> ';
-                                                    }
-                                                    html += '<button type="button" class="button button-small edit-student-btn" data-student-id="' + student.student_id + '">Edit</button> ';
-                                                    html += '<button type="button" class="button button-small button-link-delete delete-student-btn" data-student-id="' + student.student_id + '" data-student-name="' + student.student_name + '">Delete</button>';
-
-                                                    html += '</td>';
-                                                    html += '</tr>';
-                                                });
-                                                html += '</tbody></table>';
-                                                studentsDiv.innerHTML = html;
-                                            } else {
-                                                studentsDiv.innerHTML = '<em>No students assigned to this team.</em>';
-                                            }
-                                            // Alumni table
-                                            if (alumni.length) {
-                                                var htmlA = '<table class="wp-list-table widefat fixed striped">';
-                                                htmlA += '<thead><tr>';
-                                                htmlA += '<th>Name</th>';
-                                                htmlA += '<th style="width: 45px;">First Year</th>';
-                                                htmlA += '<th style="width: 90px;">T-Shirt Size</th>';
-                                                htmlA += '<th style="width: 60px;">Sex</th>';
-                                                htmlA += '<th>Parent Name</th>';
-                                                htmlA += '<th nowrap style="width: 45px;">Balance</th>';
-                                                htmlA += '<th style="width: 45px;">Status</th>';
-                                                htmlA += '<th>Actions</th>';
-                                                htmlA += '</tr></thead>';
-                                                htmlA += '<tbody>';
-                                                alumni.forEach(function(student) {
-                                                    htmlA += '<tr>';
-                                                    htmlA += '<td><strong>' + student.student_name + '</strong></td>';
-                                                    htmlA += '<td>' + (student.sex || 'N/A') + '</td>';
-                                                    htmlA += '<td>' + (student.tshirt_size || 'N/A') + '</td>';
-                                                    htmlA += '<td>' + (student.sex || 'N/A') + '</td>';
-                                                    htmlA += '<td>' + student.parent_name + '</td>';
-                                                    htmlA += '<td nowrap>$' + parseFloat(student.balance).toFixed(2) + '</td>';
-                                                    var statusClass = student.status === 'Active' ? 'status-active' : 'status-inactive';
-                                                    htmlA += '<td nowrap><span class="status-badge ' + statusClass + '">' + student.status + '</span></td>';
-                                                    htmlA += '<td nowrap>';
-                                                    if (student.customer_id) {
-                                                        htmlA += '<button type="button" class="button button-small edit-student-btn" data-student-id="' + student.student_id + '">Edit</button> ';
-                                                    }
-                                                    htmlA += '</td>';
-                                                    htmlA += '</tr>';
-                                                });
-                                                htmlA += '</tbody></table>';
-                                                alumniDiv.innerHTML = htmlA;
-                                            } else {
-                                                alumniDiv.innerHTML = '<em>No alumni for this team.</em>';
-                                            }
-                                        } else {
-                                            studentsDiv.innerHTML = '<em>No students assigned to this team.</em>';
-                                            alumniDiv.innerHTML = '<em>No alumni for this team.</em>';
-                                        }
-                                    }).fail(function() {
-                                        document.getElementById('team-students-list').innerHTML = '<em>Error loading students.</em>';
-                                        document.getElementById('team-alumni-list').innerHTML = '<em>Error loading alumni.</em>';
-                                    });
-                                }
+                                // Reload the whole page so the Teams Management table updates
+                                window.location.reload();
                             } else if ($errorNotice.length > 0) {
                                 var errorText = $errorNotice.find('p').text();
                                 alert('Error: ' + errorText);
                             } else {
                                 closeAddStudentModal();
                                 alert('Student added successfully!');
-                                // Fallback: reload students/alumni lists
-                                if (typeof qboCustomerListVars !== 'undefined') {
-                                    jQuery.post(ajaxurl, {
-                                        action: 'qbo_get_team_students',
-                                        team_id: <?php echo intval($team_id); ?>,
-                                        nonce: qboCustomerListVars.nonce
-                                    }, function(resp) {
-                                        var studentsDiv = document.getElementById('team-students-list');
-                                        var alumniDiv = document.getElementById('team-alumni-list');
-                                        if (resp.success && Array.isArray(resp.data) && resp.data.length) {
-                                            var students = [];
-                                            var alumni = [];
-                                            resp.data.forEach(function(student) {
-                                                if ((student.grade || '').toLowerCase() === 'alumni') {
-                                                    alumni.push(student);
-                                                } else {
-                                                    students.push(student);
-                                                }
-                                            });
-                                            // Students table
-                                            if (students.length) {
-                        var html = '<table class="wp-list-table widefat fixed striped">';
-                        html += '<thead><tr>';
-                        html += '<th>Student Name</th>';
-                        html += '<th style="width: 45px;">Grade</th>';
-                        html += '<th style="width: 90px;">T-Shirt Size</th>';
-                        html += '<th style="width: 60px;">Sex</th>';
-                        html += '<th style="width: 45px;">First Year</th>';
-                        html += '<th>Parent Name</th>';
-                        html += '<th nowrap style="width: 45px;">Balance</th>';
-                        html += '<th style="width: 45px;">Status</th>';
-                        html += '<th>Actions</th>';
-                        html += '</tr></thead>';
-                        html += '<tbody>';
-                        students.forEach(function(student) {
-                            html += '<tr>';
-                            html += '<td><strong>' + student.student_name + '</strong></td>';
-                            var gradeDisplay = student.grade || 'N/A';
-                            if (gradeDisplay && gradeDisplay !== 'N/A' && gradeDisplay.toLowerCase() !== 'alumni') {
-                                if (gradeDisplay === 'K') gradeDisplay = 'Kindergarten';
-                                else gradeDisplay = gradeDisplay + 'th Grade';
-                            }
-                            html += '<td>' + gradeDisplay + '</td>';
-                            html += '<td>' + (student.tshirt_size || 'N/A') + '</td>';
-                            html += '<td>' + (student.sex || 'N/A') + '</td>';
-                            html += '<td>' + (student.first_year_first || 'N/A') + '</td>';
-                            html += '<td>' + student.parent_name + '</td>';
-                            html += '<td nowrap>$' + parseFloat(student.balance).toFixed(2) + '</td>';
-                            var statusClass = student.status === 'Active' ? 'status-active' : 'status-inactive';
-                            html += '<td nowrap><span class="status-badge ' + statusClass + '">' + student.status + '</span></td>';
-                            html += '<td nowrap>';
-                            if (student.customer_id) {
-                                html += '<a href="' + qboCustomerListVars.invoicesPageUrl + '&member_id=' + encodeURIComponent(student.customer_id) + '" class="button button-small view-student-invoices">Details</a> ';
-                            }
-                            html += '<button type="button" class="button button-small edit-student-btn" data-student-id="' + student.student_id + '">Edit</button> ';
-                            html += '<button type="button" class="button button-small button-link-delete delete-student-btn" data-student-id="' + student.student_id + '" data-student-name="' + student.student_name + '">Delete</button>';
-
-                            html += '</td>';
-                            html += '</tr>';
-                        });
-                        html += '</tbody></table>';
-                        studentsDiv.innerHTML = html;
-                                            } else {
-                                                studentsDiv.innerHTML = '<em>No students assigned to this team.</em>';
-                                            }
-                                            // Alumni table
-                                            if (alumni.length) {
-                                                var htmlA = '<table class="wp-list-table widefat fixed striped">';
-                                                htmlA += '<thead><tr>';
-                                                htmlA += '<th>Name</th>';
-                                                htmlA += '<th style="width: 45px;">First Year</th>';
-                                                htmlA += '<th>Parent Name</th>';
-                                                htmlA += '<th nowrap style="width: 45px;">Balance</th>';
-                                                htmlA += '<th style="width: 45px;">Status</th>';
-                                                htmlA += '<th>Actions</th>';
-                                                htmlA += '</tr></thead>';
-                                                htmlA += '<tbody>';
-                                                alumni.forEach(function(student) {
-                                                    htmlA += '<tr>';
-                                                    htmlA += '<td><strong>' + student.student_name + '</strong></td>';
-                                                    htmlA += '<td>' + (student.first_year_first || 'N/A') + '</td>';
-                                                    htmlA += '<td>' + student.parent_name + '</td>';
-                                                    htmlA += '<td nowrap>$' + parseFloat(student.balance).toFixed(2) + '</td>';
-                                                    var statusClass = student.status === 'Active' ? 'status-active' : 'status-inactive';
-                                                    htmlA += '<td nowrap><span class="status-badge ' + statusClass + '">' + student.status + '</span></td>';
-                                                    htmlA += '<td nowrap>';
-                                                    if (student.customer_id) {
-                                                        htmlA += '<button type="button" class="button button-small edit-student-btn" data-student-id="' + student.student_id + '">Edit</button> ';
-                                                    }
-                                                    htmlA += '</td>';
-                                                    htmlA += '</tr>';
-                                                });
-                                                htmlA += '</tbody></table>';
-                                                alumniDiv.innerHTML = htmlA;
-                                            } else {
-                                                alumniDiv.innerHTML = '<em>No alumni for this team.</em>';
-                                            }
-                                        } else {
-                                            studentsDiv.innerHTML = '<em>No students assigned to this team.</em>';
-                                            alumniDiv.innerHTML = '<em>No alumni for this team.</em>';
-                                        }
-                                    }).fail(function() {
-                                        document.getElementById('team-students-list').innerHTML = '<em>Error loading students.</em>';
-                                        document.getElementById('team-alumni-list').innerHTML = '<em>Error loading alumni.</em>';
-                                    });
-                                }
+                                window.location.reload();
                             }
                         },
                         error: function() {
@@ -4189,9 +3944,49 @@ class QBO_Teams {
             
             // Close modal when clicking the X button
             $(document).on('click', '.gears-modal-close', function() {
-                var modalOverlay = $(this).closest('.gears-modal-overlay');
-                modalOverlay.removeClass('active');
-                modalOverlay.find('form').trigger('reset');
+                var modalId = $(this).attr('id');
+                console.log('Close button clicked:', modalId);
+                
+                // Call specific close functions based on the button ID
+                if (modalId === 'close-add-mentor-modal') {
+                    console.log('Calling closeAddMentorModal');
+                    if (typeof closeAddMentorModal === 'function') {
+                        closeAddMentorModal();
+                    } else {
+                        $('#add-mentor-modal-overlay').removeClass('active');
+                        $('#add-mentor-form').trigger('reset');
+                    }
+                } else if (modalId === 'close-edit-mentor-modal') {
+                    console.log('Calling closeEditMentorModal');
+                    if (typeof closeEditMentorModal === 'function') {
+                        closeEditMentorModal();
+                    } else {
+                        $('#edit-mentor-modal-overlay').removeClass('active');
+                        $('#edit-mentor-form').trigger('reset');
+                    }
+                } else if (modalId === 'close-add-student-modal') {
+                    console.log('Calling closeAddStudentModal');
+                    if (typeof closeAddStudentModal === 'function') {
+                        closeAddStudentModal();
+                    } else {
+                        $('#add-student-modal-overlay').removeClass('active');
+                        $('#add-student-form').trigger('reset');
+                    }
+                } else if (modalId === 'close-edit-student-modal') {
+                    console.log('Calling closeEditStudentModal');
+                    if (typeof closeEditStudentModal === 'function') {
+                        closeEditStudentModal();
+                    } else {
+                        $('#edit-student-modal-overlay').removeClass('active');
+                        $('#edit-student-form').trigger('reset');
+                    }
+                } else {
+                    // Generic fallback
+                    console.log('Using generic close');
+                    var modalOverlay = $(this).closest('.gears-modal-overlay');
+                    modalOverlay.removeClass('active');
+                    modalOverlay.find('form').trigger('reset');
+                }
             });
 
             // Close modal when clicking outside of it
