@@ -9,6 +9,15 @@
     padding: 20px 0;
 }
 
+#dashboard-widgets .postbox-container .empty-container {
+    height: auto !important;
+}
+
+/* Hide only the jQuery UI sortable placeholder during drag operations */
+.meta-box-sortables .ui-sortable-placeholder {
+    display: none !important;
+}
+
 .team-header-section {
     text-align: center;
     margin-bottom: 32px;
@@ -51,7 +60,7 @@
 }
 
 #actions {
-    width: 150px;
+    width: 175px !important;
 }
 
 .team-info-grid {
@@ -871,4 +880,26 @@ nav.nav.nav-tabs#teamTabs .nav-link.active,
     .bank-section .form-row {
         flex-direction: column !important;
     }
+}
+
+/* Red X icon for N/A values */
+.na-value {
+    color: #dc3545 !important;
+    font-weight: 600 !important;
+}
+
+.na-value::before {
+    content: "\f335" !important; /* dashicons-no */
+    font-family: 'dashicons' !important;
+    font-size: 16px !important;
+    display: inline-block !important;
+    text-decoration: none !important;
+}
+
+.na-value.text-hidden {
+    font-size: 0 !important;
+}
+
+.na-value.text-hidden::before {
+    font-size: 16px !important;
 }
