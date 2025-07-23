@@ -198,7 +198,7 @@ class QBO_Students_Management_List_Table extends WP_List_Table {
                 return esc_html($item->grade) . 'th Grade';
             }
         } else {
-            return 'N/A';
+            return '<span class="na-value text-hidden">N/A</span>';
         }
     }
     
@@ -220,7 +220,7 @@ class QBO_Students_Management_List_Table extends WP_List_Table {
     }
     
     public function column_tshirt_size($item) {
-        return esc_html($item->tshirt_size ?: 'N/A');
+        return $item->tshirt_size ? esc_html($item->tshirt_size) : '<span class="na-value text-hidden">N/A</span>';
     }
     
     public function column_actions($item) {

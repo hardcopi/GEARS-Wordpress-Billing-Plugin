@@ -12,6 +12,29 @@ if (typeof jQuery === 'undefined') {
     // Add a class to the body to help identify plugin pages
     $('body').addClass('qbo-admin-page');
     
+    // Convert all N/A text to red X icons
+    function convertNAToRedX() {
+        // Find all text nodes containing "N/A" and replace them (but skip already converted ones)
+        $('body').find('*').not('.na-value').contents().filter(function() {
+            return this.nodeType === 3 && this.textContent.trim() === 'N/A';
+        }).each(function() {
+            $(this).replaceWith('<span class="na-value text-hidden">N/A</span>');
+        });
+        
+        // Also handle any existing text that says exactly "N/A" (but skip already converted ones)
+        $('td, span, div').not('.na-value').filter(function() {
+            return $(this).text().trim() === 'N/A' && $(this).children().length === 0 && !$(this).hasClass('na-value');
+        }).html('<span class="na-value text-hidden">N/A</span>');
+    }
+    
+    // Run the conversion on page load
+    convertNAToRedX();
+    
+    // Run the conversion whenever new content is loaded via AJAX
+    $(document).ajaxComplete(function() {
+        setTimeout(convertNAToRedX, 100);
+    });
+    
     // Any additional admin JS can be added here
 
     // Handler to populate edit student modal fields

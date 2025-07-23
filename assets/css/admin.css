@@ -881,3 +881,25 @@ nav.nav.nav-tabs#teamTabs .nav-link.active,
         flex-direction: column !important;
     }
 }
+
+/* Red X icon for N/A values */
+.na-value {
+    color: #dc3545 !important;
+    font-weight: 600 !important;
+}
+
+.na-value::before {
+    content: "\f335" !important; /* dashicons-no */
+    font-family: 'dashicons' !important;
+    font-size: 16px !important;
+    display: inline-block !important;
+    text-decoration: none !important;
+}
+
+.na-value.text-hidden {
+    font-size: 0 !important;
+}
+
+.na-value.text-hidden::before {
+    font-size: 16px !important;
+}

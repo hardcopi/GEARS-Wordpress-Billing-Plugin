@@ -436,7 +436,7 @@ class QBO_Students {
                                                 echo esc_html($student->grade) . 'th Grade';
                                             }
                                         } else {
-                                            echo 'N/A';
+                                            echo '<span class="na-value text-hidden">N/A</span>';
                                         }
                                         ?>
                                     </td>
@@ -1142,8 +1142,8 @@ class QBO_Students {
                             html += '<td>' + student.first_name + '</td>';
                             html += '<td>' + student.last_name + '</td>';
                             // Format grade display
-                            var gradeDisplay = student.grade || 'N/A';
-                            if (gradeDisplay && gradeDisplay !== 'N/A' && gradeDisplay.toLowerCase() !== 'alumni') {
+                            var gradeDisplay = student.grade || '<span class="na-value text-hidden">N/A</span>';
+                            if (gradeDisplay && !gradeDisplay.includes('na-value') && gradeDisplay.toLowerCase() !== 'alumni') {
                                 gradeDisplay = gradeDisplay + 'th Grade';
                             }
                             html += '<td>' + gradeDisplay + '</td>';

@@ -766,7 +766,7 @@ class QBO_Teams {
                             $student_name = trim($student->first_name . ' ' . $student->last_name);
                             
                             // Get team name if team_id is set
-                            $team_name = 'N/A';
+                            $team_name = '<span class="na-value text-hidden">N/A</span>';
                             $team_link = '';
                             if (!empty($student->team_id)) {
                                 $table_teams = $wpdb->prefix . 'gears_teams';
@@ -787,8 +787,8 @@ class QBO_Teams {
                             ?>
                             <tr>
                                 <td><strong><?php echo esc_html($student_name); ?></strong></td>
-                                <td><?php echo esc_html($student->grade ?: 'N/A'); ?></td>
-                                <td><?php echo esc_html($student->first_year_first ?: 'N/A'); ?></td>
+                                <td><?php echo $student->grade ? esc_html($student->grade) : '<span class="na-value text-hidden">N/A</span>'; ?></td>
+                                <td><?php echo $student->first_year_first ? esc_html($student->first_year_first) : '<span class="na-value text-hidden">N/A</span>'; ?></td>
                                 <td>
                                     <?php if (!empty($team_link)): ?>
                                         <a href="<?php echo esc_url($team_link); ?>" title="View Team Details">
@@ -816,13 +816,13 @@ class QBO_Teams {
                         $recurring_info = isset($invoice_data['RecurringInfo']) ? $invoice_data['RecurringInfo'] : array();
                         
                         $name = isset($recurring_info['Name']) ? $recurring_info['Name'] : 'Recurring Invoice';
-                        $amount = isset($invoice_data['TotalAmt']) ? '$' . number_format(floatval($invoice_data['TotalAmt']), 2) : 'N/A';
+                        $amount = isset($invoice_data['TotalAmt']) ? '$' . number_format(floatval($invoice_data['TotalAmt']), 2) : '<span class="na-value text-hidden">N/A</span>';
                         
                         // Get status from RecurringInfo Active field (boolean)
                         $status = isset($recurring_info['Active']) && $recurring_info['Active'] ? 'Active' : 'Inactive';
                         
                         // Get frequency
-                        $frequency = 'N/A';
+                        $frequency = '<span class="na-value text-hidden">N/A</span>';
                         if (isset($recurring_info['ScheduleInfo']['IntervalType'])) {
                             $interval_type = $recurring_info['ScheduleInfo']['IntervalType'];
                             $num_interval = isset($recurring_info['ScheduleInfo']['NumInterval']) ? $recurring_info['ScheduleInfo']['NumInterval'] : 1;
@@ -835,7 +835,7 @@ class QBO_Teams {
                         }
                         
                         // Get next date
-                        $next_date = isset($recurring_info['ScheduleInfo']['NextDate']) ? date('M j, Y', strtotime($recurring_info['ScheduleInfo']['NextDate'])) : 'N/A';
+                        $next_date = isset($recurring_info['ScheduleInfo']['NextDate']) ? date('M j, Y', strtotime($recurring_info['ScheduleInfo']['NextDate'])) : '<span class="na-value text-hidden">N/A</span>';
                         ?>
                         <div class="invoice-card">
                             <h3><?php echo esc_html($name); ?></h3>
@@ -931,9 +931,9 @@ class QBO_Teams {
                                 }
                                 ?>
                                 <tr>
-                                    <td><?php echo esc_html($invoice['DocNumber'] ?? 'N/A'); ?></td>
-                                    <td><?php echo esc_html(isset($invoice['TxnDate']) ? date('M j, Y', strtotime($invoice['TxnDate'])) : 'N/A'); ?></td>
-                                    <td><?php echo esc_html(isset($invoice['DueDate']) ? date('M j, Y', strtotime($invoice['DueDate'])) : 'N/A'); ?></td>
+                                    <td><?php echo isset($invoice['DocNumber']) ? esc_html($invoice['DocNumber']) : '<span class="na-value text-hidden">N/A</span>'; ?></td>
+                                    <td><?php echo isset($invoice['TxnDate']) ? esc_html(date('M j, Y', strtotime($invoice['TxnDate']))) : '<span class="na-value text-hidden">N/A</span>'; ?></td>
+                                    <td><?php echo isset($invoice['DueDate']) ? esc_html(date('M j, Y', strtotime($invoice['DueDate']))) : '<span class="na-value text-hidden">N/A</span>'; ?></td>
                                     <td>$<?php echo number_format($invoice['TotalAmt'] ?? 0, 2); ?></td>
                                     <td style="<?php echo $balance > 0 ? 'color: #d63638; font-weight: bold;' : 'color: #00a32a;'; ?>">
                                         $<?php echo number_format($balance, 2); ?>
