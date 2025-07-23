@@ -39,15 +39,13 @@ class QBO_Recurring_Invoices {
             return;
         }
         
-        echo '<div class="qbo-recurring-invoices-container">';
-        echo '<div class="qbo-toolbar">';
-        echo '<button type="button" class="button button-secondary" id="refresh-recurring-invoices" title="Refresh List"><span class="dashicons dashicons-update"></span></button>';
-        echo '<span class="toolbar-separator"></span>';
-        echo '<button type="button" class="button button-secondary" id="hide-inactive-invoices" title="Hide Inactive"><span class="dashicons dashicons-hidden"></span></button>';
-        echo '<button type="button" class="button button-secondary" id="show-inactive-invoices" style="display:none;" title="Show Inactive"><span class="dashicons dashicons-visibility"></span></button>';
-        echo '</div>';
+        // Use the new list table
+        QBO_Recurring_Invoices_List_Table::render_recurring_invoices_table($this->core, $this);
         
-        echo '<div id="recurring-invoices-content">';
+        // Add JavaScript for functionality
+        $this->add_recurring_invoices_js();
+        
+        echo '</div>'; // Close wrap div
         echo '<p>Loading recurring invoices...</p>';
         echo '</div>';
         
@@ -747,45 +745,68 @@ class QBO_Recurring_Invoices {
                 return null;
             }
             
-            // Load recurring invoices on page load
-            loadRecurringInvoices();
+            // Apply saved state on page load
+            applySavedState();
             
-            // Apply saved state after loading invoices
+            // Apply saved state function
             function applySavedState() {
                 var hideInactive = getCookie('qbo_hide_inactive_invoices');
                 if (hideInactive === 'true') {
-                    $('.status-row-inactive').hide();
+                    $('tr').filter(function() {
+                        return $(this).find('.status-inactive').length > 0;
+                    }).hide();
                     $('#hide-inactive-invoices').hide();
                     $('#show-inactive-invoices').show();
                 } else {
-                    $('.status-row-inactive').show();
+                    $('tr').filter(function() {
+                        return $(this).find('.status-inactive').length > 0;
+                    }).show();
                     $('#hide-inactive-invoices').show();
                     $('#show-inactive-invoices').hide();
                 }
                 updateInvoiceCount();
             }
             
-            // Refresh button
+            // Update invoice count in table info
+            function updateInvoiceCount() {
+                // WordPress list tables automatically handle pagination info
+                setTimeout(function() {
+                    var totalRows = $('.wp-list-table tbody tr:visible').length;
+                    if (totalRows === 0) {
+                        if ($('.wp-list-table tbody tr').length > 0) {
+                            $('.wp-list-table tbody').append('<tr class="no-items"><td class="colspanchange" colspan="9">No invoices match the current filter.</td></tr>');
+                        }
+                    } else {
+                        $('.wp-list-table tbody tr.no-items').remove();
+                    }
+                }, 100);
+            }
+            
+            // Refresh button - reload the page to refresh data
             $('#refresh-recurring-invoices').on('click', function() {
                 var btn = $(this);
                 btn.prop('disabled', true);
                 btn.find('.dashicons').removeClass('dashicons-update').addClass('dashicons-update-alt');
                 
-                // Clear cache first
+                // Clear cache first, then reload page
                 $.post(ajaxurl, {
                     action: 'qbo_clear_recurring_invoices_cache',
                     nonce: '<?php echo wp_create_nonce("qbo_ajax_nonce"); ?>'
                 }, function() {
-                    // Then reload the list
-                    loadRecurringInvoices();
+                    // Reload the page to get fresh data
+                    window.location.reload();
+                }).fail(function() {
                     btn.prop('disabled', false);
                     btn.find('.dashicons').removeClass('dashicons-update-alt').addClass('dashicons-update');
+                    alert('Failed to refresh data. Please try again.');
                 });
             });
             
             // Hide inactive invoices button
             $('#hide-inactive-invoices').on('click', function() {
-                $('.status-row-inactive').hide();
+                $('tr').filter(function() {
+                    return $(this).find('.status-inactive').length > 0;
+                }).hide();
                 $(this).hide();
                 $('#show-inactive-invoices').show();
                 setCookie('qbo_hide_inactive_invoices', 'true', 30); // Save for 30 days
@@ -794,7 +815,9 @@ class QBO_Recurring_Invoices {
             
             // Show inactive invoices button
             $('#show-inactive-invoices').on('click', function() {
-                $('.status-row-inactive').show();
+                $('tr').filter(function() {
+                    return $(this).find('.status-inactive').length > 0;
+                }).show();
                 $(this).hide();
                 $('#hide-inactive-invoices').show();
                 setCookie('qbo_hide_inactive_invoices', 'false', 30); // Save for 30 days
