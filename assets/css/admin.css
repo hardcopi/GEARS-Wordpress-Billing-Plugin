@@ -903,3 +903,328 @@ nav.nav.nav-tabs#teamTabs .nav-link.active,
 .na-value.text-hidden::before {
     font-size: 16px !important;
 }
+
+/* Reports Page Styling - Supports Teams, Customers, Invoices, Students, Alumni, and Mentors reports */
+.report-cards {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+    gap: 20px;
+    margin-top: 30px;
+}
+
+/* Communications Page Styling */
+.communication-cards {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+    gap: 20px;
+    margin-top: 30px;
+}
+
+.communication-card {
+    background: #fff;
+    border: 1px solid #e1e4e8;
+    border-radius: 8px;
+    padding: 24px;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.08);
+    transition: all 0.3s ease;
+    position: relative;
+}
+
+.communication-card:hover {
+    box-shadow: 0 4px 16px rgba(0,0,0,0.12);
+    transform: translateY(-2px);
+}
+
+.communication-card.coming-soon {
+    opacity: 0.6;
+    background: #f8f9fa;
+}
+
+.communication-card.coming-soon::after {
+    content: "Coming Soon";
+    position: absolute;
+    top: 10px;
+    right: 10px;
+    background: #6c757d;
+    color: white;
+    padding: 2px 8px;
+    border-radius: 12px;
+    font-size: 11px;
+    font-weight: 600;
+}
+
+.communication-card h2 {
+    margin-top: 0;
+    color: #2c3e50;
+    font-size: 20px;
+    margin-bottom: 12px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.communication-card h2 .dashicons {
+    color: #007cba;
+    font-size: 24px;
+}
+
+.communication-card p {
+    color: #666;
+    margin-bottom: 20px;
+    line-height: 1.6;
+}
+
+.communication-card .card-actions {
+    display: flex;
+    justify-content: flex-end;
+}
+
+.communication-card .button {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-weight: 600;
+    padding: 10px 20px;
+}
+
+/* Email Mentor Modal Styling */
+.gears-modal {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    z-index: 100000;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.gears-modal-overlay {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: rgba(0, 0, 0, 0.7);
+}
+
+.gears-modal-content {
+    position: relative;
+    background: #fff;
+    border-radius: 8px;
+    box-shadow: 0 20px 40px rgba(0,0,0,0.3);
+    max-width: 600px;
+    width: 90%;
+    max-height: 90vh;
+    overflow-y: auto;
+    z-index: 100001;
+}
+
+.gears-modal-header {
+    padding: 20px 24px;
+    border-bottom: 1px solid #e1e4e8;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    background: #f8f9fa;
+    border-radius: 8px 8px 0 0;
+}
+
+.gears-modal-header h2 {
+    margin: 0;
+    color: #2c3e50;
+    font-size: 18px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.gears-modal-header h2 .dashicons {
+    color: #007cba;
+}
+
+.gears-modal-close {
+    background: none;
+    border: none;
+    font-size: 24px;
+    color: #666;
+    cursor: pointer;
+    padding: 0;
+    width: 30px;
+    height: 30px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 50%;
+    transition: all 0.2s ease;
+}
+
+.gears-modal-close:hover {
+    background: #f0f0f0;
+    color: #333;
+}
+
+.gears-modal-body {
+    padding: 24px;
+}
+
+.gears-modal-body .form-group {
+    margin-bottom: 20px;
+}
+
+.gears-modal-body .form-group label {
+    display: block;
+    font-weight: 600;
+    color: #2c3e50;
+    margin-bottom: 6px;
+}
+
+.gears-modal-body .form-group input,
+.gears-modal-body .form-group select,
+.gears-modal-body .form-group textarea {
+    width: 100%;
+    padding: 10px 12px;
+    border: 1px solid #ced4da;
+    border-radius: 6px;
+    font-size: 14px;
+    transition: all 0.3s ease;
+    box-sizing: border-box;
+}
+
+.gears-modal-body .form-group input:focus,
+.gears-modal-body .form-group select:focus,
+.gears-modal-body .form-group textarea:focus {
+    outline: none;
+    border-color: #007cba;
+    box-shadow: 0 0 0 3px rgba(0,124,186,0.1);
+}
+
+.gears-modal-body .form-group textarea {
+    resize: vertical;
+    min-height: 120px;
+}
+
+.mentor-info-card {
+    background: #f8f9fa;
+    border: 1px solid #e9ecef;
+    border-radius: 6px;
+    padding: 16px;
+    margin-bottom: 16px;
+}
+
+.mentor-info-card h4 {
+    margin: 0 0 12px 0;
+    color: #2c3e50;
+    font-size: 16px;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+}
+
+.mentor-info-content p {
+    margin: 6px 0;
+    font-size: 14px;
+    color: #495057;
+}
+
+.mentor-info-content strong {
+    color: #2c3e50;
+    min-width: 80px;
+    display: inline-block;
+}
+
+.gears-modal-footer {
+    padding: 16px 24px;
+    border-top: 1px solid #e1e4e8;
+    background: #f8f9fa;
+    border-radius: 0 0 8px 8px;
+    display: flex;
+    gap: 10px;
+    justify-content: flex-end;
+}
+
+.gears-modal-footer .button {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    font-weight: 600;
+    padding: 10px 20px;
+}
+
+/* Checkbox styling in modal */
+.gears-modal-body .form-group label input[type="checkbox"] {
+    width: auto;
+    margin-right: 8px;
+    vertical-align: middle;
+}
+
+/* Responsive modal */
+@media screen and (max-width: 768px) {
+    .gears-modal-content {
+        width: 95%;
+        margin: 20px;
+    }
+    
+    .gears-modal-footer {
+        flex-direction: column-reverse;
+    }
+    
+    .gears-modal-footer .button {
+        width: 100%;
+        justify-content: center;
+    }
+}
+
+.report-card {
+    background: #fff;
+    border: 1px solid #e1e4e8;
+    border-radius: 8px;
+    padding: 24px;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.08);
+    transition: all 0.3s ease;
+}
+
+.report-card:hover {
+    box-shadow: 0 4px 16px rgba(0,0,0,0.12);
+    transform: translateY(-2px);
+}
+
+.report-card h2 {
+    margin-top: 0;
+    color: #2c3e50;
+    font-size: 20px;
+    margin-bottom: 12px;
+}
+
+.report-card p {
+    color: #666;
+    margin-bottom: 20px;
+    line-height: 1.6;
+}
+
+.report-card ul {
+    margin: 10px 0;
+    padding-left: 20px;
+    color: #666;
+}
+
+.report-card li {
+    margin-bottom: 4px;
+}
+
+.report-card .button {
+    width: 100%;
+    justify-content: center;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-weight: 600;
+    padding: 12px 20px;
+}
+
+.report-card .button:before {
+    content: "\f346"; /* dashicons-download */
+    font-family: 'dashicons';
+    font-size: 16px;
+}

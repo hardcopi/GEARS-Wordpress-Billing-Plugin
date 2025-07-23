@@ -18,16 +18,40 @@
 
 /* Modal container */
 .gears-modal {
-    background: #fff;
-    border-radius: 8px;
+    display: none;
+    /* background: #fff; */
+    /* border-radius: 8px; */
     max-width: 600px;
-    margin: 5% auto;
+    margin: 0;
     padding: 20px;
-    position: relative;
-    box-shadow: 0 4px 32px rgba(0, 0, 0, 0.18);
+    position: fixed;
+    left: 50%;
+    top: 50%;
+    transform: translate(-50%, -50%);
+    /* box-shadow: 0 4px 32px rgba(0, 0, 0, 0.18); */
     max-height: 80vh;
-    overflow-y: auto;
-    z-index: 100000 !important;
+    /* overflow-y: auto; */
+    z-index: 100001 !important;
+}
+
+/* Show modal when .show is added */
+.gears-modal.show {
+    display: block;
+}
+
+/* Optional: Modal overlay for popup effect */
+#gears-modal-overlay {
+    display: none;
+    position: fixed;
+    z-index: 100000;
+    left: 0;
+    top: 0;
+    width: 100vw;
+    height: 100vh;
+    background: rgba(0, 0, 0, 0.4);
+}
+#gears-modal-overlay.active {
+    display: block;
 }
 
 /* Modal close button */

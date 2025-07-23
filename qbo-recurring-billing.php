@@ -31,6 +31,8 @@ require_once QBO_PLUGIN_DIR . 'includes/class-qbo-teams-list-table.php';
 require_once QBO_PLUGIN_DIR . 'includes/class-qbo-students.php';
 require_once QBO_PLUGIN_DIR . 'includes/class-qbo-students-management-list-table.php';
 require_once QBO_PLUGIN_DIR . 'includes/class-qbo-mentors.php';
+require_once QBO_PLUGIN_DIR . 'includes/class-qbo-reports.php';
+require_once QBO_PLUGIN_DIR . 'includes/class-qbo-communications.php';
 
 // Main plugin class
 class QBORecurringBilling {
@@ -42,6 +44,8 @@ class QBORecurringBilling {
     private $teams;
     private $students;
     private $mentors;
+    private $reports;
+    private $communications;
 
     public function __construct() {
         // Initialize core class first
@@ -54,6 +58,8 @@ class QBORecurringBilling {
         $this->teams = new QBO_Teams($this->core, $GLOBALS['wpdb']);
         $this->students = new QBO_Students($this->core, $GLOBALS['wpdb']);
         $this->mentors = new QBO_Mentors($this->core);
+        $this->reports = new QBO_Reports($this->core);
+        $this->communications = new QBO_Communications($this->core);
         // Add admin menu
         add_action('admin_menu', array($this, 'add_admin_menu'));
         // Handle OAuth callback
@@ -74,6 +80,16 @@ class QBORecurringBilling {
             array($this->dashboard, 'dashboard_page'),
             'dashicons-dashboard',
             3 // Move just under WordPress Dashboard
+        );
+        
+        // Communications submenu under GEARS Dashboard
+        add_submenu_page(
+            'gears-dashboard',
+            'Communications',
+            'Communications',
+            'manage_options',
+            'qbo-communications',
+            array($this->communications, 'communications_page')
         );
         
         // Customers submenu under GEARS Dashboard
@@ -126,6 +142,16 @@ class QBORecurringBilling {
             array($this->mentors, 'mentors_page')
         );
         
+        // Reports submenu under GEARS Dashboard
+        add_submenu_page(
+            'gears-dashboard',
+            'Reports',
+            'Reports',
+            'manage_options',
+            'qbo-reports',
+            array($this->reports, 'reports_page')
+        );
+        
         // Settings submenu under GEARS Dashboard
         add_submenu_page(
             'gears-dashboard',
@@ -144,12 +170,14 @@ class QBORecurringBilling {
         // Only enqueue on QBO plugin admin pages - use the same page list as core
         $qbo_pages = array(
             'toplevel_page_gears-dashboard', 
+            'gears-dashboard_page_qbo-communications',
             'gears-dashboard_page_qbo-customer-list', 
             'gears-dashboard_page_qbo-teams', 
             'gears-dashboard_page_qbo-students',
             'gears-dashboard_page_qbo-mentors', 
             'gears-dashboard_page_qbo-settings',
             'gears-dashboard_page_qbo-recurring-invoices',
+            'gears-dashboard_page_qbo-reports',
             'admin_page_qbo-view-invoices' // for the hidden invoices page
         );
         

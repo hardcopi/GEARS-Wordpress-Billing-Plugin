@@ -12,6 +12,29 @@ if (typeof jQuery === 'undefined') {
     // Add a class to the body to help identify plugin pages
     $('body').addClass('qbo-admin-page');
     
+    // Convert all N/A text to red X icons
+    function convertNAToRedX() {
+        // Find all text nodes containing "N/A" and replace them (but skip already converted ones)
+        $('body').find('*').not('.na-value').contents().filter(function() {
+            return this.nodeType === 3 && this.textContent.trim() === 'N/A';
+        }).each(function() {
+            $(this).replaceWith('<span class="na-value text-hidden">N/A</span>');
+        });
+        
+        // Also handle any existing text that says exactly "N/A" (but skip already converted ones)
+        $('td, span, div').not('.na-value').filter(function() {
+            return $(this).text().trim() === 'N/A' && $(this).children().length === 0 && !$(this).hasClass('na-value');
+        }).html('<span class="na-value text-hidden">N/A</span>');
+    }
+    
+    // Run the conversion on page load
+    convertNAToRedX();
+    
+    // Run the conversion whenever new content is loaded via AJAX
+    $(document).ajaxComplete(function() {
+        setTimeout(convertNAToRedX, 100);
+    });
+    
     // Any additional admin JS can be added here
 
     // Handler to populate edit student modal fields
@@ -115,5 +138,57 @@ if (typeof jQuery === 'undefined') {
             }
         });
     }
+
+    // Student Retirement functionality
+    // Handle retire student button clicks
+    $(document).on('click', '.retire-student-btn', function() {
+        var studentId = $(this).data('student-id');
+        var studentName = $(this).data('student-name');
+        var teamId = $(this).data('team-id');
+        
+        var confirmMessage = 'Are you sure you want to retire "' + studentName + '"?\n\n';
+        confirmMessage += 'This will:\n';
+        confirmMessage += '• Change their grade to "Alumni"\n';
+        confirmMessage += '• Keep them as an alumni of their current team\n';
+        if (teamId && teamId > 0) {
+            confirmMessage += '• Add their current team to their history with reason "Retired"\n';
+        }
+        confirmMessage += '\nThis action cannot be easily undone.';
+        
+        if (confirm(confirmMessage)) {
+            retireStudent(studentId, studentName);
+        }
+    });
+
+    // Retire student function
+    function retireStudent(studentId, studentName) {
+        $.ajax({
+            url: ajaxurl,
+            type: 'POST',
+            data: {
+                action: 'qbo_retire_student',
+                student_id: studentId,
+                nonce: qbo_ajax.nonce || ''
+            },
+            beforeSend: function() {
+                $('.retire-student-btn[data-student-id="' + studentId + '"]').prop('disabled', true).text('Retiring...');
+            },
+            success: function(response) {
+                if (response.success) {
+                    alert('Student retired successfully!\n\n' + (response.data.message || ''));
+                    // Refresh the page to update the table
+                    location.reload();
+                } else {
+                    alert('Error retiring student: ' + (response.data.message || 'Unknown error'));
+                    $('.retire-student-btn[data-student-id="' + studentId + '"]').prop('disabled', false).text('Retire');
+                }
+            },
+            error: function() {
+                alert('Error retiring student. Please try again.');
+                $('.retire-student-btn[data-student-id="' + studentId + '"]').prop('disabled', false).text('Retire');
+            }
+        });
+    }
+
     });
 }
