@@ -46,15 +46,6 @@ class QBO_Recurring_Invoices {
         $this->add_recurring_invoices_js();
         
         echo '</div>'; // Close wrap div
-        echo '<p>Loading recurring invoices...</p>';
-        echo '</div>';
-        
-        echo '</div>';
-        
-        // Add JavaScript for loading and refreshing
-        $this->add_recurring_invoices_js();
-        
-        echo '</div>';
     }
     
     /**

@@ -293,10 +293,6 @@ class QBO_Recurring_Invoices_List_Table extends WP_List_Table {
             case 'actions':
                 $actions = [];
                 $actions[] = '<button type="button" class="button button-small view-details" data-id="' . esc_attr($item['id']) . '" title="View Details"><span class="dashicons dashicons-visibility"></span></button>';
-                $actions[] = '<button type="button" class="button button-small button-primary edit-invoice" data-id="' . esc_attr($item['id']) . '" title="Edit"><span class="dashicons dashicons-edit"></span></button>';
-                $toggle_title = ($item['status'] === 'Active') ? 'Deactivate' : 'Activate';
-                $toggle_icon = ($item['status'] === 'Active') ? 'controls-pause' : 'controls-play';
-                $actions[] = '<button type="button" class="button button-small toggle-status" data-id="' . esc_attr($item['id']) . '" data-status="' . esc_attr($item['status']) . '" title="' . $toggle_title . '"><span class="dashicons dashicons-' . $toggle_icon . '"></span></button>';
                 
                 return implode(' ', $actions);
             default:
