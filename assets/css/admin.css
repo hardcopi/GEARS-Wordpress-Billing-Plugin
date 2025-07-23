@@ -9,6 +9,15 @@
     padding: 20px 0;
 }
 
+#dashboard-widgets .postbox-container .empty-container {
+    height: auto !important;
+}
+
+/* Hide only the jQuery UI sortable placeholder during drag operations */
+.meta-box-sortables .ui-sortable-placeholder {
+    display: none !important;
+}
+
 .team-header-section {
     text-align: center;
     margin-bottom: 32px;
@@ -22,10 +31,21 @@
     display: inline-block;
 }
 
+/* Program logo styling for tables and general use */
 .program-logo {
     max-width: 300px;
     height: auto;
     filter: drop-shadow(0 4px 8px rgba(0,0,0,0.1));
+}
+
+/* Program logo styling specifically for teams list table */
+.wp-list-table .program-logo {
+    height: 24px;
+    width: auto;
+    max-width: none;
+    vertical-align: middle;
+    border-radius: 2px;
+    filter: none;
 }
 
 .program-badge {

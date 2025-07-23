@@ -1239,8 +1239,7 @@ class QBO_Teams {
                 margin: 0 auto;
             }
             .team-details-main {
-                flex: 0 0 100%;
-                max-width: 100%;
+                flex: 1;
                 min-width: 0;
             }
             .team-details-sidebar {
@@ -1555,105 +1554,23 @@ class QBO_Teams {
                 <h1>Teams Management</h1>
                 <button type="button" class="button button-primary" id="add-team-btn">Add New Team</button>
             </div>
-            <table class="wp-list-table widefat fixed striped">
-                <thead>
-                    <tr>
-                        <th>Team Name</th>
-                        <th>Team Number</th>
-                        <th>Program</th>
-                        <th>Mentors</th>
-                        <th>Students</th>
-                        <th>Hall of Fame</th>
-                        <th style="width: 150px;">Actions</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    <?php if (!empty($teams)) : ?>
-                        <?php foreach ($teams as $team) : ?>
-                            <tr>
-                                <td><strong><?php echo esc_html($team->team_name); ?></strong></td>
-                                <td><?php echo esc_html($team->team_number); ?></td>
-                                <td><?php echo $this->get_program_display($team->program); ?></td>
-                                <td><?php 
-                                    $mentor_count = intval($team->mentor_count);
-                                    if ($mentor_count == 0) {
-                                        echo '<span style="color: #d63638; font-weight: bold;">' . $mentor_count . '</span>';
-                                    } else {
-                                        echo $mentor_count;
-                                    }
-                                ?></td>
-                                <td><?php 
-                                    $student_count = intval($team->student_count);
-                                    if ($student_count < 3) {
-                                        echo '<span style="color: #d63638; font-weight: bold;">' . $student_count . '</span>';
-                                    } else {
-                                        echo $student_count;
-                                    }
-                                ?></td>
-                                <td><?php echo !empty($team->hall_of_fame) ? '<span class="dashicons dashicons-yes-alt" style="color: #00a32a;" title="Hall of Fame Team"></span>' : ''; ?></td>
-                                <td>
-                                    <a href="<?php echo admin_url('admin.php?page=qbo-teams&action=view&team_id=' . intval($team->id)); ?>" class="button button-small">Edit</a>
-                                    <button type="button" class="button button-small button-link-delete archive-team-btn" data-team-id="<?php echo intval($team->id); ?>" data-team-name="<?php echo esc_attr($team->team_name); ?>">Move to Past</button>
-                                </td>
-                            </tr>
-                        <?php endforeach; ?>
-                    <?php else : ?>
-                        <tr><td colspan="7"><em>No teams found.</em></td></tr>
-                    <?php endif; ?>
-                </tbody>
-            </table>
+            
+            <!-- Active Teams Section -->
+            <div style="margin-bottom: 30px;">
+                <h2 style="margin-bottom: 15px;">Active Teams</h2>
+                <?php 
+                // Include the list table class
+                require_once plugin_dir_path(__FILE__) . 'class-qbo-teams-list-table.php';
+                QBO_Teams_List_Table::render_teams_table(false, $this->core); 
+                ?>
+            </div>
             
             <!-- Past Teams Section -->
-            <?php if (!empty($archived_teams)): ?>
-                <div style="margin-top: 40px;">
-                    <h2 style="color: #666; border-bottom: 1px solid #ddd; padding-bottom: 10px;">Past Teams</h2>
-                    <p style="color: #666; font-style: italic; margin-bottom: 15px;">These teams are from previous seasons and are hidden from the main list.</p>
-                    
-                    <table class="wp-list-table widefat fixed striped">
-                        <thead>
-                            <tr>
-                                <th>Team Name</th>
-                                <th>Team Number</th>
-                                <th>Program</th>
-                                <th>Mentors</th>
-                                <th>Students</th>
-                                <th>Hall of Fame</th>
-                                <th style="width: 150px;">Actions</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            <?php foreach ($archived_teams as $team) : ?>
-                                <tr style="opacity: 0.7;">
-                                    <td><strong><?php echo esc_html($team->team_name); ?></strong> <span style="color: #999; font-size: 11px;">(Past)</span></td>
-                                    <td><?php echo esc_html($team->team_number); ?></td>
-                                    <td><?php echo $this->get_program_display($team->program); ?></td>
-                                    <td><?php 
-                                        $mentor_count = intval($team->mentor_count);
-                                        if ($mentor_count == 0) {
-                                            echo '<span style="color: #d63638; font-weight: bold;">' . $mentor_count . '</span>';
-                                        } else {
-                                            echo $mentor_count;
-                                        }
-                                    ?></td>
-                                    <td><?php 
-                                        $student_count = intval($team->student_count);
-                                        if ($student_count < 3) {
-                                            echo '<span style="color: #d63638; font-weight: bold;">' . $student_count . '</span>';
-                                        } else {
-                                            echo $student_count;
-                                        }
-                                    ?></td>
-                                    <td><?php echo !empty($team->hall_of_fame) ? '<span class="dashicons dashicons-yes-alt" style="color: #00a32a;" title="Hall of Fame Team"></span>' : ''; ?></td>
-                                    <td>
-                                        <a href="<?php echo admin_url('admin.php?page=qbo-teams&action=view&team_id=' . intval($team->id)); ?>" class="button button-small">Edit</a>
-                                        <button type="button" class="button button-small button-primary restore-team-btn" data-team-id="<?php echo intval($team->id); ?>" data-team-name="<?php echo esc_attr($team->team_name); ?>">Restore</button>
-                                    </td>
-                                </tr>
-                            <?php endforeach; ?>
-                        </tbody>
-                    </table>
-                </div>
-            <?php endif; ?>
+            <div style="margin-top: 40px;">
+                <h2 style="color: #666; border-bottom: 1px solid #ddd; padding-bottom: 10px; margin-bottom: 15px;">Past Teams</h2>
+                <p style="color: #666; font-style: italic; margin-bottom: 15px;">These teams are from previous seasons and are hidden from the main list.</p>
+                <?php QBO_Teams_List_Table::render_teams_table(true, $this->core); ?>
+            </div>
             
             <!-- Add Team Modal -->
             <div id="add-team-modal-overlay" class="gears-modal-overlay">
