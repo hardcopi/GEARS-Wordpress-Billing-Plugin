@@ -327,6 +327,103 @@ public function fetch_bank_account_ledger($account_id, $limit = 100) {
         ) $charset_collate;";
         
         dbDelta($sql_students);
+        
+        // Create gears_student_team_history table
+        $table_student_team_history = $wpdb->prefix . 'gears_student_team_history';
+        
+        $sql_student_team_history = "CREATE TABLE $table_student_team_history (
+            id mediumint(9) NOT NULL AUTO_INCREMENT,
+            student_id mediumint(9) NOT NULL,
+            team_id mediumint(9) NOT NULL,
+            start_date date NOT NULL,
+            end_date date DEFAULT NULL,
+            season varchar(50) DEFAULT '',
+            program varchar(50) DEFAULT '',
+            is_current boolean DEFAULT 0,
+            reason_for_change text DEFAULT NULL,
+            created_at datetime DEFAULT CURRENT_TIMESTAMP,
+            updated_at datetime DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+            PRIMARY KEY (id),
+            KEY student_id (student_id),
+            KEY team_id (team_id),
+            KEY student_team_date (student_id, team_id, start_date),
+            FOREIGN KEY (student_id) REFERENCES $table_students(id) ON DELETE CASCADE,
+            FOREIGN KEY (team_id) REFERENCES $table_teams(id) ON DELETE CASCADE
+        ) $charset_collate;";
+        
+        dbDelta($sql_student_team_history);
+        
+        // Run migration to populate history table with existing data
+        $this->migrate_students_to_history();
+    }
+    
+    /**
+     * Migrate existing students to the team history table
+     */
+    public function migrate_students_to_history() {
+        global $wpdb;
+        
+        $table_students = $wpdb->prefix . 'gears_students';
+        $table_student_team_history = $wpdb->prefix . 'gears_student_team_history';
+        
+        // Check if migration has already been done
+        $migration_done = get_option('gears_student_history_migration_done', false);
+        if ($migration_done) {
+            return;
+        }
+        
+        // Get all students with team assignments
+        $students = $wpdb->get_results("
+            SELECT id, team_id, grade_level 
+            FROM $table_students 
+            WHERE team_id IS NOT NULL AND team_id > 0
+        ");
+        
+        foreach ($students as $student) {
+            // Determine program based on grade level
+            $program = '';
+            if ($student->grade_level >= 4 && $student->grade_level <= 8) {
+                $program = 'FLL';
+            } elseif ($student->grade_level >= 9 && $student->grade_level <= 12) {
+                $program = 'FTC';
+            } else {
+                $program = 'Alumni';
+            }
+            
+            // Insert into history table as current assignment
+            $wpdb->insert(
+                $table_student_team_history,
+                array(
+                    'student_id' => $student->id,
+                    'team_id' => $student->team_id,
+                    'start_date' => date('Y-m-d'), // Use current date as start
+                    'end_date' => null,
+                    'season' => date('Y') . '-' . (date('Y') + 1), // Current season
+                    'program' => $program,
+                    'is_current' => 1,
+                    'reason_for_change' => 'Initial migration',
+                    'created_at' => current_time('mysql'),
+                    'updated_at' => current_time('mysql')
+                ),
+                array('%d', '%d', '%s', '%s', '%s', '%s', '%d', '%s', '%s', '%s')
+            );
+        }
+        
+        // Mark migration as done
+        update_option('gears_student_history_migration_done', true);
+    }
+    
+    /**
+     * Force run migration (for admin use)
+     */
+    public function force_run_migration() {
+        // Reset migration flag
+        delete_option('gears_student_history_migration_done');
+        
+        // Run database creation
+        $this->create_database_tables();
+        
+        return true;
     }
     
     /**
