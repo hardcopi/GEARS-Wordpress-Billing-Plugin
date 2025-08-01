@@ -3,6 +3,15 @@
 ini_set('display_errors', 1);
 ini_set('display_startup_errors', 1);
 error_reporting(E_ALL);
+
+// Board members who can access any team's data
+$board_members = [
+    'mark@gears.org.in',
+    'president@gears.org.in',
+    'treasurer@gears.org.in',
+    'secretary@gears.org.in'
+];
+
 // Standalone QuickBooks Account Register Viewer
 // Place this file in your plugin directory and access directly (e.g., /wp-content/plugins/your-plugin/qbo-register.php)
 // Usage: qbo-register.php?account_id=144
@@ -20,6 +29,96 @@ session_start();
 
 // Load WordPress core early for wp_remote_post
 require_once('../../../wp-load.php');
+
+// Handle AJAX image upload
+if (isset($_POST['action']) && $_POST['action'] === 'qbo_upload_team_image') {
+    header('Content-Type: application/json');
+    
+    // Debug: Log that we're in the AJAX handler
+    error_log('AJAX handler triggered for image upload');
+    
+    // Simple test response first
+    if (!function_exists('wp_verify_nonce')) {
+        echo json_encode(['success' => false, 'data' => 'WordPress functions not available']);
+        exit;
+    }
+    
+    // Verify nonce
+    if (!wp_verify_nonce($_POST['nonce'], 'qbo_upload_team_image')) {
+        error_log('Nonce verification failed');
+        http_response_code(403);
+        echo json_encode(['success' => false, 'data' => 'Security check failed.']);
+        exit;
+    }
+    
+    // Check if user is logged in via Google
+    if (!isset($_SESSION['google_logged_in']) || $_SESSION['google_logged_in'] !== true) {
+        http_response_code(401);
+        echo json_encode(['success' => false, 'data' => 'Authentication required.']);
+        exit;
+    }
+    
+    // Verify mentor permissions
+    global $wpdb;
+    $table_mentors = $wpdb->prefix . 'gears_mentors';
+    $google_email = $_SESSION['google_user_email'] ?? '';
+    $mentor = $wpdb->get_row($wpdb->prepare("SELECT * FROM $table_mentors WHERE email = %s", $google_email));
+    
+    if (!$mentor || !$mentor->team_id || $mentor->team_id != intval($_POST['team_id'])) {
+        http_response_code(403);
+        echo json_encode(['success' => false, 'data' => 'Access denied.']);
+        exit;
+    }
+    
+    // Handle file upload
+    if (!isset($_FILES['image_file']) || $_FILES['image_file']['error'] !== UPLOAD_ERR_OK) {
+        http_response_code(400);
+        echo json_encode(['success' => false, 'data' => 'No file uploaded or upload error.']);
+        exit;
+    }
+    
+    $image_type = sanitize_text_field($_POST['image_type']);
+    if (!in_array($image_type, ['logo', 'team_photo'])) {
+        http_response_code(400);
+        echo json_encode(['success' => false, 'data' => 'Invalid image type.']);
+        exit;
+    }
+    
+    // Use WordPress media upload
+    require_once(ABSPATH . 'wp-admin/includes/image.php');
+    require_once(ABSPATH . 'wp-admin/includes/file.php');
+    require_once(ABSPATH . 'wp-admin/includes/media.php');
+    
+    $uploaded = media_handle_upload('image_file', 0, [], ['test_form' => false]);
+    
+    if (is_wp_error($uploaded)) {
+        http_response_code(400);
+        echo json_encode(['success' => false, 'data' => $uploaded->get_error_message()]);
+        exit;
+    }
+    
+    $image_url = wp_get_attachment_url($uploaded);
+    if (!$image_url) {
+        http_response_code(500);
+        echo json_encode(['success' => false, 'data' => 'Failed to get uploaded image URL.']);
+        exit;
+    }
+    
+    // Update team record
+    $table_teams = $wpdb->prefix . 'gears_teams';
+    $update_data = [$image_type => $image_url];
+    $result = $wpdb->update($table_teams, $update_data, ['id' => intval($_POST['team_id'])], ['%s'], ['%d']);
+    
+    if ($result === false) {
+        http_response_code(500);
+        echo json_encode(['success' => false, 'data' => 'Failed to update team record.']);
+        exit;
+    }
+    
+    http_response_code(200);
+    echo json_encode(['success' => true, 'data' => ['url' => $image_url]]);
+    exit;
+}
 
 // Google OAuth credentials - REPLACE WITH YOUR OWN FROM GOOGLE CONSOLE
 $google_client_id = '44830820494-vtuothjvb74ms5bqbfihr3bn53l54f4u.apps.googleusercontent.com'; // e.g., 'xxxx.apps.googleusercontent.com'
@@ -294,12 +393,17 @@ foreach ($entries as &$entry) {
 }
 unset($entry); // Unset reference
 
+// Fetch team data for tabs
+$mentors = $wpdb->get_results("SELECT * FROM $table_mentors WHERE team_id = " . intval($team->id));
+$students = $wpdb->get_results("SELECT * FROM {$wpdb->prefix}gears_students WHERE team_id = " . intval($team->id) . " AND grade != 'Alumni'");
+$alumni = $wpdb->get_results("SELECT * FROM {$wpdb->prefix}gears_students WHERE team_id = " . intval($team->id) . " AND grade = 'Alumni'");
 
 // Output HTML as Bootstrap tabbed page
 ?><!DOCTYPE html>
 <html><head>
 <title>QuickBooks Account Register: <?php echo htmlentities($account_name); ?></title>
 <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet" crossorigin="anonymous">
+<link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.css" rel="stylesheet">
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js" crossorigin="anonymous"></script>
 <style>
   .animated-header {
@@ -337,6 +441,22 @@ unset($entry); // Unset reference
     background: #f0f4ff;
     transition: background 0.2s;
   }
+  .upload-placeholder {
+    border: 2px dashed #dee2e6;
+    background: #f8f9fa;
+    transition: all 0.3s ease;
+  }
+  .upload-placeholder:hover {
+    border-color: #0d6efd;
+    background: #e7f3ff;
+  }
+  .btn-upload {
+    transition: all 0.2s ease;
+  }
+  .btn-upload:hover {
+    transform: translateY(-1px);
+    box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+  }
 </style>
 </head><body class="bg-light">
 
@@ -364,7 +484,10 @@ unset($entry); // Unset reference
 
 <ul class="nav nav-tabs mb-3" id="registerTabs" role="tablist">
   <li class="nav-item" role="presentation">
-    <button class="nav-link active" id="register-tab" data-bs-toggle="tab" data-bs-target="#register" type="button" role="tab" aria-controls="register" aria-selected="true">Bank Register</button>
+    <button class="nav-link active" id="team-info-tab" data-bs-toggle="tab" data-bs-target="#team-info" type="button" role="tab" aria-controls="team-info" aria-selected="true">Team Info</button>
+  </li>
+  <li class="nav-item" role="presentation">
+    <button class="nav-link" id="register-tab" data-bs-toggle="tab" data-bs-target="#register" type="button" role="tab" aria-controls="register" aria-selected="false">Bank Register</button>
   </li>
   <li class="nav-item" role="presentation">
     <button class="nav-link" id="mentors-tab" data-bs-toggle="tab" data-bs-target="#mentors" type="button" role="tab" aria-controls="mentors" aria-selected="false">Mentors</button>
@@ -377,7 +500,165 @@ unset($entry); // Unset reference
   </li>
 </ul>
 <div class="tab-content" id="registerTabsContent">
-  <div class="tab-pane fade show active" id="register" role="tabpanel" aria-labelledby="register-tab">
+  <div class="tab-pane fade show active" id="team-info" role="tabpanel" aria-labelledby="team-info-tab">
+    <div class="row">
+      <div class="col-lg-7">
+        <?php if (!empty($team->logo) || !empty($team->team_photo)): ?>
+        <div class="card shadow-sm mb-4">
+          <div class="card-header bg-secondary text-white">
+            <h6 class="mb-0"><i class="bi bi-images me-2"></i>Team Images</h6>
+          </div>
+          <div class="card-body text-center">
+            <?php if (!empty($team->logo)): ?>
+            <div class="mb-3">
+              <h6 class="text-muted mb-2">Team Logo</h6>
+              <img src="<?php echo esc_url($team->logo); ?>" alt="Team Logo" class="img-fluid rounded shadow-sm mb-2" style="max-height: 150px; max-width: 100%; object-fit: contain;" id="team-logo-img">
+              <div>
+                <button type="button" class="btn btn-sm btn-outline-primary btn-upload" onclick="document.getElementById('logo-upload').click()">
+                  <i class="bi bi-upload"></i> Replace Logo
+                </button>
+                <input type="file" id="logo-upload" accept="image/*" style="display: none;" onchange="uploadImage('logo')">
+              </div>
+            </div>
+            <?php else: ?>
+            <div class="mb-3">
+              <h6 class="text-muted mb-2">Team Logo</h6>
+              <div class="border border-dashed rounded p-4 mb-2 upload-placeholder" style="min-height: 150px; display: flex; align-items: center; justify-content: center;">
+                <span class="text-muted">No logo uploaded</span>
+              </div>
+              <div>
+                <button type="button" class="btn btn-sm btn-primary btn-upload" onclick="document.getElementById('logo-upload').click()">
+                  <i class="bi bi-upload"></i> Upload Logo
+                </button>
+                <input type="file" id="logo-upload" accept="image/*" style="display: none;" onchange="uploadImage('logo')">
+              </div>
+            </div>
+            <?php endif; ?>
+            
+            <?php if (!empty($team->team_photo)): ?>
+            <div class="mb-3">
+              <h6 class="text-muted mb-2">Team Photo</h6>
+              <img src="<?php echo esc_url($team->team_photo); ?>" alt="Team Photo" class="img-fluid rounded shadow-sm mb-2" style="max-height: 200px; max-width: 100%; object-fit: cover;" id="team-photo-img">
+              <div>
+                <button type="button" class="btn btn-sm btn-outline-primary btn-upload" onclick="document.getElementById('photo-upload').click()">
+                  <i class="bi bi-upload"></i> Replace Photo
+                </button>
+                <input type="file" id="photo-upload" accept="image/*" style="display: none;" onchange="uploadImage('team_photo')">
+              </div>
+            </div>
+            <?php else: ?>
+            <div class="mb-3">
+              <h6 class="text-muted mb-2">Team Photo</h6>
+              <div class="border border-dashed rounded p-4 mb-2 upload-placeholder" style="min-height: 200px; display: flex; align-items: center; justify-content: center;">
+                <span class="text-muted">No photo uploaded</span>
+              </div>
+              <div>
+                <button type="button" class="btn btn-sm btn-primary btn-upload" onclick="document.getElementById('photo-upload').click()">
+                  <i class="bi bi-upload"></i> Upload Photo
+                </button>
+                <input type="file" id="photo-upload" accept="image/*" style="display: none;" onchange="uploadImage('team_photo')">
+              </div>
+            </div>
+            <?php endif; ?>
+            
+            <!-- Upload Status Alert -->
+            <div id="upload-status" class="alert" style="display: none;"></div>
+          </div>
+        </div>
+        <?php endif; ?>
+      </div>
+      
+      <div class="col-lg-5">
+        <div class="card shadow-sm mb-4">
+          <div class="card-header bg-primary text-white">
+            <h5 class="mb-0"><i class="bi bi-info-circle me-2"></i>Team Information</h5>
+          </div>
+          <div class="card-body">
+            <div class="row mb-3">
+              <div class="col-sm-5"><strong>Team Name:</strong></div>
+              <div class="col-sm-7"><?php echo htmlentities($team->team_name ?? ''); ?></div>
+            </div>
+            <div class="row mb-3">
+              <div class="col-sm-5"><strong>Team Number:</strong></div>
+              <div class="col-sm-7"><?php echo htmlentities($team->team_number ?? ''); ?></div>
+            </div>
+            <div class="row mb-3">
+              <div class="col-sm-5"><strong>Program:</strong></div>
+              <div class="col-sm-7"><?php echo htmlentities($team->program ?? ''); ?></div>
+            </div>
+            <?php if (!empty($team->description)): ?>
+            <div class="row mb-3">
+              <div class="col-sm-5"><strong>Description:</strong></div>
+              <div class="col-sm-7"><?php echo nl2br(htmlentities($team->description)); ?></div>
+            </div>
+            <?php endif; ?>
+            <?php if (!empty($team->website)): ?>
+            <div class="row mb-3">
+              <div class="col-sm-5"><strong>Website:</strong></div>
+              <div class="col-sm-7"><a href="<?php echo esc_url($team->website); ?>" target="_blank" class="text-decoration-none"><?php echo htmlentities($team->website); ?></a></div>
+            </div>
+            <?php endif; ?>
+            
+            <?php if (!empty($team->facebook) || !empty($team->twitter) || !empty($team->instagram)): ?>
+            <div class="row mb-3">
+              <div class="col-sm-5"><strong>Social Media:</strong></div>
+              <div class="col-sm-7">
+                <?php if (!empty($team->facebook)): ?>
+                  <a href="<?php echo esc_url($team->facebook); ?>" target="_blank" class="btn btn-sm btn-outline-primary me-2 mb-1">
+                    <i class="bi bi-facebook"></i> Facebook
+                  </a>
+                <?php endif; ?>
+                <?php if (!empty($team->twitter)): ?>
+                  <a href="<?php echo esc_url($team->twitter); ?>" target="_blank" class="btn btn-sm btn-outline-info me-2 mb-1">
+                    <i class="bi bi-twitter"></i> Twitter
+                  </a>
+                <?php endif; ?>
+                <?php if (!empty($team->instagram)): ?>
+                  <a href="<?php echo esc_url($team->instagram); ?>" target="_blank" class="btn btn-sm btn-outline-danger me-2 mb-1">
+                    <i class="bi bi-instagram"></i> Instagram
+                  </a>
+                <?php endif; ?>
+              </div>
+            </div>
+            <?php endif; ?>
+            
+            <?php if (isset($team->hall_of_fame) && $team->hall_of_fame): ?>
+            <div class="row mb-3">
+              <div class="col-sm-3"><strong>Recognition:</strong></div>
+              <div class="col-sm-9"><span class="badge bg-warning text-dark fs-6"><i class="bi bi-trophy-fill me-1"></i>Hall of Fame</span></div>
+            </div>
+            <?php endif; ?>
+          </div>
+        </div>
+
+                <div class="card shadow-sm">
+          <div class="card-header bg-success text-white">
+            <h6 class="mb-0"><i class="bi bi-bar-chart me-2"></i>Team Statistics</h6>
+          </div>
+          <div class="card-body">
+            <?php
+            $mentor_count = count($mentors ?? []);
+            $student_count = count($students ?? []);
+            $alumni_count = count($alumni ?? []);
+            ?>
+            <div class="d-flex justify-content-between align-items-center mb-2">
+              <span>Mentors:</span>
+              <span class="badge bg-primary"><?php echo $mentor_count; ?></span>
+            </div>
+            <div class="d-flex justify-content-between align-items-center mb-2">
+              <span>Active Students:</span>
+              <span class="badge bg-info"><?php echo $student_count; ?></span>
+            </div>
+            <div class="d-flex justify-content-between align-items-center">
+              <span>Alumni:</span>
+              <span class="badge bg-secondary"><?php echo $alumni_count; ?></span>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+  <div class="tab-pane fade" id="register" role="tabpanel" aria-labelledby="register-tab">
 <table class="table table-striped table-bordered table-hover">
     <thead><tr><th>Date</th><th>Type</th><th>Payee</th><th>Description</th><th>Deposit</th><th>Withdrawal</th><th>Balance</th></tr></thead>
     <tbody>
@@ -402,9 +683,7 @@ unset($entry); // Unset reference
     </table>
   </div>
   <div class="tab-pane fade" id="mentors" role="tabpanel" aria-labelledby="mentors-tab">
-    <?php
-    $mentors = $wpdb->get_results("SELECT * FROM $table_mentors WHERE team_id = " . intval($team->id));
-    if ($mentors && count($mentors) > 0): ?>
+    <?php if ($mentors && count($mentors) > 0): ?>
 <table class="table table-striped table-bordered table-hover">
       <thead><tr><th>Name</th><th>Email</th><th>Phone</th><th>Address</th><th>Notes</th></tr></thead>
       <tbody>
@@ -424,9 +703,7 @@ unset($entry); // Unset reference
     <?php endif; ?>
   </div>
   <div class="tab-pane fade" id="students" role="tabpanel" aria-labelledby="students-tab">
-    <?php
-    $students = $wpdb->get_results("SELECT * FROM {$wpdb->prefix}gears_students WHERE team_id = " . intval($team->id) . " AND grade != 'Alumni'");
-    if ($students && count($students) > 0): ?>
+    <?php if ($students && count($students) > 0): ?>
 <table class="table table-striped table-bordered table-hover">
       <thead><tr><th>Name</th><th>Grade</th><th>First Year</th><th>Customer ID</th></tr></thead>
       <tbody>
@@ -445,9 +722,7 @@ unset($entry); // Unset reference
     <?php endif; ?>
   </div>
   <div class="tab-pane fade" id="alumni" role="tabpanel" aria-labelledby="alumni-tab">
-    <?php
-    $alumni = $wpdb->get_results("SELECT * FROM {$wpdb->prefix}gears_students WHERE team_id = " . intval($team->id) . " AND grade = 'Alumni'");
-    if ($alumni && count($alumni) > 0): ?>
+    <?php if ($alumni && count($alumni) > 0): ?>
 <table class="table table-striped table-bordered table-hover">
       <thead><tr><th>Name</th><th>First Year</th><th>Customer ID</th></tr></thead>
       <tbody>
@@ -466,4 +741,108 @@ unset($entry); // Unset reference
   </div>
 </div>
 </div>
+
+<script>
+function uploadImage(imageType) {
+    const fileInput = document.getElementById(imageType === 'logo' ? 'logo-upload' : 'photo-upload');
+    const file = fileInput.files[0];
+    
+    if (!file) {
+        return;
+    }
+    
+    // Validate file type
+    if (!file.type.startsWith('image/')) {
+        showUploadStatus('Please select a valid image file.', 'danger');
+        return;
+    }
+    
+    // Validate file size (max 5MB)
+    if (file.size > 5 * 1024 * 1024) {
+        showUploadStatus('File size must be less than 5MB.', 'danger');
+        return;
+    }
+    
+    const formData = new FormData();
+    formData.append('action', 'qbo_upload_team_image');
+    formData.append('image_type', imageType);
+    formData.append('team_id', <?php echo intval($team->id); ?>);
+    formData.append('image_file', file);
+    formData.append('nonce', '<?php echo wp_create_nonce('qbo_upload_team_image'); ?>');
+    
+    // Show loading state
+    showUploadStatus('Uploading image...', 'info');
+    const uploadBtn = event.target.closest('div').querySelector('button');
+    const originalText = uploadBtn.innerHTML;
+    uploadBtn.innerHTML = '<i class="bi bi-spinner-border" style="font-size: 0.8rem;"></i> Uploading...';
+    uploadBtn.disabled = true;
+    
+    // Upload via AJAX
+    fetch(window.location.href, {
+        method: 'POST',
+        body: formData
+    })
+    .then(response => {
+        console.log('Response status:', response.status);
+        console.log('Response headers:', response.headers);
+        return response.text(); // Get as text first to see what we're actually getting
+    })
+    .then(text => {
+        console.log('Raw response:', text);
+        try {
+            const data = JSON.parse(text);
+            if (data.success) {
+                // Update the image display
+                const imgElement = document.getElementById(imageType === 'logo' ? 'team-logo-img' : 'team-photo-img');
+                if (imgElement) {
+                    imgElement.src = data.data.url + '?t=' + Date.now(); // Add timestamp to force refresh
+                } else {
+                    // If no image was displayed before, reload the page to show the new image
+                    location.reload();
+                }
+                
+                // Update header logo if it's the logo being updated
+                if (imageType === 'logo') {
+                    const headerLogo = document.querySelector('.animated-header img[alt="Team Logo"]');
+                    if (headerLogo) {
+                        headerLogo.src = data.data.url + '?t=' + Date.now();
+                    }
+                }
+                
+                showUploadStatus('Image uploaded successfully!', 'success');
+            } else {
+                showUploadStatus(data.data || 'Upload failed. Please try again.', 'danger');
+            }
+        } catch (e) {
+            console.error('JSON parse error:', e);
+            showUploadStatus('Server response error: ' + text.substring(0, 100), 'danger');
+        }
+    })
+    .catch(error => {
+        console.error('Upload error:', error);
+        showUploadStatus('Upload failed. Please try again.', 'danger');
+    })
+    .finally(() => {
+        // Restore button state
+        uploadBtn.innerHTML = originalText;
+        uploadBtn.disabled = false;
+        fileInput.value = ''; // Clear the file input
+    });
+}
+
+function showUploadStatus(message, type) {
+    const statusElement = document.getElementById('upload-status');
+    statusElement.className = `alert alert-${type}`;
+    statusElement.textContent = message;
+    statusElement.style.display = 'block';
+    
+    // Auto-hide success messages after 3 seconds
+    if (type === 'success') {
+        setTimeout(() => {
+            statusElement.style.display = 'none';
+        }, 3000);
+    }
+}
+</script>
+
 </body></html>
