@@ -6,10 +6,9 @@ error_reporting(E_ALL);
 
 // Board members who can access any team's data
 $board_members = [
-    'mark@gears.org.in',
-    'president@gears.org.in',
-    'treasurer@gears.org.in',
-    'secretary@gears.org.in'
+    'hardcopi@gmail.com',
+    'michelleannelester@gmail.com',
+    'scott@gears.org.in'
 ];
 
 // Standalone QuickBooks Account Register Viewer
@@ -58,16 +57,23 @@ if (isset($_POST['action']) && $_POST['action'] === 'qbo_upload_team_image') {
         exit;
     }
     
-    // Verify mentor permissions
+    // Verify mentor permissions or board member access
     global $wpdb;
     $table_mentors = $wpdb->prefix . 'gears_mentors';
     $google_email = $_SESSION['google_user_email'] ?? '';
-    $mentor = $wpdb->get_row($wpdb->prepare("SELECT * FROM $table_mentors WHERE email = %s", $google_email));
     
-    if (!$mentor || !$mentor->team_id || $mentor->team_id != intval($_POST['team_id'])) {
-        http_response_code(403);
-        echo json_encode(['success' => false, 'data' => 'Access denied.']);
-        exit;
+    // Check if user is a board member
+    $is_board_member = in_array($google_email, $board_members);
+    
+    if (!$is_board_member) {
+        // If not a board member, check mentor permissions
+        $mentor = $wpdb->get_row($wpdb->prepare("SELECT * FROM $table_mentors WHERE email = %s", $google_email));
+        
+        if (!$mentor || !$mentor->team_id || $mentor->team_id != intval($_POST['team_id'])) {
+            http_response_code(403);
+            echo json_encode(['success' => false, 'data' => 'Access denied.']);
+            exit;
+        }
     }
     
     // Handle file upload
@@ -179,58 +185,97 @@ if (!$google_email) {
 global $wpdb;
 $table_mentors = $wpdb->prefix . 'gears_mentors';
 $table_teams = $wpdb->prefix . 'gears_teams';
-$mentor = $wpdb->get_row($wpdb->prepare("SELECT * FROM $table_mentors WHERE email = %s", $google_email));
-if (!$mentor || !$mentor->team_id) {
-    echo '<!DOCTYPE html><html><head><title>Access Denied</title><link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet"></head><body class="bg-dark text-light"><div class="container my-5 text-center"><div class="alert alert-danger shadow-lg p-4" style="font-size:2rem;border-width:3px;border-color:#dc3545;"><span class="display-3 fw-bold text-danger">&#9888;</span><h2 class="fw-bold mt-3">ACCESS DENIED</h2><p class="lead">You must be a <span class="fw-bold text-danger">GEARS mentor</span> to access team information.<br><span class="text-danger">This incident will be reported.</span></p></div></div></body></html>';
-    exit;
+
+// Check if user is a board member
+$is_board_member = in_array($google_email, $board_members);
+
+if ($is_board_member) {
+    // Board members can view any team
+    $selected_team_id = isset($_GET['team_id']) ? intval($_GET['team_id']) : null;
+    
+    if (!$selected_team_id) {
+        // Show team selection page for board members (exclude archived teams)
+        $all_teams = $wpdb->get_results("SELECT * FROM $table_teams WHERE (archived = 0 OR archived IS NULL) ORDER BY team_name");
+        
+        echo '<!DOCTYPE html><html><head><title>Select Team - Board Access</title><link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet"><link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.css" rel="stylesheet"></head><body class="bg-light"><div class="container my-5"><div class="row justify-content-center"><div class="col-md-8"><div class="card shadow-lg"><div class="card-header bg-primary text-white text-center"><h3><i class="bi bi-shield-check me-2"></i>Board Member Access</h3><p class="mb-0">Select a team to view their information</p></div><div class="card-body"><div class="mb-3"><label class="form-label fw-bold">Available Teams:</label><div class="list-group">';
+        
+        foreach ($all_teams as $team_option) {
+            $team_url = $_SERVER['REQUEST_URI'] . (strpos($_SERVER['REQUEST_URI'], '?') !== false ? '&' : '?') . 'team_id=' . $team_option->id;
+            $has_bank = (!empty($team_option->bank_account_id)) ? '<i class="bi bi-bank text-success me-1"></i>' : '<i class="bi bi-bank text-muted me-1"></i>';
+            $bank_status = (!empty($team_option->bank_account_id)) ? '<span class="badge bg-success ms-2">Bank Connected</span>' : '<span class="badge bg-secondary ms-2">No Bank</span>';
+            echo '<a href="' . htmlentities($team_url) . '" class="list-group-item list-group-item-action d-flex justify-content-between align-items-center"><div>' . $has_bank . '<strong>' . htmlentities($team_option->team_name) . '</strong>' . $bank_status . '<br><small class="text-muted">Team #' . htmlentities($team_option->team_number) . ' - ' . htmlentities($team_option->program) . '</small></div><i class="bi bi-arrow-right"></i></a>';
+        }
+        
+        echo '</div></div></div></div></div></div></div></body></html>';
+        exit;
+    }
+    
+    // Load selected team for board member
+    $team = $wpdb->get_row($wpdb->prepare("SELECT * FROM $table_teams WHERE id = %d", $selected_team_id));
+    if (!$team) {
+        echo '<h2>Error: Selected team not found.</h2>';
+        exit;
+    }
+} else {
+    // Regular mentor access - check if they belong to a team
+    $mentor = $wpdb->get_row($wpdb->prepare("SELECT * FROM $table_mentors WHERE email = %s", $google_email));
+    if (!$mentor || !$mentor->team_id) {
+        echo '<!DOCTYPE html><html><head><title>Access Denied</title><link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet"></head><body class="bg-dark text-light"><div class="container my-5 text-center"><div class="alert alert-danger shadow-lg p-4" style="font-size:2rem;border-width:3px;border-color:#dc3545;"><span class="display-3 fw-bold text-danger">&#9888;</span><h2 class="fw-bold mt-3">ACCESS DENIED</h2><p class="lead">You must be a <span class="fw-bold text-danger">GEARS mentor</span> to access team information.<br><span class="text-danger">This incident will be reported.</span></p></div></div></body></html>';
+        exit;
+    }
+    $team = $wpdb->get_row($wpdb->prepare("SELECT * FROM $table_teams WHERE id = %d", $mentor->team_id));
+    if (!$team || empty($team->bank_account_id)) {
+        echo '<h2>Error: No bank account associated with your team.</h2>';
+        exit;
+    }
 }
-$team = $wpdb->get_row($wpdb->prepare("SELECT * FROM $table_teams WHERE id = %d", $mentor->team_id));
-if (!$team || empty($team->bank_account_id)) {
-    echo '<h2>Error: No bank account associated with your team.</h2>';
-    exit;
-}
+
 $account_id = $team->bank_account_id;
 
-// Get QBO credentials from plugin options
-$options = get_option('qbo_recurring_billing_options');
-if (!isset($options['access_token']) || !isset($options['realm_id'])) {
-    echo '<h2>Error: QuickBooks credentials not found.</h2>';
-    exit;
-}
-$access_token = $options['access_token'];
-$realm_id = $options['realm_id'];
+// Check if team has a bank account for financial data
+$has_bank_account = !empty($account_id);
 
-// Helper to make QBO API requests
-function qbo_api_request($endpoint, $access_token, $realm_id) {
-    $url = 'https://quickbooks.api.intuit.com/v3/company/' . $realm_id . $endpoint;
-    $args = array(
-        'headers' => array(
-            'Authorization' => 'Bearer ' . $access_token,
-            'Accept' => 'application/json',
-        ),
-        'timeout' => 30,
+if ($has_bank_account) {
+    // Get QBO credentials from plugin options
+    $options = get_option('qbo_recurring_billing_options');
+    if (!isset($options['access_token']) || !isset($options['realm_id'])) {
+        echo '<h2>Error: QuickBooks credentials not found.</h2>';
+        exit;
+    }
+    $access_token = $options['access_token'];
+    $realm_id = $options['realm_id'];
+
+    // Helper to make QBO API requests
+    function qbo_api_request($endpoint, $access_token, $realm_id) {
+        $url = 'https://quickbooks.api.intuit.com/v3/company/' . $realm_id . $endpoint;
+        $args = array(
+            'headers' => array(
+                'Authorization' => 'Bearer ' . $access_token,
+                'Accept' => 'application/json',
+            ),
+            'timeout' => 30,
+        );
+        $response = wp_remote_get($url, $args);
+        if (is_wp_error($response)) return false;
+        $body = wp_remote_retrieve_body($response);
+        return json_decode($body, true);
+    }
+
+    // Fetch account info
+    $account_data = qbo_api_request('/account/' . urlencode($account_id), $access_token, $realm_id);
+    if (!$account_data || !isset($account_data['Account'])) {
+        echo '<h2>Error: Account not found in QuickBooks.</h2>';
+        exit;
+    }
+    $account_name = $account_data['Account']['Name'];
+    $account_type = $account_data['Account']['AccountType'];
+    $account_balance = isset($account_data['Account']['CurrentBalance']) ? $account_data['Account']['CurrentBalance'] : 0;
+
+    // Fetch transactions (register)
+    $types = array(
+        'Purchase', 'JournalEntry', 'Deposit', 'Transfer', 'BillPayment', 'VendorCredit', 'CreditCardPayment', 'Payment', 'SalesReceipt'
     );
-    $response = wp_remote_get($url, $args);
-    if (is_wp_error($response)) return false;
-    $body = wp_remote_retrieve_body($response);
-    return json_decode($body, true);
-}
-
-// Fetch account info
-$account_data = qbo_api_request('/account/' . urlencode($account_id), $access_token, $realm_id);
-if (!$account_data || !isset($account_data['Account'])) {
-    echo '<h2>Error: Account not found in QuickBooks.</h2>';
-    exit;
-}
-$account_name = $account_data['Account']['Name'];
-$account_type = $account_data['Account']['AccountType'];
-$account_balance = isset($account_data['Account']['CurrentBalance']) ? $account_data['Account']['CurrentBalance'] : 0;
-
-// Fetch transactions (register)
-$types = array(
-    'Purchase', 'JournalEntry', 'Deposit', 'Transfer', 'BillPayment', 'VendorCredit', 'CreditCardPayment', 'Payment', 'SalesReceipt'
-);
-$entries = array();
+    $entries = array();
 foreach ($types as $type) {
     $q = "SELECT * FROM $type ORDER BY TxnDate DESC MAXRESULTS 200";
     $endpoint = '/query?query=' . urlencode($q) . '&minorversion=65';
@@ -393,6 +438,14 @@ foreach ($entries as &$entry) {
 }
 unset($entry); // Unset reference
 
+} else {
+    // No bank account - set default values for display
+    $account_name = 'No Bank Account';
+    $account_type = 'N/A';
+    $account_balance = 0;
+    $entries = array();
+}
+
 // Fetch team data for tabs
 $mentors = $wpdb->get_results("SELECT * FROM $table_mentors WHERE team_id = " . intval($team->id));
 $students = $wpdb->get_results("SELECT * FROM {$wpdb->prefix}gears_students WHERE team_id = " . intval($team->id) . " AND grade != 'Alumni'");
@@ -464,6 +517,26 @@ $alumni = $wpdb->get_results("SELECT * FROM {$wpdb->prefix}gears_students WHERE 
 <div class="animated-header d-flex justify-content-between align-items-center mb-3 px-3 py-2" style="min-height:80px;">
   <div class="d-flex align-items-center">
     <img src="https://gears.org.in/wp-content/uploads/2023/11/gears-logo-transparent-white.png" alt="GEARS Logo" class="fade-in" style="height:64px;max-width:180px;object-fit:contain;background:transparent;border-radius:8px;padding:6px;">
+    <?php if ($is_board_member): ?>
+    <div class="ms-3">
+      <select class="form-select form-select-sm" onchange="window.location.href=this.value" style="min-width: 200px;">
+        <option value="">Switch Team...</option>
+        <?php 
+        $all_teams_for_dropdown = $wpdb->get_results("SELECT * FROM $table_teams WHERE (archived = 0 OR archived IS NULL) ORDER BY team_name");
+        foreach ($all_teams_for_dropdown as $team_option): 
+          $team_url = $_SERVER['REQUEST_URI'];
+          $team_url = preg_replace('/[?&]team_id=\d+/', '', $team_url);
+          $team_url .= (strpos($team_url, '?') !== false ? '&' : '?') . 'team_id=' . $team_option->id;
+          $selected = ($team_option->id == $team->id) ? 'selected' : '';
+        ?>
+          <option value="<?php echo htmlentities($team_url); ?>" <?php echo $selected; ?>>
+            <?php echo htmlentities($team_option->team_name); ?> (#<?php echo htmlentities($team_option->team_number); ?>)
+          </option>
+        <?php endforeach; ?>
+      </select>
+      <small class="text-muted d-block mt-1"><i class="bi bi-shield-check"></i> Board Access</small>
+    </div>
+    <?php endif; ?>
   </div>
   <?php if (!empty($team->logo)): ?>
     <div class="d-flex align-items-center justify-content-end">
@@ -475,8 +548,18 @@ $alumni = $wpdb->get_results("SELECT * FROM {$wpdb->prefix}gears_students WHERE 
   <div class="col-md-6 mx-auto">
     <div class="card shadow-lg border-0 animate__animated animate__fadeInDown">
       <div class="card-body text-center">
-        <h3 class="card-title mb-2"><?php echo htmlentities($account_name); ?> <span class="badge bg-primary ms-2" style="font-size:1rem;"><?php echo htmlentities($account_type); ?></span></h3>
-        <p class="card-text mb-0"><strong>Current Balance:</strong> <span class="fs-4 text-success">$<?php echo number_format($account_balance, 2); ?></span></p>
+        <h3 class="card-title mb-2"><?php echo htmlentities($account_name); ?> 
+          <?php if ($has_bank_account): ?>
+            <span class="badge bg-primary ms-2" style="font-size:1rem;"><?php echo htmlentities($account_type); ?></span>
+          <?php else: ?>
+            <span class="badge bg-secondary ms-2" style="font-size:1rem;">No Bank Account</span>
+          <?php endif; ?>
+        </h3>
+        <?php if ($has_bank_account): ?>
+          <p class="card-text mb-0"><strong>Current Balance:</strong> <span class="fs-4 text-success">$<?php echo number_format($account_balance, 2); ?></span></p>
+        <?php else: ?>
+          <p class="card-text mb-0 text-muted">This team does not have banking information configured.</p>
+        <?php endif; ?>
       </div>
     </div>
   </div>
@@ -659,28 +742,39 @@ $alumni = $wpdb->get_results("SELECT * FROM {$wpdb->prefix}gears_students WHERE 
     </div>
   </div>
   <div class="tab-pane fade" id="register" role="tabpanel" aria-labelledby="register-tab">
-<table class="table table-striped table-bordered table-hover">
-    <thead><tr><th>Date</th><th>Type</th><th>Payee</th><th>Description</th><th>Deposit</th><th>Withdrawal</th><th>Balance</th></tr></thead>
-    <tbody>
-    <?php foreach ($entries as $entry): ?>
-    <tr>
-        <td><?php echo htmlentities($entry['date']); ?></td>
-        <td><?php echo htmlentities($entry['type']); ?></td>
-        <td><?php echo htmlentities($entry['payee']); ?></td>
-        <td><?php echo htmlentities($entry['desc']); ?></td>
-        <td class="text-end">
-            <?php echo ($entry['amount'] > 0) ? '$' . number_format($entry['amount'], 2) : ''; ?>
-        </td>
-        <td class="text-end text-danger fw-bold">
-            <?php echo ($entry['amount'] < 0) ? '$' . number_format(abs($entry['amount']), 2) : ''; ?>
-        </td>
-        <td class="text-end">
-            <?php echo '$' . number_format($entry['balance'], 2); ?>
-        </td>
-    </tr>
-    <?php endforeach; ?>
-    </tbody>
+    <?php if ($has_bank_account && !empty($entries)): ?>
+    <table class="table table-striped table-bordered table-hover">
+        <thead><tr><th>Date</th><th>Type</th><th>Payee</th><th>Description</th><th>Deposit</th><th>Withdrawal</th><th>Balance</th></tr></thead>
+        <tbody>
+        <?php foreach ($entries as $entry): ?>
+        <tr>
+            <td><?php echo htmlentities($entry['date']); ?></td>
+            <td><?php echo htmlentities($entry['type']); ?></td>
+            <td><?php echo htmlentities($entry['payee']); ?></td>
+            <td><?php echo htmlentities($entry['desc']); ?></td>
+            <td class="text-end">
+                <?php echo ($entry['amount'] > 0) ? '$' . number_format($entry['amount'], 2) : ''; ?>
+            </td>
+            <td class="text-end text-danger fw-bold">
+                <?php echo ($entry['amount'] < 0) ? '$' . number_format(abs($entry['amount']), 2) : ''; ?>
+            </td>
+            <td class="text-end">
+                <?php echo '$' . number_format($entry['balance'], 2); ?>
+            </td>
+        </tr>
+        <?php endforeach; ?>
+        </tbody>
     </table>
+    <?php elseif ($has_bank_account): ?>
+    <div class="alert alert-info mt-3">
+        <i class="bi bi-info-circle me-2"></i>No transactions found for this team's bank account.
+    </div>
+    <?php else: ?>
+    <div class="alert alert-warning mt-3">
+        <i class="bi bi-exclamation-triangle me-2"></i><strong>No Bank Account Connected</strong><br>
+        This team does not have a bank account linked for financial data.
+    </div>
+    <?php endif; ?>
   </div>
   <div class="tab-pane fade" id="mentors" role="tabpanel" aria-labelledby="mentors-tab">
     <?php if ($mentors && count($mentors) > 0): ?>
