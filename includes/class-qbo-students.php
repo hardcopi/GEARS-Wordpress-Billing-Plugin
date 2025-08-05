@@ -1806,6 +1806,7 @@ class QBO_Students {
         
         global $wpdb;
         $table_students = $wpdb->prefix . 'gears_students';
+        $table_teams = $wpdb->prefix . 'gears_teams';
         
         $first_name = sanitize_text_field($_POST['first_name']);
         $last_name = sanitize_text_field($_POST['last_name']);
@@ -1813,25 +1814,75 @@ class QBO_Students {
         $team_id = intval($_POST['team_id']);
         $customer_id = sanitize_text_field($_POST['customer_id']);
         $first_year = intval($_POST['first_year']);
+        $force_transfer = isset($_POST['force_transfer']) ? intval($_POST['force_transfer']) : 0;
         
-        $result = $wpdb->insert(
-            $table_students,
-            array(
-                'first_name' => $first_name,
-                'last_name' => $last_name,
-                'grade' => $grade,
-                'team_id' => $team_id,
-                'customer_id' => $customer_id,
-                'first_year_first' => $first_year,
-                'created_at' => current_time('mysql')
-            ),
-            array('%s', '%s', '%s', '%d', '%s', '%d', '%s')
-        );
+        // Check if a student with the same name already exists
+        $existing_student = $wpdb->get_row($wpdb->prepare(
+            "SELECT s.*, t.team_name FROM $table_students s 
+             LEFT JOIN $table_teams t ON s.team_id = t.id 
+             WHERE LOWER(TRIM(s.first_name)) = LOWER(TRIM(%s)) 
+             AND LOWER(TRIM(s.last_name)) = LOWER(TRIM(%s))",
+            $first_name, $last_name
+        ));
         
-        if ($result !== false) {
-            wp_send_json_success(array('message' => 'Student added successfully!'));
+        if ($existing_student && !$force_transfer) {
+            // Student exists - return transfer confirmation data
+            $current_team_name = $existing_student->team_name ? $existing_student->team_name : 'No Team';
+            $target_team_name = $team_id > 0 ? $wpdb->get_var($wpdb->prepare(
+                "SELECT team_name FROM $table_teams WHERE id = %d", $team_id
+            )) : 'No Team';
+            
+            wp_send_json_error(array(
+                'message' => 'Student already exists',
+                'transfer_confirmation' => true,
+                'existing_student' => array(
+                    'id' => $existing_student->id,
+                    'name' => $first_name . ' ' . $last_name,
+                    'current_team' => $current_team_name,
+                    'target_team' => $target_team_name
+                )
+            ));
+        } elseif ($existing_student && $force_transfer) {
+            // Transfer the existing student to the new team
+            $result = $wpdb->update(
+                $table_students,
+                array(
+                    'team_id' => $team_id > 0 ? $team_id : null,
+                    'grade' => $grade,
+                    'customer_id' => $customer_id,
+                    'first_year_first' => $first_year
+                ),
+                array('id' => $existing_student->id),
+                array('%d', '%s', '%s', '%d'),
+                array('%d')
+            );
+            
+            if ($result !== false) {
+                wp_send_json_success(array('message' => 'Student transferred successfully!'));
+            } else {
+                wp_send_json_error(array('message' => 'Error transferring student: ' . $wpdb->last_error));
+            }
         } else {
-            wp_send_json_error(array('message' => 'Error adding student: ' . $wpdb->last_error));
+            // No existing student, create new one
+            $result = $wpdb->insert(
+                $table_students,
+                array(
+                    'first_name' => $first_name,
+                    'last_name' => $last_name,
+                    'grade' => $grade,
+                    'team_id' => $team_id,
+                    'customer_id' => $customer_id,
+                    'first_year_first' => $first_year,
+                    'created_at' => current_time('mysql')
+                ),
+                array('%s', '%s', '%s', '%d', '%s', '%d', '%s')
+            );
+            
+            if ($result !== false) {
+                wp_send_json_success(array('message' => 'Student added successfully!'));
+            } else {
+                wp_send_json_error(array('message' => 'Error adding student: ' . $wpdb->last_error));
+            }
         }
     }
     

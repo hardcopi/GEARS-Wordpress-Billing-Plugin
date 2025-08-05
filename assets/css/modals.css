@@ -1,36 +1,92 @@
 /* QBO Recurring Billing - Shared Modal Styles */
 
-/* Modal overlay styles */
+/* Modal overlay styles - High specificity to override admin.css */
 .gears-modal-overlay {
-    display: none;
+    display: none !important;
     position: fixed !important;
     z-index: 99999 !important;
-    left: 0;
-    top: 0;
-    width: 100vw;
-    height: 100vh;
+    left: 0 !important;
+    top: 0 !important;
+    width: 100vw !important;
+    height: 100vh !important;
     background: rgba(0, 0, 0, 0.4) !important;
+}
+
+#teamTabs {
+    z-index: 1 !important;
 }
 
 .gears-modal-overlay.active {
     display: block !important;
 }
 
-/* Modal container */
-.gears-modal {
-    display: none;
-    /* background: #fff; */
-    /* border-radius: 8px; */
-    max-width: 600px;
-    margin: 0;
-    padding: 20px;
-    position: fixed;
-    left: 50%;
-    top: 50%;
-    transform: translate(-50%, -50%);
-    /* box-shadow: 0 4px 32px rgba(0, 0, 0, 0.18); */
-    max-height: 80vh;
-    /* overflow-y: auto; */
+.gears-modal-overlay.active .gears-modal {
+    display: block !important;
+}
+
+/* Additional specificity for active modal */
+.gears-modal-overlay.active > .gears-modal {
+    display: block !important;
+}
+
+/* Debug: Force visibility when active (can be removed later) */
+.gears-modal-overlay.active {
+    opacity: 1 !important;
+    visibility: visible !important;
+}
+
+.gears-modal-overlay.active .gears-modal {
+    opacity: 1 !important;
+    visibility: visible !important;
+}
+
+/* Transfer confirmation styling */
+#transfer-confirmation-modal .notice-warning {
+    background: #fff3cd !important;
+    border: 1px solid #ffc107 !important;
+    border-left: 4px solid #ffc107 !important;
+    border-radius: 4px !important;
+    padding: 20px !important;
+    margin: 0 !important;
+}
+
+#transfer-confirmation-modal .notice-warning p {
+    margin: 10px 0 !important;
+    color: #856404 !important;
+}
+
+#transfer-confirmation-modal .notice-warning p:first-child {
+    margin-top: 0 !important;
+    font-weight: bold !important;
+    color: #664d03 !important;
+}
+
+#transfer-confirmation-modal .button-primary {
+    background: #ffc107 !important;
+    border-color: #ffc107 !important;
+    color: #212529 !important;
+}
+
+#transfer-confirmation-modal .button-primary:hover {
+    background: #e0a800 !important;
+    border-color: #d39e00 !important;
+}
+
+/* Modal container - High specificity to override admin.css */
+.gears-modal-overlay .gears-modal {
+    display: none !important;
+    background: #fff !important;
+    border-radius: 8px !important;
+    box-shadow: 0 4px 32px rgba(0, 0, 0, 0.18) !important;
+    max-width: 600px !important;
+    margin: 0 !important;
+    padding: 20px !important;
+    position: fixed !important;
+    left: 50% !important;
+    top: 50% !important;
+    transform: translate(-50%, -50%) !important;
+    max-height: 80vh !important;
+    overflow-y: auto !important;
     z-index: 100001 !important;
 }
 
@@ -257,6 +313,22 @@
 .gears-modal .form-table {
     width: 100%;
     border-collapse: collapse;
+}
+
+/* Override .team-form-card styling inside modals to prevent conflicts */
+.gears-modal .team-form-card {
+    background: transparent !important;
+    border: none !important;
+    box-shadow: none !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    max-width: none !important;
+}
+
+.gears-modal .team-form-card h2 {
+    margin-top: 0;
+    padding-bottom: 10px;
+    border-bottom: 1px solid #eee;
 }
 
 .gears-modal .form-table th {

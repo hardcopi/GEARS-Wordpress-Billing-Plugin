@@ -82,6 +82,16 @@ class QBO_Dashboard {
             'side',
             'default'
         );
+        
+        // Add some metaboxes to the bottom row (100% width)
+        add_meta_box(
+            'gears_detailed_reports',
+            'Detailed Reports & Analytics',
+            array($this, 'render_detailed_reports_metabox'),
+            $this->screen_id,
+            'bottom',
+            'default'
+        );
     }
     
     /**
@@ -259,6 +269,58 @@ class QBO_Dashboard {
                 END
             ORDER BY count DESC
         ");
+
+        // Get student count by program (FLL/FTC) - active students only
+        $program_student_data = $wpdb->get_results("
+            SELECT 
+                CASE 
+                    WHEN t.program IS NULL OR t.program = '' THEN 'Not Specified'
+                    ELSE t.program
+                END as program,
+                COUNT(s.id) as student_count
+            FROM $teams_table t
+            LEFT JOIN $student_table s ON t.id = s.team_id 
+            WHERE (t.archived = 0 OR t.archived IS NULL)
+                AND (s.grade != 'Alumni' OR s.grade IS NULL)
+                AND s.id IS NOT NULL
+            GROUP BY 
+                CASE 
+                    WHEN t.program IS NULL OR t.program = '' THEN 'Not Specified'
+                    ELSE t.program
+                END
+            ORDER BY student_count DESC
+        ");
+
+        // Get gender breakdown per program (FLL/FTC) - active students only
+        $program_gender_data = $wpdb->get_results("
+            SELECT 
+                CASE 
+                    WHEN t.program IS NULL OR t.program = '' THEN 'Not Specified'
+                    ELSE t.program
+                END as program,
+                CASE 
+                    WHEN TRIM(UPPER(s.sex)) = 'M' OR TRIM(UPPER(s.sex)) = 'MALE' THEN 'Male'
+                    WHEN TRIM(UPPER(s.sex)) = 'F' OR TRIM(UPPER(s.sex)) = 'FEMALE' THEN 'Female'
+                    ELSE 'Not Specified'
+                END as gender,
+                COUNT(s.id) as count
+            FROM $teams_table t
+            LEFT JOIN $student_table s ON t.id = s.team_id 
+            WHERE (t.archived = 0 OR t.archived IS NULL)
+                AND (s.grade != 'Alumni' OR s.grade IS NULL)
+                AND s.id IS NOT NULL
+            GROUP BY 
+                CASE 
+                    WHEN t.program IS NULL OR t.program = '' THEN 'Not Specified'
+                    ELSE t.program
+                END,
+                CASE 
+                    WHEN TRIM(UPPER(s.sex)) = 'M' OR TRIM(UPPER(s.sex)) = 'MALE' THEN 'Male'
+                    WHEN TRIM(UPPER(s.sex)) = 'F' OR TRIM(UPPER(s.sex)) = 'FEMALE' THEN 'Female'
+                    ELSE 'Not Specified'
+                END
+            ORDER BY program, gender
+        ");
         
         // Get team student distribution
         $team_student_data = $wpdb->get_results("
@@ -291,12 +353,29 @@ class QBO_Dashboard {
         
         echo '</div>';
         
+        // New demographic breakdown section
+        echo '<div style="display: grid; grid-template-columns: 1fr 1fr; gap: 20px; margin-bottom: 20px;">';
+        
+        // Program Student Count Chart (FLL vs FTC)
+        echo '<div>';
+        echo '<h4>Students by Program (Active)</h4>';
+        echo '<canvas id="programStudentChart" width="300" height="200"></canvas>';
+        echo '</div>';
+        
+        // Program Gender Breakdown Chart
+        echo '<div>';
+        echo '<h4>Gender Breakdown by Program</h4>';
+        echo '<canvas id="programGenderChart" width="300" height="200"></canvas>';
+        echo '</div>';
+        
+        echo '</div>';
+        
         // Program and Team charts
         echo '<div style="display: grid; grid-template-columns: 1fr 1fr; gap: 20px;">';
         
-        // Program Distribution Chart
+        // Program Distribution Chart (number of teams)
         echo '<div>';
-        echo '<h4>Programs</h4>';
+        echo '<h4>Teams by Program</h4>';
         echo '<canvas id="programChart" width="300" height="200"></canvas>';
         echo '</div>';
         
@@ -374,6 +453,100 @@ class QBO_Dashboard {
         echo 'plugins: {';
         echo 'legend: { position: "bottom", labels: { padding: 10, usePointStyle: true, font: { size: 11 } } },';
         echo 'tooltip: { callbacks: { label: function(context) { return "Grade " + context.label + ": " + context.parsed + " students"; } } }';
+        echo '}';
+        echo '}';
+        echo '});';
+
+        // Program Student Count Chart Data (FLL vs FTC)
+        $program_student_labels = [];
+        $program_student_counts = [];
+        $program_student_colors = ['#007cba', '#00a32a', '#d63638', '#ff8c00'];
+        
+        foreach ($program_student_data as $row) {
+            $program_student_labels[] = $row->program;
+            $program_student_counts[] = $row->student_count;
+        }
+        
+        echo 'var programStudentCtx = document.getElementById("programStudentChart").getContext("2d");';
+        echo 'new Chart(programStudentCtx, {';
+        echo 'type: "doughnut",';
+        echo 'data: {';
+        echo 'labels: ' . json_encode($program_student_labels) . ',';
+        echo 'datasets: [{';
+        echo 'data: ' . json_encode($program_student_counts) . ',';
+        echo 'backgroundColor: ' . json_encode(array_slice($program_student_colors, 0, count($program_student_labels))) . ',';
+        echo 'borderWidth: 2,';
+        echo 'borderColor: "#fff"';
+        echo '}]';
+        echo '},';
+        echo 'options: {';
+        echo 'responsive: true,';
+        echo 'maintainAspectRatio: false,';
+        echo 'plugins: {';
+        echo 'legend: { position: "bottom", labels: { padding: 15, usePointStyle: true } },';
+        echo 'tooltip: { callbacks: { label: function(context) { return context.label + ": " + context.parsed + " students"; } } }';
+        echo '}';
+        echo '}';
+        echo '});';
+
+        // Program Gender Breakdown Chart Data
+        $program_gender_chart_data = [];
+        $unique_programs = [];
+        $unique_genders = [];
+        
+        // Organize data by program and gender
+        foreach ($program_gender_data as $row) {
+            if (!in_array($row->program, $unique_programs)) {
+                $unique_programs[] = $row->program;
+            }
+            if (!in_array($row->gender, $unique_genders)) {
+                $unique_genders[] = $row->gender;
+            }
+            $program_gender_chart_data[$row->program][$row->gender] = $row->count;
+        }
+        
+        // Prepare datasets for stacked bar chart
+        $gender_datasets = [];
+        $gender_chart_colors = ['#36A2EB', '#FF6384', '#FFCE56'];
+        
+        foreach ($unique_genders as $index => $gender) {
+            $data = [];
+            foreach ($unique_programs as $program) {
+                $data[] = isset($program_gender_chart_data[$program][$gender]) ? $program_gender_chart_data[$program][$gender] : 0;
+            }
+            $gender_datasets[] = [
+                'label' => $gender,
+                'data' => $data,
+                'backgroundColor' => $gender_chart_colors[$index % count($gender_chart_colors)],
+                'borderColor' => $gender_chart_colors[$index % count($gender_chart_colors)],
+                'borderWidth' => 1
+            ];
+        }
+        
+        echo 'var programGenderCtx = document.getElementById("programGenderChart").getContext("2d");';
+        echo 'new Chart(programGenderCtx, {';
+        echo 'type: "bar",';
+        echo 'data: {';
+        echo 'labels: ' . json_encode($unique_programs) . ',';
+        echo 'datasets: ' . json_encode($gender_datasets) . '';
+        echo '},';
+        echo 'options: {';
+        echo 'responsive: true,';
+        echo 'maintainAspectRatio: false,';
+        echo 'scales: {';
+        echo 'x: { stacked: true },';
+        echo 'y: { stacked: true, beginAtZero: true, ticks: { stepSize: 1 } }';
+        echo '},';
+        echo 'plugins: {';
+        echo 'legend: { position: "bottom", labels: { padding: 10, usePointStyle: true } },';
+        echo 'tooltip: { ';
+        echo 'mode: "index",';
+        echo 'intersect: false,';
+        echo 'callbacks: { ';
+        echo 'title: function(context) { return context[0].label + " Program"; },';
+        echo 'label: function(context) { return context.dataset.label + ": " + context.parsed.y + " students"; }';
+        echo '}';
+        echo '}';
         echo '}';
         echo '}';
         echo '});';
@@ -573,6 +746,47 @@ class QBO_Dashboard {
     }
     
     /**
+     * Render detailed reports metabox for the bottom row
+     */
+    public function render_detailed_reports_metabox() {
+        echo '<div style="display: grid; grid-template-columns: 1fr 1fr; gap: 20px; margin-bottom: 15px;">';
+        
+        // Student Summary Section
+        echo '<div>';
+        echo '<h4 style="margin-top: 0;">Student Summary</h4>';
+        echo '<p>This section can display more detailed student analytics, trends over time, and comprehensive reports.</p>';
+        echo '<ul>';
+        echo '<li>Student enrollment trends</li>';
+        echo '<li>Team performance metrics</li>';
+        echo '<li>Mentor engagement statistics</li>';
+        echo '<li>Financial summaries</li>';
+        echo '</ul>';
+        echo '</div>';
+        
+        // Reports & Export Section
+        echo '<div>';
+        echo '<h4 style="margin-top: 0;">Export & Reports</h4>';
+        echo '<p>Generate comprehensive reports and export data for further analysis.</p>';
+        echo '<div style="margin-top: 15px;">';
+        echo '<button type="button" class="button button-secondary" style="margin-right: 10px;">Export Student Data</button>';
+        echo '<button type="button" class="button button-secondary" style="margin-right: 10px;">Export Team Data</button>';
+        echo '<button type="button" class="button button-secondary">Generate Full Report</button>';
+        echo '</div>';
+        echo '</div>';
+        
+        echo '</div>';
+        
+        // Full-width chart area
+        echo '<div style="margin-top: 20px; border: 1px solid #ddd; border-radius: 4px; padding: 15px; background: #f9f9f9;">';
+        echo '<h4 style="margin-top: 0;">Extended Analytics Area</h4>';
+        echo '<p style="color: #666;">This area spans the full width and can contain large charts, data tables, or comprehensive analytics dashboards.</p>';
+        echo '<div style="height: 200px; background: white; border: 1px solid #eee; border-radius: 3px; display: flex; align-items: center; justify-content: center; color: #999;">';
+        echo 'Large Chart or Table Placeholder';
+        echo '</div>';
+        echo '</div>';
+    }
+    
+    /**
      * Render the dashboard page
      */
     public function dashboard_page() {
@@ -594,16 +808,28 @@ class QBO_Dashboard {
             <h1>GEARS Billing Dashboard</h1>
             
             <div id="dashboard-widgets-wrap">
-                <div id="dashboard-widgets" class="metabox-holder columns-<?php echo esc_attr($columns); ?>">
-                    <div class="postbox-container" id="postbox-container-1">
-                        <div id="normal-sortables" class="meta-box-sortables ui-sortable">
-                            <?php do_meta_boxes($this->screen_id, 'normal', null); ?>
+                <div id="dashboard-widgets" class="metabox-holder gears-three-column-layout">
+                    <!-- First Row: Two 50% width columns -->
+                    <div class="gears-row gears-row-1">
+                        <div class="postbox-container gears-col-50" id="postbox-container-1">
+                            <div id="normal-sortables" class="meta-box-sortables ui-sortable">
+                                <?php do_meta_boxes($this->screen_id, 'normal', null); ?>
+                            </div>
+                        </div>
+                        
+                        <div class="postbox-container gears-col-50" id="postbox-container-2">
+                            <div id="side-sortables" class="meta-box-sortables ui-sortable">
+                                <?php do_meta_boxes($this->screen_id, 'side', null); ?>
+                            </div>
                         </div>
                     </div>
                     
-                    <div class="postbox-container" id="postbox-container-2">
-                        <div id="side-sortables" class="meta-box-sortables ui-sortable">
-                            <?php do_meta_boxes($this->screen_id, 'side', null); ?>
+                    <!-- Second Row: One 100% width column -->
+                    <div class="gears-row gears-row-2">
+                        <div class="postbox-container gears-col-100" id="postbox-container-3">
+                            <div id="bottom-sortables" class="meta-box-sortables ui-sortable">
+                                <?php do_meta_boxes($this->screen_id, 'bottom', null); ?>
+                            </div>
                         </div>
                     </div>
                 </div>
@@ -618,15 +844,60 @@ class QBO_Dashboard {
         <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
         
         <style>
+        /* GEARS Custom 3-Column Dashboard Layout */
+        .gears-three-column-layout {
+            width: 100%;
+            display: block;
+        }
+        
+        .gears-row {
+            width: 100%;
+            display: flex;
+            flex-wrap: wrap;
+            margin-bottom: 20px;
+            clear: both;
+        }
+        
+        .gears-col-50 {
+            width: 48%;
+            margin-right: 2%;
+            float: left;
+        }
+        
+        .gears-col-50:last-child {
+            margin-right: 0;
+        }
+        
+        .gears-col-100 {
+            width: 100%;
+            float: none;
+            clear: both;
+        }
+        
+        /* Responsive design for smaller screens */
+        @media (max-width: 768px) {
+            .gears-col-50 {
+                width: 100%;
+                margin-right: 0;
+                margin-bottom: 20px;
+            }
+        }
+        
         /* WordPress Metabox Styling */
         .metabox-holder .postbox-container .meta-box-sortables {
             min-height: 300px;
         }
         
         .postbox-container {
-            float: left;
+            position: relative;
         }
         
+        .gears-three-column-layout .postbox-container {
+            float: none;
+            position: relative;
+        }
+        
+        /* Legacy column styles (keeping for backward compatibility) */
         .columns-1 .postbox-container {
             width: 100%;
         }

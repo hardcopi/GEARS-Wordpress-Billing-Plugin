@@ -3473,7 +3473,37 @@ class QBO_Teams {
                             var $response = $(response);
                             var $successNotice = $response.find('.notice-success');
                             var $errorNotice = $response.find('.notice-error');
-                            if ($successNotice.length > 0) {
+                            var $transferNotice = $response.find('#transfer-confirmation');
+                            
+                            if ($transferNotice.length > 0) {
+                                // Student exists - show transfer confirmation
+                                closeAddStudentModal();
+                                
+                                // Create and show transfer confirmation modal
+                                var transferModal = $('<div id="transfer-confirmation-modal" class="gears-modal-overlay active">' +
+                                    '<div class="gears-modal">' +
+                                        '<span class="gears-modal-close">&times;</span>' +
+                                        '<div class="team-form-card">' +
+                                            $transferNotice.html() +
+                                        '</div>' +
+                                    '</div>' +
+                                '</div>');
+                                
+                                $('body').append(transferModal);
+                                
+                                // Handle close button
+                                transferModal.find('.gears-modal-close').click(function() {
+                                    transferModal.remove();
+                                });
+                                
+                                // Handle overlay click
+                                transferModal.click(function(e) {
+                                    if (e.target === this) {
+                                        transferModal.remove();
+                                    }
+                                });
+                                
+                            } else if ($successNotice.length > 0) {
                                 closeAddStudentModal();
                                 alert('Student added successfully!');
                                 // Reload the whole page so the Teams Management table updates
@@ -4005,8 +4035,8 @@ class QBO_Teams {
         <div id="add-mentor-modal-overlay" class="gears-modal-overlay">
             <div class="gears-modal">
                 <span class="gears-modal-close" id="close-add-mentor-modal">&times;</span>
-                <div class="mentor-form-card" style="box-shadow:none; border:none; max-width:100%; margin:0; padding:0;">
-                    <h2 style="border:none; padding-bottom:0; margin-top:0;">Add New Mentor</h2>
+                <div class="team-form-card">
+                    <h2>Add New Mentor</h2>
                     <form method="post" id="add-mentor-form">
                         <?php wp_nonce_field('add_mentor_action', 'mentor_nonce'); ?>
                         <input type="hidden" name="add_mentor" value="1" />
@@ -4050,8 +4080,8 @@ class QBO_Teams {
         <div id="edit-mentor-modal-overlay" class="gears-modal-overlay">
             <div class="gears-modal">
                 <span class="gears-modal-close" id="close-edit-mentor-modal">&times;</span>
-                <div class="mentor-form-card" style="box-shadow:none; border:none; max-width:100%; margin:0; padding:0;">
-                    <h2 style="border:none; padding-bottom:0; margin-top:0;">Edit Mentor</h2>
+                <div class="team-form-card">
+                    <h2>Edit Mentor</h2>
                     <form method="post" id="edit-mentor-form">
                         <?php wp_nonce_field('edit_mentor_action', 'edit_mentor_nonce'); ?>
                         <input type="hidden" name="edit_mentor" value="1" />
@@ -4096,8 +4126,8 @@ class QBO_Teams {
         <div id="add-student-modal-overlay" class="gears-modal-overlay">
             <div class="gears-modal">
                 <span class="gears-modal-close" id="close-add-student-modal">&times;</span>
-                <div class="team-form-card" style="box-shadow:none; border:none; max-width:100%; margin:0; padding:0;">
-                    <h2 style="border:none; padding-bottom:0; margin-top:0;">Add New Student</h2>
+                <div class="team-form-card">
+                    <h2>Add New Student</h2>
                     <form method="post" id="add-student-form">
                         <?php wp_nonce_field('add_student_action', 'student_nonce'); ?>
                         <input type="hidden" name="add_student" value="1" />
@@ -4190,8 +4220,8 @@ class QBO_Teams {
         <div id="edit-student-modal-overlay" class="gears-modal-overlay">
             <div class="gears-modal">
                 <span class="gears-modal-close" id="close-edit-student-modal">&times;</span>
-                <div class="team-form-card" style="box-shadow:none; border:none; max-width:100%; margin:0; padding:0;">
-                    <h2 style="border:none; padding-bottom:0; margin-top:0;">Edit Student</h2>
+                <div class="team-form-card">
+                    <h2>Edit Student</h2>
                     <form method="post" id="edit-student-form">
                         <?php wp_nonce_field('edit_student_action', 'edit_student_nonce'); ?>
                         <input type="hidden" name="edit_student" value="1" />
@@ -4371,6 +4401,7 @@ class QBO_Teams {
         global $wpdb;
         
         $table_students = $wpdb->prefix . 'gears_students';
+        $table_teams = $wpdb->prefix . 'gears_teams';
         
         $team_id = intval($_POST['team_id']);
         $first_name = sanitize_text_field($_POST['first_name']);
@@ -4380,29 +4411,92 @@ class QBO_Teams {
         $customer_id = sanitize_text_field($_POST['customer_id']);
         $tshirt_size = isset($_POST['tshirt_size']) ? sanitize_text_field($_POST['tshirt_size']) : '';
         $sex = isset($_POST['sex']) ? sanitize_text_field($_POST['sex']) : '';
-
-        // ...debug output removed...
+        $force_transfer = isset($_POST['force_transfer']) ? intval($_POST['force_transfer']) : 0;
 
         if (!empty($first_name) && !empty($last_name)) {
-            $result = $wpdb->insert(
-                $table_students,
-                array(
-                    'team_id' => $team_id > 0 ? $team_id : null,
-                    'first_name' => $first_name,
-                    'last_name' => $last_name,
-                    'grade' => $grade,
-                    'first_year_first' => $first_year_first,
-                    'customer_id' => !empty($customer_id) ? $customer_id : null,
-                    'tshirt_size' => $tshirt_size,
-                    'sex' => $sex
-                ),
-                array('%d', '%s', '%s', '%s', '%s', '%s', '%s', '%s')
-            );
+            // Check if a student with the same name already exists
+            $existing_student = $wpdb->get_row($wpdb->prepare(
+                "SELECT s.*, t.team_name FROM $table_students s 
+                 LEFT JOIN $table_teams t ON s.team_id = t.id 
+                 WHERE LOWER(TRIM(s.first_name)) = LOWER(TRIM(%s)) 
+                 AND LOWER(TRIM(s.last_name)) = LOWER(TRIM(%s))",
+                $first_name, $last_name
+            ));
             
-            if ($result === false) {
-                echo '<div class="notice notice-error"><p>Error adding student.</p></div>';
+            if ($existing_student && !$force_transfer) {
+                // Student exists - ask for confirmation to transfer
+                $current_team_name = $existing_student->team_name ? $existing_student->team_name : 'No Team';
+                $target_team_name = $wpdb->get_var($wpdb->prepare(
+                    "SELECT team_name FROM $table_teams WHERE id = %d", $team_id
+                ));
+                
+                echo '<div class="notice notice-warning" id="transfer-confirmation">
+                    <p><strong>Student Already Exists!</strong></p>
+                    <p>A student named "' . esc_html($first_name . ' ' . $last_name) . '" already exists.</p>
+                    <p><strong>Current Team:</strong> ' . esc_html($current_team_name) . '</p>
+                    <p><strong>Transfer To:</strong> ' . esc_html($target_team_name) . '</p>
+                    <p>Do you want to transfer this student to the current team?</p>
+                    <form method="post" style="margin-top: 10px;">
+                        ' . wp_nonce_field('add_student_action', 'student_nonce', true, false) . '
+                        <input type="hidden" name="add_student" value="1" />
+                        <input type="hidden" name="team_id" value="' . intval($team_id) . '" />
+                        <input type="hidden" name="first_name" value="' . esc_attr($first_name) . '" />
+                        <input type="hidden" name="last_name" value="' . esc_attr($last_name) . '" />
+                        <input type="hidden" name="grade" value="' . esc_attr($grade) . '" />
+                        <input type="hidden" name="first_year_first" value="' . esc_attr($first_year_first) . '" />
+                        <input type="hidden" name="customer_id" value="' . esc_attr($customer_id) . '" />
+                        <input type="hidden" name="tshirt_size" value="' . esc_attr($tshirt_size) . '" />
+                        <input type="hidden" name="sex" value="' . esc_attr($sex) . '" />
+                        <input type="hidden" name="force_transfer" value="1" />
+                        <button type="submit" class="button button-primary">Yes, Transfer Student</button>
+                        <button type="button" class="button" onclick="this.parentElement.parentElement.style.display=\'none\'">Cancel</button>
+                    </form>
+                </div>';
+                return;
+            } elseif ($existing_student && $force_transfer) {
+                // Transfer the existing student to the new team
+                $result = $wpdb->update(
+                    $table_students,
+                    array(
+                        'team_id' => $team_id > 0 ? $team_id : null,
+                        'grade' => $grade,
+                        'first_year_first' => $first_year_first,
+                        'customer_id' => !empty($customer_id) ? $customer_id : null,
+                        'tshirt_size' => $tshirt_size,
+                        'sex' => $sex
+                    ),
+                    array('id' => $existing_student->id),
+                    array('%d', '%s', '%s', '%s', '%s', '%s'),
+                    array('%d')
+                );
+                
+                if ($result === false) {
+                    echo '<div class="notice notice-error"><p>Error transferring student.</p></div>';
+                } else {
+                    echo '<div class="notice notice-success"><p>Student transferred successfully!</p></div>';
+                }
             } else {
-                echo '<div class="notice notice-success"><p>Student added successfully!</p></div>';
+                // No existing student, create new one
+                $result = $wpdb->insert(
+                    $table_students,
+                    array(
+                        'team_id' => $team_id > 0 ? $team_id : null,
+                        'first_name' => $first_name,
+                        'last_name' => $last_name,
+                        'grade' => $grade,
+                        'first_year_first' => $first_year_first,
+                        'customer_id' => !empty($customer_id) ? $customer_id : null,
+                        'tshirt_size' => $tshirt_size,
+                        'sex' => $sex
+                    ),
+                    array('%d', '%s', '%s', '%s', '%s', '%s', '%s', '%s')
+                );
+                
+                if ($result === false) {
+                    echo '<div class="notice notice-error"><p>Error adding student.</p></div>';
+                } else {
+                    echo '<div class="notice notice-success"><p>Student added successfully!</p></div>';
+                }
             }
         } else {
             echo '<div class="notice notice-error"><p>First name and last name are required.</p></div>';
