@@ -16,6 +16,12 @@
     z-index: 1 !important;
 }
 
+#wpbody-content #dashboard-widgets .postbox-container {
+    width: 47.5%;
+}
+
+.inside { width: 90%;}
+
 .gears-modal-overlay.active {
     display: block !important;
 }
