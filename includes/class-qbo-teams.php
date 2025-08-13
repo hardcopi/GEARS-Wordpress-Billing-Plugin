@@ -889,7 +889,7 @@ class QBO_Teams {
                             
                             if ($balance <= 0) {
                                 $paid_count++;
-                            } elseif (isset($invoice['DueDate']) && strtotime($invoice['DueDate']) < time()) {
+                            } elseif (isset($invoice['DueDate']) && strtotime($invoice['DueDate']) < (time() - (30 * 24 * 60 * 60))) {
                                 $overdue_count++;
                             }
                         }
@@ -922,7 +922,7 @@ class QBO_Teams {
                                 if ($balance <= 0) {
                                     $status = 'Paid';
                                     $status_class = 'status-paid';
-                                } elseif (isset($invoice['DueDate']) && strtotime($invoice['DueDate']) < time()) {
+                                } elseif (isset($invoice['DueDate']) && strtotime($invoice['DueDate']) < (time() - (30 * 24 * 60 * 60))) {
                                     $status = 'Overdue';
                                     $status_class = 'status-overdue';
                                 } else {

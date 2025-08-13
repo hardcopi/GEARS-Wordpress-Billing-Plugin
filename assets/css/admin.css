@@ -48,6 +48,51 @@
     filter: none;
 }
 
+/* Balance column styling for teams list */
+.wp-list-table .balance-display {
+    font-weight: 600;
+    font-size: 14px;
+    padding: 4px 8px;
+    border-radius: 4px;
+    display: inline-block;
+    min-width: 70px;
+    text-align: center;
+}
+
+.wp-list-table .balance-positive {
+    color: #00a32a;
+    background-color: rgba(0, 163, 42, 0.1);
+    border: 1px solid rgba(0, 163, 42, 0.2);
+}
+
+.wp-list-table .balance-negative {
+    color: #d63638;
+    background-color: rgba(214, 54, 56, 0.1);
+    border: 1px solid rgba(214, 54, 56, 0.2);
+    font-weight: 700;
+}
+
+.wp-list-table .balance-low {
+    color: #dba617;
+    background-color: rgba(219, 166, 23, 0.1);
+    border: 1px solid rgba(219, 166, 23, 0.2);
+}
+
+.wp-list-table .balance-error {
+    color: #646970;
+    background-color: rgba(100, 105, 112, 0.1);
+    border: 1px solid rgba(100, 105, 112, 0.2);
+    font-style: italic;
+}
+
+.wp-list-table .balance-no-account {
+    color: #50575e;
+    background-color: #f6f7f7;
+    border: 1px solid #c3c4c7;
+    font-style: italic;
+    font-size: 12px;
+}
+
 .program-badge {
     display: inline-block;
     padding: 12px 24px;

@@ -157,8 +157,7 @@ class QBO_Students_List_Table extends WP_List_Table {
                     return 'No Parent Linked';
                 }
             case 'balance':
-                // For now, return 0 - this would require QuickBooks integration
-                return '$0.00'; // TODO: Implement balance calculation
+                return $this->get_student_balance_display($item);
             case 'status':
                 // Check for recurring invoices to determine status
                 $status = 'Inactive';
@@ -370,5 +369,94 @@ class QBO_Students_List_Table extends WP_List_Table {
             ?>
         </form>
         <?php
+    }
+    
+    /**
+     * Get student balance display based on customer balance
+     */
+    private function get_student_balance_display($item) {
+        if (empty($item->customer_id)) {
+            return '<span class="balance-display balance-no-account">No Customer ID</span>';
+        }
+        
+        if (!$this->core) {
+            return '<span class="balance-display balance-error">Error: Core not available</span>';
+        }
+        
+        // Get customer balance from QuickBooks
+        $balance = $this->get_customer_balance($item->customer_id);
+        
+        if ($balance === false) {
+            return '<span class="balance-display balance-error">Error retrieving balance</span>';
+        }
+        
+        if ($balance === null) {
+            return '<span class="balance-display balance-error">Unknown</span>';
+        }
+        
+        // Format balance with appropriate styling
+        $formatted_balance = '$' . number_format($balance, 2);
+        
+        if ($balance < 0) {
+            return '<span class="balance-display balance-negative">' . $formatted_balance . '</span>';
+        } elseif ($balance < 100) {
+            return '<span class="balance-display balance-low">' . $formatted_balance . '</span>';
+        } else {
+            return '<span class="balance-display balance-positive">' . $formatted_balance . '</span>';
+        }
+    }
+    
+    /**
+     * Get customer balance from QuickBooks
+     */
+    private function get_customer_balance($customer_id) {
+        if (!$this->core) {
+            return false;
+        }
+        
+        // Use cached balance if available (cached for 30 minutes)
+        $cache_key = 'qbo_customer_balance_' . $customer_id;
+        $cached_balance = get_transient($cache_key);
+        if ($cached_balance !== false) {
+            return $cached_balance;
+        }
+        
+        // Get QBO credentials
+        $options = get_option('qbo_recurring_billing_options');
+        if (!isset($options['access_token']) || !isset($options['realm_id'])) {
+            return false;
+        }
+        
+        $access_token = $options['access_token'];
+        $realm_id = $options['realm_id'];
+        
+        // Make API request to get customer info
+        $url = 'https://quickbooks.api.intuit.com/v3/company/' . $realm_id . '/customer/' . urlencode($customer_id);
+        $args = array(
+            'headers' => array(
+                'Authorization' => 'Bearer ' . $access_token,
+                'Accept' => 'application/json',
+            ),
+            'timeout' => 30,
+        );
+        
+        $response = wp_remote_get($url, $args);
+        if (is_wp_error($response)) {
+            return false;
+        }
+        
+        $body = wp_remote_retrieve_body($response);
+        $data = json_decode($body, true);
+        
+        if (!$data || !isset($data['Customer']['Balance'])) {
+            return null;
+        }
+        
+        $balance = (float) $data['Customer']['Balance'];
+        
+        // Cache the balance for 30 minutes
+        set_transient($cache_key, $balance, 30 * MINUTE_IN_SECONDS);
+        
+        return $balance;
     }
 }

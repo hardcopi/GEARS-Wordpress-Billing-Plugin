@@ -26,6 +26,7 @@ class QBO_Teams_List_Table extends WP_List_Table {
             'program'      => 'Program',
             'mentor_count' => 'Mentors',
             'student_count'=> 'Students',
+            'balance'      => 'Account Balance',
             'hall_of_fame' => 'Hall of Fame',
             'actions'      => 'Actions',
         ];
@@ -162,6 +163,8 @@ class QBO_Teams_List_Table extends WP_List_Table {
                 } else {
                     return $student_count;
                 }
+            case 'balance':
+                return $this->get_account_balance_display($item);
             case 'hall_of_fame':
                 return !empty($item->hall_of_fame) ? '<span class="dashicons dashicons-yes-alt" style="color: #00a32a;" title="Hall of Fame Team"></span>' : '';
             case 'actions':
@@ -191,6 +194,7 @@ class QBO_Teams_List_Table extends WP_List_Table {
             'program'       => ['program', false],
             'mentor_count'  => ['mentor_count', false],
             'student_count' => ['student_count', false],
+            'balance'       => ['balance', false],
             'hall_of_fame'  => ['hall_of_fame', false],
         ];
     }
@@ -225,6 +229,95 @@ class QBO_Teams_List_Table extends WP_List_Table {
             default:
                 return esc_html($program);
         }
+    }
+    
+    /**
+     * Get account balance display for a team
+     */
+    private function get_account_balance_display($item) {
+        if (empty($item->bank_account_id)) {
+            return '<span style="color: #666; font-style: italic;">No Bank Account</span>';
+        }
+        
+        if (!$this->core) {
+            return '<span style="color: #d63638;">Error: Core not available</span>';
+        }
+        
+        // Get account balance from QuickBooks
+        $balance = $this->get_qbo_account_balance($item->bank_account_id);
+        
+        if ($balance === false) {
+            return '<span style="color: #d63638;">Error retrieving balance</span>';
+        }
+        
+        if ($balance === null) {
+            return '<span style="color: #666;">Unknown</span>';
+        }
+        
+        // Format balance with appropriate styling
+        $formatted_balance = '$' . number_format($balance, 2);
+        
+        if ($balance < 0) {
+            return '<span style="color: #d63638; font-weight: bold;">' . $formatted_balance . '</span>';
+        } elseif ($balance < 100) {
+            return '<span style="color: #ff8c00; font-weight: bold;">' . $formatted_balance . '</span>';
+        } else {
+            return '<span style="color: #00a32a; font-weight: bold;">' . $formatted_balance . '</span>';
+        }
+    }
+    
+    /**
+     * Get QuickBooks account balance
+     */
+    private function get_qbo_account_balance($account_id) {
+        if (!$this->core) {
+            return false;
+        }
+        
+        // Use cached balance if available (cached for 30 minutes)
+        $cache_key = 'qbo_account_balance_' . $account_id;
+        $cached_balance = get_transient($cache_key);
+        if ($cached_balance !== false) {
+            return $cached_balance;
+        }
+        
+        // Get QBO credentials
+        $options = get_option('qbo_recurring_billing_options');
+        if (!isset($options['access_token']) || !isset($options['realm_id'])) {
+            return false;
+        }
+        
+        $access_token = $options['access_token'];
+        $realm_id = $options['realm_id'];
+        
+        // Make API request to get account info
+        $url = 'https://quickbooks.api.intuit.com/v3/company/' . $realm_id . '/account/' . urlencode($account_id);
+        $args = array(
+            'headers' => array(
+                'Authorization' => 'Bearer ' . $access_token,
+                'Accept' => 'application/json',
+            ),
+            'timeout' => 30,
+        );
+        
+        $response = wp_remote_get($url, $args);
+        if (is_wp_error($response)) {
+            return false;
+        }
+        
+        $body = wp_remote_retrieve_body($response);
+        $data = json_decode($body, true);
+        
+        if (!$data || !isset($data['Account']['CurrentBalance'])) {
+            return null;
+        }
+        
+        $balance = (float) $data['Account']['CurrentBalance'];
+        
+        // Cache the balance for 30 minutes
+        set_transient($cache_key, $balance, 30 * MINUTE_IN_SECONDS);
+        
+        return $balance;
     }
     
     /**
