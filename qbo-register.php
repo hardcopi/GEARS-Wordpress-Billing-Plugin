@@ -801,7 +801,7 @@ if (function_exists('wp_head')) {
 </div>
 <div class="row mb-4">
   <div class="col-md-6 mx-auto">
-    <div class="card shadow-lg border-0 animate__animated animate__fadeInDown">
+    <div class="card shadow-lg border-0 animate__animated animate__fadeInDown" style="min-height: 150px;">
       <div class="card-body text-center">
         <h3 class="card-title mb-2"><?php echo htmlentities($account_name); ?> 
           <?php if ($has_bank_account): ?>
@@ -833,11 +833,25 @@ if (function_exists('wp_head')) {
       </div>
     </div>
   </div>
+  <div class="col-md-6 mx-auto">
+    <div class="card shadow-lg border-0 animate__animated animate__fadeInDown" style="min-height: 150px;">
+      <div class="card-body text-center">
+        If you have billing questions or website questions or comments<br>
+        please email: <a href="mailto:gearsosceola@gmail.com">gearsosceola@gmail.com</a><br>
+        <br>
+        If you have GEARS program-related questions,<br>
+        please contact <a href="mailto:scott@gears.org.in">scott@gears.org.in</a>
+      </div>
+    </div>
+  </div>
 </div>
 
 <ul class="nav nav-tabs mb-3" id="registerTabs" role="tablist">
   <li class="nav-item" role="presentation">
     <button class="nav-link active" id="team-info-tab" data-bs-toggle="tab" data-bs-target="#team-info" type="button" role="tab" aria-controls="team-info" aria-selected="true">Team Info</button>
+  </li>
+  <li class="nav-item" role="presentation">
+    <button class="nav-link" id="communication-tab" data-bs-toggle="tab" data-bs-target="#communication" type="button" role="tab" aria-controls="communication" aria-selected="false">Communication</button>
   </li>
   <li class="nav-item" role="presentation">
     <button class="nav-link" id="register-tab" data-bs-toggle="tab" data-bs-target="#register" type="button" role="tab" aria-controls="register" aria-selected="false">Bank Register</button>
@@ -853,9 +867,6 @@ if (function_exists('wp_head')) {
   </li>
   <li class="nav-item" role="presentation">
     <button class="nav-link" id="useful-links-tab" data-bs-toggle="tab" data-bs-target="#useful-links" type="button" role="tab" aria-controls="useful-links" aria-selected="false">Useful Links</button>
-  </li>
-  <li class="nav-item" role="presentation">
-    <button class="nav-link" id="communication-tab" data-bs-toggle="tab" data-bs-target="#communication" type="button" role="tab" aria-controls="communication" aria-selected="false">Communication</button>
   </li>
 </ul>
 <div class="tab-content" id="registerTabsContent">
