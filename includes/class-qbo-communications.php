@@ -225,9 +225,9 @@ class QBO_Communications {
                 // Validate form
                 var mentorId = $('#mentor-select').val();
                 var subject = $('#email-subject').val().trim();
-                var message = $('#email-message').val().trim();
+                var message = (typeof tinymce !== 'undefined' && tinymce.get('email-message')) ? tinymce.get('email-message').getContent().trim() : $('#email-message').val().trim();
                 
-                if (!mentorId || !subject || !message) {
+                if (!mentorId || !subject || !message || message === '' || message === '<p></p>') {
                     alert('Please fill in all required fields.');
                     return;
                 }
@@ -356,6 +356,9 @@ class QBO_Communications {
         $subject = sanitize_text_field($_POST['subject']);
         $message = wp_kses_post($_POST['message']);
         $send_copy = isset($_POST['send_copy']) && $_POST['send_copy'] === 'true';
+
+        // Process images in the message - convert base64 to uploaded files
+        $message = $this->process_message_images($message);
 
         global $wpdb;
         $table_mentors = $wpdb->prefix . 'gears_mentors';
@@ -586,5 +589,72 @@ class QBO_Communications {
         $email_content .= '</body></html>';
 
         return $email_content;
+    }
+
+    /**
+     * Process base64 images in message content and upload them to WordPress media library
+     */
+    private function process_message_images($message) {
+        // Find all base64 images in the message
+        $pattern = '/<img[^>]+src="data:image\/([^;]+);base64,([^"]+)"[^>]*>/i';
+        
+        return preg_replace_callback($pattern, function($matches) {
+            $image_type = $matches[1]; // jpg, png, gif, etc.
+            $image_data = $matches[2]; // base64 data
+            
+            // Validate image type
+            $allowed_types = array('jpeg', 'jpg', 'png', 'gif', 'webp');
+            if (!in_array(strtolower($image_type), $allowed_types)) {
+                return $matches[0]; // Return original if not allowed type
+            }
+            
+            // Decode base64 data
+            $image_content = base64_decode($image_data);
+            if ($image_content === false) {
+                return $matches[0]; // Return original if decode fails
+            }
+            
+            // Create a temporary file
+            $upload_dir = wp_upload_dir();
+            $filename = 'email_image_' . uniqid() . '.' . $image_type;
+            $filepath = $upload_dir['path'] . '/' . $filename;
+            
+            // Save the file
+            if (file_put_contents($filepath, $image_content) === false) {
+                return $matches[0]; // Return original if save fails
+            }
+            
+            // Create attachment
+            $filetype = wp_check_filetype($filename, null);
+            $attachment = array(
+                'guid' => $upload_dir['url'] . '/' . basename($filename),
+                'post_mime_type' => $filetype['type'],
+                'post_title' => sanitize_file_name($filename),
+                'post_content' => '',
+                'post_status' => 'inherit'
+            );
+            
+            // Insert the attachment
+            $attach_id = wp_insert_attachment($attachment, $filepath);
+            
+            if (is_wp_error($attach_id)) {
+                unlink($filepath); // Clean up file if attachment creation fails
+                return $matches[0]; // Return original
+            }
+            
+            // Generate attachment metadata
+            require_once(ABSPATH . 'wp-admin/includes/image.php');
+            $attach_data = wp_generate_attachment_metadata($attach_id, $filepath);
+            wp_update_attachment_metadata($attach_id, $attach_data);
+            
+            // Get the URL of the uploaded image
+            $image_url = wp_get_attachment_url($attach_id);
+            
+            // Replace the base64 src with the uploaded image URL
+            $img_tag = $matches[0];
+            $img_tag = preg_replace('/src="data:image\/[^;]+;base64,[^"]+"/', 'src="' . $image_url . '"', $img_tag);
+            
+            return $img_tag;
+        }, $message);
     }
 }

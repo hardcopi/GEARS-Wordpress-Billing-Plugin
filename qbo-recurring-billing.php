@@ -100,6 +100,10 @@ class QBORecurringBilling {
         add_action('wp_ajax_send_mentor_email', 'qbo_handle_mentor_email');
         add_action('wp_ajax_nopriv_send_mentor_email', 'qbo_handle_mentor_email');
         
+        // File upload for email attachments
+        add_action('wp_ajax_upload_email_attachment', 'qbo_handle_email_attachment_upload');
+        add_action('wp_ajax_nopriv_upload_email_attachment', 'qbo_handle_email_attachment_upload');
+        
         // Add media uploader restrictions for email attachments
         add_filter('ajax_query_attachments_args', array($this, 'restrict_media_library_for_emails'), 10, 1);
         // Create database tables on activation
@@ -667,7 +671,7 @@ class QBORecurringBilling {
  */
 function qbo_handle_mentor_email() {
     // Add debugging
-    error_log('QBO Email Debug: Function called');
+    error_log('QBO Email Debug: Function called with UPDATED CODE v2');
     error_log('QBO Email Debug: POST data - ' . print_r($_POST, true));
     
     // Verify nonce
@@ -690,9 +694,29 @@ function qbo_handle_mentor_email() {
         wp_send_json(['success' => false, 'message' => 'Subject is required.']);
     }
     
-    if (empty($message)) {
+    // Enhanced message validation for rich text editors
+    error_log('QBO Email Debug: Raw message: ' . substr($message, 0, 200) . '...');
+    error_log('QBO Email Debug: Message length: ' . strlen($message));
+    
+    // Simple validation - just check if message has any meaningful content
+    $stripped_message = strip_tags($message);
+    $trimmed_stripped = trim($stripped_message);
+    
+    // Allow messages with images (uploaded files, not base64)
+    $has_images = (strpos($message, '<img') !== false);
+    
+    error_log('QBO Email Debug: Stripped text length: ' . strlen($trimmed_stripped));
+    error_log('QBO Email Debug: Has images: ' . ($has_images ? 'yes' : 'no'));
+    
+    // Message is valid if it has text content OR images
+    if (strlen($trimmed_stripped) === 0 && !$has_images) {
+        error_log('QBO Email Debug: Validation FAILED - no text and no images');
         wp_send_json(['success' => false, 'message' => 'Message is required.']);
     }
+    
+    error_log('QBO Email Debug: Validation PASSED - message is valid');
+    
+    // Note: No need to process base64 images anymore - using proper file uploads
     
     if (empty($mentor_emails) || !is_array($mentor_emails)) {
         wp_send_json(['success' => false, 'message' => 'Please select at least one recipient.']);
@@ -793,6 +817,204 @@ function qbo_handle_mentor_email() {
         echo json_encode($response);
         exit;
     }
+}
+
+/**
+ * Process base64 images in message content and upload them to WordPress media library
+ */
+function qbo_process_message_images($message) {
+    error_log('QBO Image Debug: Starting image processing');
+    error_log('QBO Image Debug: Message contains ' . substr_count($message, 'data:image/') . ' base64 images');
+    
+    // Find all base64 images in the message
+    $pattern = '/<img[^>]+src="data:image\/([^;]+);base64,([^"]+)"[^>]*>/i';
+    
+    return preg_replace_callback($pattern, function($matches) {
+        error_log('QBO Image Debug: Processing image of type: ' . $matches[1]);
+        
+        $image_type = $matches[1]; // jpg, png, gif, etc.
+        $image_data = $matches[2]; // base64 data
+        
+        // Validate image type
+        $allowed_types = array('jpeg', 'jpg', 'png', 'gif', 'webp');
+        if (!in_array(strtolower($image_type), $allowed_types)) {
+            error_log('QBO Image Debug: Invalid image type: ' . $image_type);
+            return $matches[0]; // Return original if not allowed type
+        }
+        
+        // Decode base64 data
+        $image_content = base64_decode($image_data);
+        if ($image_content === false) {
+            error_log('QBO Image Debug: Failed to decode base64 data');
+            return $matches[0]; // Return original if decode fails
+        }
+        
+        error_log('QBO Image Debug: Successfully decoded image, size: ' . strlen($image_content) . ' bytes');
+        
+        // Create a temporary file
+        $upload_dir = wp_upload_dir();
+        $filename = 'email_image_' . uniqid() . '.' . $image_type;
+        $filepath = $upload_dir['path'] . '/' . $filename;
+        
+        error_log('QBO Image Debug: Saving to: ' . $filepath);
+        
+        // Save the file
+        if (file_put_contents($filepath, $image_content) === false) {
+            error_log('QBO Image Debug: Failed to save file');
+            return $matches[0]; // Return original if save fails
+        }
+        
+        error_log('QBO Image Debug: File saved successfully');
+        
+        // Create attachment
+        $filetype = wp_check_filetype($filename, null);
+        $attachment = array(
+            'guid' => $upload_dir['url'] . '/' . basename($filename),
+            'post_mime_type' => $filetype['type'],
+            'post_title' => sanitize_file_name($filename),
+            'post_content' => '',
+            'post_status' => 'inherit'
+        );
+        
+        // Insert the attachment
+        $attach_id = wp_insert_attachment($attachment, $filepath);
+        
+        if (is_wp_error($attach_id)) {
+            error_log('QBO Image Debug: Failed to create attachment: ' . $attach_id->get_error_message());
+            unlink($filepath); // Clean up file if attachment creation fails
+            return $matches[0]; // Return original
+        }
+        
+        error_log('QBO Image Debug: Attachment created with ID: ' . $attach_id);
+        
+        // Generate attachment metadata
+        require_once(ABSPATH . 'wp-admin/includes/image.php');
+        $attach_data = wp_generate_attachment_metadata($attach_id, $filepath);
+        wp_update_attachment_metadata($attach_id, $attach_data);
+        
+        // Get the URL of the uploaded image
+        $image_url = wp_get_attachment_url($attach_id);
+        
+        error_log('QBO Image Debug: Image URL: ' . $image_url);
+        
+        // Replace the base64 src with the uploaded image URL
+        $img_tag = $matches[0];
+        $img_tag = preg_replace('/src="data:image\/[^;]+;base64,[^"]+"/', 'src="' . $image_url . '"', $img_tag);
+        
+        error_log('QBO Image Debug: Replaced image tag');
+        return $img_tag;
+    }, $message);
+}
+
+/**
+ * Handle email attachment upload
+ */
+function qbo_handle_email_attachment_upload() {
+    // Verify nonce
+    if (!isset($_POST['nonce']) || !wp_verify_nonce($_POST['nonce'], 'qbo_send_email')) {
+        wp_send_json(['success' => false, 'message' => 'Security check failed.']);
+    }
+    
+    // Check if file was uploaded
+    if (!isset($_FILES['file']) || $_FILES['file']['error'] !== UPLOAD_ERR_OK) {
+        wp_send_json(['success' => false, 'message' => 'No file uploaded or upload error.']);
+    }
+    
+    $file = $_FILES['file'];
+    
+    // Validate file size (max 10MB)
+    $max_size = 10 * 1024 * 1024; // 10MB
+    if ($file['size'] > $max_size) {
+        wp_send_json(['success' => false, 'message' => 'File size exceeds 10MB limit.']);
+    }
+    
+    // Validate file type
+    $allowed_types = [
+        'image/jpeg', 'image/jpg', 'image/png', 'image/gif', 'image/webp',
+        'video/mp4', 'video/avi', 'video/mov', 'video/quicktime',
+        'application/pdf',
+        'application/msword',
+        'application/vnd.openxmlformats-officedocument.wordprocessingml.document'
+    ];
+    
+    $finfo = finfo_open(FILEINFO_MIME_TYPE);
+    $mime_type = finfo_file($finfo, $file['tmp_name']);
+    finfo_close($finfo);
+    
+    if (!in_array($mime_type, $allowed_types)) {
+        wp_send_json(['success' => false, 'message' => 'File type not allowed.']);
+    }
+    
+    // Use WordPress upload handler
+    require_once(ABSPATH . 'wp-admin/includes/file.php');
+    require_once(ABSPATH . 'wp-admin/includes/media.php');
+    require_once(ABSPATH . 'wp-admin/includes/image.php');
+    
+    // Override upload directory for email attachments
+    add_filter('upload_dir', 'qbo_email_upload_dir');
+    
+    $upload_overrides = [
+        'test_form' => false,
+        'test_size' => true,
+        'test_type' => true
+    ];
+    
+    $movefile = wp_handle_upload($file, $upload_overrides);
+    
+    // Remove the filter
+    remove_filter('upload_dir', 'qbo_email_upload_dir');
+    
+    if ($movefile && !isset($movefile['error'])) {
+        // Create attachment
+        $attachment = [
+            'guid' => $movefile['url'],
+            'post_mime_type' => $mime_type,
+            'post_title' => sanitize_file_name(basename($movefile['file'])),
+            'post_content' => '',
+            'post_status' => 'inherit'
+        ];
+        
+        $attach_id = wp_insert_attachment($attachment, $movefile['file']);
+        
+        if (!is_wp_error($attach_id)) {
+            // Generate attachment metadata
+            $attach_data = wp_generate_attachment_metadata($attach_id, $movefile['file']);
+            wp_update_attachment_metadata($attach_id, $attach_data);
+            
+            wp_send_json([
+                'success' => true,
+                'data' => [
+                    'id' => $attach_id,
+                    'url' => $movefile['url'],
+                    'filename' => basename($movefile['file']),
+                    'type' => $mime_type,
+                    'size' => $file['size']
+                ]
+            ]);
+        } else {
+            wp_send_json(['success' => false, 'message' => 'Failed to create attachment.']);
+        }
+    } else {
+        wp_send_json(['success' => false, 'message' => $movefile['error'] ?? 'Upload failed.']);
+    }
+}
+
+/**
+ * Custom upload directory for email attachments
+ */
+function qbo_email_upload_dir($dir) {
+    $subdir = '/email-attachments/' . date('Y/m');
+    
+    $dir['path'] = $dir['basedir'] . $subdir;
+    $dir['url'] = $dir['baseurl'] . $subdir;
+    $dir['subdir'] = $subdir;
+    
+    // Create directory if it doesn't exist
+    if (!file_exists($dir['path'])) {
+        wp_mkdir_p($dir['path']);
+    }
+    
+    return $dir;
 }
 
 // Initialize the plugin

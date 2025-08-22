@@ -1217,12 +1217,28 @@ if (function_exists('wp_head')) {
               <label for="emailMessage" class="form-label">Message</label>
               <div class="d-flex justify-content-between align-items-center mb-2">
                 <small class="form-text text-muted">You can use HTML formatting in your message.</small>
-                <button type="button" class="btn btn-sm btn-outline-secondary" id="addMediaBtn">
-                  <i class="bi bi-image me-1"></i>Add Media
-                </button>
+                <div>
+                  <button type="button" class="btn btn-sm btn-outline-secondary me-2" id="addMediaBtn">
+                    <i class="bi bi-image me-1"></i>Add Media
+                  </button>
+                  <button type="button" class="btn btn-sm btn-outline-primary" id="uploadFileBtn">
+                    <i class="bi bi-upload me-1"></i>Upload File
+                  </button>
+                </div>
               </div>
               <div id="emailEditor" style="height: 300px;"></div>
               <textarea name="message" id="emailMessage" style="display: none;"></textarea>
+              
+              <!-- Hidden file input for direct file upload -->
+              <input type="file" id="emailFileInput" accept="image/*,video/*,.pdf,.doc,.docx" style="display: none;" multiple>
+              
+              <!-- File upload progress and preview area -->
+              <div id="fileUploadArea" class="mt-2" style="display: none;">
+                <div id="uploadProgress" class="progress mb-2" style="display: none;">
+                  <div class="progress-bar" role="progressbar" style="width: 0%"></div>
+                </div>
+                <div id="uploadedFiles" class="d-flex flex-wrap gap-2"></div>
+              </div>
             </div>
             
             <div class="mb-3">
@@ -1253,6 +1269,10 @@ if (function_exists('wp_head')) {
 </div>
 
 <script>
+// JavaScript variables for AJAX requests
+const adminAjaxUrl = '<?php echo admin_url('admin-ajax.php'); ?>';
+const emailNonce = '<?php echo wp_create_nonce('qbo_send_email'); ?>';
+
 function uploadImage(imageType) {
     const fileInput = document.getElementById(imageType === 'logo' ? 'logo-upload' : 'photo-upload');
     const file = fileInput.files[0];
@@ -1468,6 +1488,8 @@ let quill;
 let mediaUploader;
 
 document.addEventListener('DOMContentLoaded', function() {
+    console.log('DOM Content Loaded - Starting initialization');
+    
     // Initialize rich text editor if communication tab exists
     const editorElement = document.getElementById('emailEditor');
     if (editorElement) {
@@ -1488,6 +1510,7 @@ document.addEventListener('DOMContentLoaded', function() {
                         [{'header': [1, 2, 3, false]}],
                         ['bold', 'italic', 'underline', 'strike'],
                         [{'color': []}, {'background': []}],
+                        [{'align': []}],
                         [{'list': 'ordered'}, {'list': 'bullet'}],
                         ['link', 'image'],
                         ['clean']
@@ -1665,11 +1688,12 @@ function initializeMediaUploader() {
                 if (mediaUploader) {
                     mediaUploader.open();
                 } else {
-                    // Fallback for when WordPress media library isn't available
-                    showEmailStatus('Media library not available. Please upload images through WordPress admin first.', 'warning');
+                    // Fallback: trigger file input
+                    document.getElementById('emailFileInput').click();
                 }
             });
         }
+        
     } else {
         // Hide the add media button if WordPress media library isn't available
         const addMediaBtn = document.getElementById('addMediaBtn');
@@ -1677,9 +1701,195 @@ function initializeMediaUploader() {
             addMediaBtn.style.display = 'none';
         }
     }
+    
+    // Initialize file upload functionality (outside of Quill initialization)
+    const uploadFileBtn = document.getElementById('uploadFileBtn');
+    const emailFileInput = document.getElementById('emailFileInput');
+    
+    console.log('Looking for upload elements:', {
+        uploadFileBtn: uploadFileBtn,
+        uploadFileBtnId: uploadFileBtn ? uploadFileBtn.id : 'NOT FOUND',
+        emailFileInput: emailFileInput,
+        emailFileInputId: emailFileInput ? emailFileInput.id : 'NOT FOUND'
+    });
+    
+    if (uploadFileBtn && emailFileInput) {
+        console.log('Binding event listeners to upload elements');
+        uploadFileBtn.addEventListener('click', function(e) {
+            e.preventDefault();
+            console.log('Upload File button clicked');
+            emailFileInput.click();
+        });
+        
+        // Handle file selection
+        emailFileInput.addEventListener('change', function(e) {
+            const files = e.target.files;
+            console.log('Files selected:', files.length);
+            if (files.length > 0) {
+                handleFileUploads(files);
+            }
+        });
+    } else {
+        console.log('Upload button or file input not found:', {
+            uploadFileBtn: !!uploadFileBtn,
+            emailFileInput: !!emailFileInput
+        });
+    }
 }
 
-// Insert selected media into the Quill editor
+// Handle multiple file uploads for email attachments
+async function handleFileUploads(files) {
+    console.log('handleFileUploads called with', files.length, 'files');
+    
+    const fileUploadArea = document.getElementById('fileUploadArea');
+    const uploadProgress = document.getElementById('uploadProgress');
+    const progressBar = uploadProgress.querySelector('.progress-bar');
+    const uploadedFiles = document.getElementById('uploadedFiles');
+    
+    console.log('Upload elements found:', {
+        fileUploadArea: !!fileUploadArea,
+        uploadProgress: !!uploadProgress,
+        progressBar: !!progressBar,
+        uploadedFiles: !!uploadedFiles
+    });
+    
+    // Show upload area and progress
+    fileUploadArea.style.display = 'block';
+    uploadProgress.style.display = 'block';
+    
+    let totalFiles = files.length;
+    let completedFiles = 0;
+    
+    for (let i = 0; i < files.length; i++) {
+        const file = files[i];
+        
+        // Validate file size (max 10MB)
+        if (file.size > 10 * 1024 * 1024) {
+            showEmailStatus(`File "${file.name}" is too large. Maximum size is 10MB.`, 'error');
+            continue;
+        }
+        
+        // Validate file type
+        const allowedTypes = ['image/jpeg', 'image/jpg', 'image/png', 'image/gif', 'image/webp', 
+                             'video/mp4', 'video/avi', 'video/mov', 'application/pdf', 
+                             'application/msword', 'application/vnd.openxmlformats-officedocument.wordprocessingml.document'];
+        
+        if (!allowedTypes.includes(file.type)) {
+            showEmailStatus(`File type "${file.type}" is not allowed.`, 'error');
+            continue;
+        }
+        
+        try {
+            const uploadedFile = await uploadSingleFile(file);
+            if (uploadedFile.success) {
+                addFileToEditor(uploadedFile.data);
+                addFilePreview(uploadedFile.data);
+            } else {
+                showEmailStatus(`Failed to upload "${file.name}": ${uploadedFile.message}`, 'error');
+            }
+        } catch (error) {
+            showEmailStatus(`Error uploading "${file.name}": ${error.message}`, 'error');
+        }
+        
+        completedFiles++;
+        const progress = (completedFiles / totalFiles) * 100;
+        progressBar.style.width = progress + '%';
+    }
+    
+    // Hide progress bar after completion
+    setTimeout(() => {
+        uploadProgress.style.display = 'none';
+    }, 1000);
+}
+
+// Upload a single file to the server
+function uploadSingleFile(file) {
+    return new Promise((resolve, reject) => {
+        const formData = new FormData();
+        formData.append('action', 'upload_email_attachment');
+        formData.append('file', file);
+        formData.append('nonce', emailNonce);
+        
+        fetch(adminAjaxUrl, {
+            method: 'POST',
+            body: formData
+        })
+        .then(response => response.json())
+        .then(data => resolve(data))
+        .catch(error => reject(error));
+    });
+}
+
+// Add uploaded file to the Quill editor
+function addFileToEditor(fileData) {
+    if (!quill) return;
+    
+    const range = quill.getSelection(true);
+    const index = range ? range.index : quill.getLength();
+    
+    if (fileData.type.startsWith('image/')) {
+        // Insert image
+        quill.insertEmbed(index, 'image', fileData.url);
+        quill.insertText(index + 1, '\n');
+        quill.setSelection(index + 2);
+    } else {
+        // Insert other files as links
+        quill.insertText(index, fileData.filename, 'link', fileData.url);
+        quill.insertText(index + fileData.filename.length, '\n');
+        quill.setSelection(index + fileData.filename.length + 1);
+    }
+}
+
+// Add file preview to the upload area
+function addFilePreview(fileData) {
+    const uploadedFiles = document.getElementById('uploadedFiles');
+    
+    const filePreview = document.createElement('div');
+    filePreview.className = 'border rounded p-2 d-flex align-items-center';
+    filePreview.style.maxWidth = '200px';
+    
+    let iconClass = 'bi-file-earmark';
+    if (fileData.type.startsWith('image/')) {
+        iconClass = 'bi-image';
+    } else if (fileData.type.startsWith('video/')) {
+        iconClass = 'bi-camera-video';
+    } else if (fileData.type === 'application/pdf') {
+        iconClass = 'bi-file-earmark-pdf';
+    } else if (fileData.type.includes('word')) {
+        iconClass = 'bi-file-earmark-word';
+    }
+    
+    filePreview.innerHTML = `
+        <i class="bi ${iconClass} me-2"></i>
+        <div class="flex-grow-1 text-truncate">
+            <small>${fileData.filename}</small><br>
+            <small class="text-muted">${formatFileSize(fileData.size)}</small>
+        </div>
+        <button type="button" class="btn btn-sm btn-outline-danger ms-2" onclick="removeFilePreview(this, '${fileData.url}')">
+            <i class="bi bi-trash"></i>
+        </button>
+    `;
+    
+    uploadedFiles.appendChild(filePreview);
+}
+
+// Remove file preview and from editor
+function removeFilePreview(button, fileUrl) {
+    // Remove from preview area
+    button.closest('.border').remove();
+    
+    // TODO: Remove from editor content if needed
+    // This would require tracking which images/links correspond to which uploads
+}
+
+// Format file size for display
+function formatFileSize(bytes) {
+    if (bytes === 0) return '0 Bytes';
+    const k = 1024;
+    const sizes = ['Bytes', 'KB', 'MB', 'GB'];
+    const i = Math.floor(Math.log(bytes) / Math.log(k));
+    return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
+}
 function insertMediaIntoEditor(attachment) {
     if (!quill) return;
     
