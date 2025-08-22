@@ -24,10 +24,43 @@ add_action('init', function() {
 // Then, go to Settings > Permalinks in WordPress admin and click Save Changes to flush rewrite rules.
 
 // Start PHP session for Google login
-session_start();
+if (!session_id()) {
+    session_start();
+}
 
-// Load WordPress core early for wp_remote_post
-require_once('../../../wp-load.php');
+// Debug: Check if WordPress is already loaded
+error_log('QBO Debug: WordPress functions available: ' . (function_exists('wp_remote_post') ? 'YES' : 'NO'));
+error_log('QBO Debug: ABSPATH defined: ' . (defined('ABSPATH') ? 'YES' : 'NO'));
+
+// WordPress should already be loaded when called through template_redirect
+// Only attempt to load WordPress if functions aren't available and we're being accessed directly
+if (!function_exists('wp_remote_post') && !defined('ABSPATH')) {
+    error_log('QBO Debug: Attempting to load WordPress manually');
+    // Try different paths for direct access
+    $wp_load_paths = [
+        '../../../wp-load.php',      // Standard path from plugin directory
+        '../../../../wp-load.php',   // Some hosting configurations
+    ];
+    
+    foreach ($wp_load_paths as $path) {
+        if (file_exists($path)) {
+            error_log('QBO Debug: Loading WordPress from: ' . $path);
+            require_once($path);
+            break;
+        }
+    }
+    
+    // Final check
+    error_log('QBO Debug: After manual load - WordPress functions available: ' . (function_exists('wp_remote_post') ? 'YES' : 'NO'));
+} else {
+    error_log('QBO Debug: WordPress already available, no manual loading needed');
+}
+
+// Ensure WordPress is fully loaded before proceeding
+if (!function_exists('wp_remote_post') || !function_exists('sanitize_text_field') || !defined('ABSPATH')) {
+    error_log('QBO Debug: WordPress not properly loaded, showing error');
+    die('WordPress environment not available. This page requires WordPress to be loaded.');
+}
 
 // Handle AJAX image upload
 if (isset($_POST['action']) && $_POST['action'] === 'qbo_upload_team_image') {
@@ -123,6 +156,175 @@ if (isset($_POST['action']) && $_POST['action'] === 'qbo_upload_team_image') {
     
     http_response_code(200);
     echo json_encode(['success' => true, 'data' => ['url' => $image_url]]);
+    exit;
+}
+
+// Handle useful links save
+if (isset($_POST['action']) && $_POST['action'] === 'save_useful_link') {
+    header('Content-Type: application/json');
+    
+    // Check if user is logged in via Google
+    if (!isset($_SESSION['google_logged_in']) || $_SESSION['google_logged_in'] !== true) {
+        http_response_code(401);
+        echo json_encode(['success' => false, 'message' => 'Authentication required.']);
+        exit;
+    }
+    
+    // Verify mentor permissions or board member access
+    global $wpdb;
+    $table_mentors = $wpdb->prefix . 'gears_mentors';
+    $table_teams = $wpdb->prefix . 'gears_teams';
+    $google_email = $_SESSION['google_user_email'] ?? '';
+    
+    // Check if user is a board member
+    $is_board_member = in_array($google_email, $board_members);
+    
+    if (!$is_board_member) {
+        // If not a board member, check mentor permissions
+        $mentor = $wpdb->get_row($wpdb->prepare("SELECT * FROM $table_mentors WHERE email = %s", $google_email));
+        
+        if (!$mentor || !$mentor->team_id || $mentor->team_id != intval($_POST['team_id'])) {
+            http_response_code(403);
+            echo json_encode(['success' => false, 'message' => 'Access denied.']);
+            exit;
+        }
+    }
+    
+    // Validate input
+    $program = sanitize_text_field($_POST['program']);
+    $name = sanitize_text_field($_POST['name']);
+    $url = esc_url_raw($_POST['url']);
+    $description = sanitize_textarea_field($_POST['description']);
+    $team_id = intval($_POST['team_id']);
+    $link_index = isset($_POST['link_index']) && $_POST['link_index'] !== '' ? intval($_POST['link_index']) : null;
+    
+    if (!in_array($program, ['FLL', 'FTC']) || empty($name) || empty($url)) {
+        http_response_code(400);
+        echo json_encode(['success' => false, 'message' => 'Invalid input data.']);
+        exit;
+    }
+    
+    // Get current team data
+    $team = $wpdb->get_row($wpdb->prepare("SELECT * FROM $table_teams WHERE id = %d", $team_id));
+    if (!$team) {
+        http_response_code(404);
+        echo json_encode(['success' => false, 'message' => 'Team not found.']);
+        exit;
+    }
+    
+    // Get existing links
+    $existing_links = $team->useful_links ? json_decode($team->useful_links, true) : [];
+    if (!is_array($existing_links)) {
+        $existing_links = [];
+    }
+    
+    // Create new link data
+    $link_data = [
+        'program' => $program,
+        'name' => $name,
+        'url' => $url,
+        'description' => $description
+    ];
+    
+    // Add or update link
+    if ($link_index !== null && isset($existing_links[$link_index])) {
+        // Update existing link
+        $existing_links[$link_index] = $link_data;
+    } else {
+        // Add new link
+        $existing_links[] = $link_data;
+    }
+    
+    // Save to database
+    $result = $wpdb->update(
+        $table_teams,
+        ['useful_links' => json_encode($existing_links)],
+        ['id' => $team_id],
+        ['%s'],
+        ['%d']
+    );
+    
+    if ($result === false) {
+        http_response_code(500);
+        echo json_encode(['success' => false, 'message' => 'Failed to save link.']);
+        exit;
+    }
+    
+    echo json_encode(['success' => true, 'message' => 'Link saved successfully.']);
+    exit;
+}
+
+// Handle useful links delete
+if (isset($_POST['action']) && $_POST['action'] === 'delete_useful_link') {
+    header('Content-Type: application/json');
+    
+    // Check if user is logged in via Google
+    if (!isset($_SESSION['google_logged_in']) || $_SESSION['google_logged_in'] !== true) {
+        http_response_code(401);
+        echo json_encode(['success' => false, 'message' => 'Authentication required.']);
+        exit;
+    }
+    
+    // Verify mentor permissions or board member access
+    global $wpdb;
+    $table_mentors = $wpdb->prefix . 'gears_mentors';
+    $table_teams = $wpdb->prefix . 'gears_teams';
+    $google_email = $_SESSION['google_user_email'] ?? '';
+    
+    // Check if user is a board member
+    $is_board_member = in_array($google_email, $board_members);
+    
+    if (!$is_board_member) {
+        // If not a board member, check mentor permissions
+        $mentor = $wpdb->get_row($wpdb->prepare("SELECT * FROM $table_mentors WHERE email = %s", $google_email));
+        
+        if (!$mentor || !$mentor->team_id || $mentor->team_id != intval($_POST['team_id'])) {
+            http_response_code(403);
+            echo json_encode(['success' => false, 'message' => 'Access denied.']);
+            exit;
+        }
+    }
+    
+    $team_id = intval($_POST['team_id']);
+    $link_index = intval($_POST['link_index']);
+    
+    // Get current team data
+    $team = $wpdb->get_row($wpdb->prepare("SELECT * FROM $table_teams WHERE id = %d", $team_id));
+    if (!$team) {
+        http_response_code(404);
+        echo json_encode(['success' => false, 'message' => 'Team not found.']);
+        exit;
+    }
+    
+    // Get existing links
+    $existing_links = $team->useful_links ? json_decode($team->useful_links, true) : [];
+    if (!is_array($existing_links)) {
+        $existing_links = [];
+    }
+    
+    // Remove the link
+    if (isset($existing_links[$link_index])) {
+        array_splice($existing_links, $link_index, 1);
+        
+        // Save to database
+        $result = $wpdb->update(
+            $table_teams,
+            ['useful_links' => json_encode($existing_links)],
+            ['id' => $team_id],
+            ['%s'],
+            ['%d']
+        );
+        
+        if ($result === false) {
+            http_response_code(500);
+            echo json_encode(['success' => false, 'message' => 'Failed to delete link.']);
+            exit;
+        }
+        
+        echo json_encode(['success' => true, 'message' => 'Link deleted successfully.']);
+    } else {
+        echo json_encode(['success' => false, 'message' => 'Link not found.']);
+    }
     exit;
 }
 
@@ -235,6 +437,23 @@ $account_id = $team->bank_account_id;
 // Check if team has a bank account for financial data
 $has_bank_account = !empty($account_id);
 
+// Handle cache refresh request
+$force_refresh = isset($_GET['refresh']) && $_GET['refresh'] === '1';
+if ($force_refresh) {
+    // Clear cached data for this account
+    delete_transient('qbo_account_data_' . $account_id);
+    delete_transient('qbo_transactions_' . $account_id);
+    delete_transient('qbo_cache_time_' . $account_id);
+    
+    // Redirect to remove the refresh parameter from URL
+    $redirect_url = strtok($_SERVER["REQUEST_URI"], '?');
+    if (isset($_GET['account_id'])) {
+        $redirect_url .= '?account_id=' . urlencode($_GET['account_id']);
+    }
+    header('Location: ' . $redirect_url);
+    exit;
+}
+
 if ($has_bank_account) {
     // Get QBO credentials from plugin options
     $options = get_option('qbo_recurring_billing_options');
@@ -261,8 +480,23 @@ if ($has_bank_account) {
         return json_decode($body, true);
     }
 
-    // Fetch account info
-    $account_data = qbo_api_request('/account/' . urlencode($account_id), $access_token, $realm_id);
+    // Try to get cached account data first (cache for 24 hours)
+    $cache_key_account = 'qbo_account_data_' . $account_id;
+    $account_data = get_transient($cache_key_account);
+    $cache_timestamp_key = 'qbo_cache_time_' . $account_id;
+    $cache_time = get_transient($cache_timestamp_key);
+    
+    if ($account_data === false) {
+        // Cache miss - fetch from QuickBooks API
+        $account_data = qbo_api_request('/account/' . urlencode($account_id), $access_token, $realm_id);
+        if ($account_data && isset($account_data['Account'])) {
+            // Cache for 24 hours (86400 seconds)
+            set_transient($cache_key_account, $account_data, 86400);
+            set_transient($cache_timestamp_key, current_time('mysql'), 86400);
+            $cache_time = current_time('mysql');
+        }
+    }
+    
     if (!$account_data || !isset($account_data['Account'])) {
         echo '<h2>Error: Account not found in QuickBooks.</h2>';
         exit;
@@ -271,11 +505,16 @@ if ($has_bank_account) {
     $account_type = $account_data['Account']['AccountType'];
     $account_balance = isset($account_data['Account']['CurrentBalance']) ? $account_data['Account']['CurrentBalance'] : 0;
 
-    // Fetch transactions (register)
-    $types = array(
-        'Purchase', 'JournalEntry', 'Deposit', 'Transfer', 'BillPayment', 'VendorCredit', 'CreditCardPayment', 'Payment', 'SalesReceipt'
-    );
-    $entries = array();
+    // Try to get cached transactions data first (cache for 24 hours)
+    $cache_key_transactions = 'qbo_transactions_' . $account_id;
+    $entries = get_transient($cache_key_transactions);
+    
+    if ($entries === false) {
+        // Cache miss - fetch transactions from QuickBooks API
+        $types = array(
+            'Purchase', 'JournalEntry', 'Deposit', 'Transfer', 'BillPayment', 'VendorCredit', 'CreditCardPayment', 'Payment', 'SalesReceipt'
+        );
+        $entries = array();
 foreach ($types as $type) {
     $q = "SELECT * FROM $type ORDER BY TxnDate DESC MAXRESULTS 200";
     $endpoint = '/query?query=' . urlencode($q) . '&minorversion=65';
@@ -425,6 +664,10 @@ foreach ($types as $type) {
     }
 }
 
+        // Cache the transactions for 24 hours (86400 seconds)
+        set_transient($cache_key_transactions, $entries, 86400);
+    }
+
 // Sort by date descending
 usort($entries, function($a, $b) {
     return strtotime($b['date']) - strtotime($a['date']);
@@ -458,6 +701,18 @@ $alumni = $wpdb->get_results("SELECT * FROM {$wpdb->prefix}gears_students WHERE 
 <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet" crossorigin="anonymous">
 <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.css" rel="stylesheet">
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js" crossorigin="anonymous"></script>
+
+<?php
+// Load WordPress media scripts for the media uploader
+if (function_exists('wp_enqueue_media')) {
+    wp_enqueue_media();
+}
+// Output any enqueued scripts/styles
+if (function_exists('wp_head')) {
+    wp_head();
+}
+?>
+
 <style>
   .animated-header {
     background: linear-gradient(90deg, #f8f9fa 0%, #e3e6ff 50%, #f8f9fa 100%);
@@ -556,7 +811,22 @@ $alumni = $wpdb->get_results("SELECT * FROM {$wpdb->prefix}gears_students WHERE 
           <?php endif; ?>
         </h3>
         <?php if ($has_bank_account): ?>
-          <p class="card-text mb-0"><strong>Current Balance:</strong> <span class="fs-4 text-success">$<?php echo number_format($account_balance, 2); ?></span></p>
+          <p class="card-text mb-2"><strong>Current Balance:</strong> <span class="fs-4 text-success">$<?php echo number_format($account_balance, 2); ?></span></p>
+          <div class="d-flex justify-content-center align-items-center gap-3">
+            <small class="text-muted">
+              <i class="bi bi-clock me-1"></i>
+              <?php if ($cache_time): ?>
+                Last updated: <?php echo date('M j, Y g:i A', strtotime($cache_time)); ?>
+              <?php else: ?>
+                Data cached for faster loading
+              <?php endif; ?>
+            </small>
+            <a href="?refresh=1<?php echo isset($_GET['account_id']) ? '&account_id=' . urlencode($_GET['account_id']) : ''; ?>" 
+               class="btn btn-outline-primary btn-sm" 
+               title="Refresh account data from QuickBooks">
+              <i class="bi bi-arrow-clockwise me-1"></i>Refresh Account
+            </a>
+          </div>
         <?php else: ?>
           <p class="card-text mb-0 text-muted">This team does not have banking information configured.</p>
         <?php endif; ?>
@@ -580,6 +850,12 @@ $alumni = $wpdb->get_results("SELECT * FROM {$wpdb->prefix}gears_students WHERE 
   </li>
   <li class="nav-item" role="presentation">
     <button class="nav-link" id="alumni-tab" data-bs-toggle="tab" data-bs-target="#alumni" type="button" role="tab" aria-controls="alumni" aria-selected="false">Alumni</button>
+  </li>
+  <li class="nav-item" role="presentation">
+    <button class="nav-link" id="useful-links-tab" data-bs-toggle="tab" data-bs-target="#useful-links" type="button" role="tab" aria-controls="useful-links" aria-selected="false">Useful Links</button>
+  </li>
+  <li class="nav-item" role="presentation">
+    <button class="nav-link" id="communication-tab" data-bs-toggle="tab" data-bs-target="#communication" type="button" role="tab" aria-controls="communication" aria-selected="false">Communication</button>
   </li>
 </ul>
 <div class="tab-content" id="registerTabsContent">
@@ -779,7 +1055,7 @@ $alumni = $wpdb->get_results("SELECT * FROM {$wpdb->prefix}gears_students WHERE 
   <div class="tab-pane fade" id="mentors" role="tabpanel" aria-labelledby="mentors-tab">
     <?php if ($mentors && count($mentors) > 0): ?>
 <table class="table table-striped table-bordered table-hover">
-      <thead><tr><th>Name</th><th>Email</th><th>Phone</th><th>Address</th><th>Notes</th></tr></thead>
+      <thead><tr><th>Name</th><th>Email</th><th>Phone</th><th>Address</th></tr></thead>
       <tbody>
       <?php foreach ((array)$mentors as $mentor): ?>
         <tr>
@@ -787,7 +1063,6 @@ $alumni = $wpdb->get_results("SELECT * FROM {$wpdb->prefix}gears_students WHERE 
           <td><?php echo htmlentities($mentor->email); ?></td>
           <td><?php echo htmlentities($mentor->phone); ?></td>
           <td><?php echo htmlentities($mentor->address); ?></td>
-          <td><?php echo htmlentities($mentor->notes); ?></td>
         </tr>
       <?php endforeach; ?>
       </tbody>
@@ -832,6 +1107,147 @@ $alumni = $wpdb->get_results("SELECT * FROM {$wpdb->prefix}gears_students WHERE 
     <?php else: ?>
     <div class="alert alert-info mt-3">No alumni found for this team.</div>
     <?php endif; ?>
+  </div>
+  <div class="tab-pane fade" id="useful-links" role="tabpanel" aria-labelledby="useful-links-tab">
+    <div class="card shadow-sm">
+      <div class="card-header bg-primary text-white">
+        <h6 class="mb-0"><i class="bi bi-link-45deg me-2"></i>Useful Links</h6>
+      </div>
+      <div class="card-body">
+        <div id="useful-links-container">
+          <?php 
+          // Get program-specific useful links from options
+          $team_program = strtoupper($team->program ?? '');
+          $program_links = [];
+          
+          if ($team_program === 'FLL') {
+            $program_links = get_option('qbo_useful_links_fll', []);
+          } elseif ($team_program === 'FTC') {
+            $program_links = get_option('qbo_useful_links_ftc', []);
+          }
+          
+          if (empty($program_links)): ?>
+            <div class="alert alert-info mb-0">
+              <i class="bi bi-info-circle me-2"></i>No useful links have been added for <?php echo htmlentities($team_program); ?> teams yet.
+            </div>
+          <?php else: ?>
+            <div class="row">
+              <?php foreach ($program_links as $link): ?>
+                <div class="col-md-6 mb-3">
+                  <div class="card h-100">
+                    <div class="card-body">
+                      <div class="d-flex justify-content-between align-items-start mb-2">
+                        <span class="badge bg-<?php echo $team_program === 'FLL' ? 'success' : 'warning'; ?> text-<?php echo $team_program === 'FLL' ? 'white' : 'dark'; ?>">
+                          <?php echo htmlentities($team_program); ?>
+                        </span>
+                      </div>
+                      <h6 class="card-title mb-2">
+                        <a href="<?php echo htmlentities($link['url']); ?>" target="_blank" class="text-decoration-none">
+                          <?php echo htmlentities($link['name']); ?>
+                          <i class="bi bi-box-arrow-up-right ms-1 small"></i>
+                        </a>
+                      </h6>
+                      <p class="card-text text-muted small mb-0">
+                        <?php echo htmlentities($link['description']); ?>
+                      </p>
+                    </div>
+                  </div>
+                </div>
+              <?php endforeach; ?>
+            </div>
+          <?php endif; ?>
+        </div>
+      </div>
+    </div>
+  </div>
+  
+  <div class="tab-pane fade" id="communication" role="tabpanel" aria-labelledby="communication-tab">
+    <div class="card shadow-sm">
+      <div class="card-header bg-primary text-white">
+        <h6 class="mb-0"><i class="bi bi-envelope me-2"></i>Send Email to Mentors</h6>
+      </div>
+      <div class="card-body">
+        <form id="emailForm" method="post">
+          <?php wp_nonce_field('qbo_send_email', 'email_nonce'); ?>
+          <input type="hidden" name="action" value="send_mentor_email">
+          <input type="hidden" name="team_id" value="<?php echo intval($team->id); ?>">
+          
+          <div class="mb-4">
+            <h6 class="mb-3">Select Recipients:</h6>
+            <?php if ($mentors && count($mentors) > 0): ?>
+              <div class="row">
+                <div class="col-md-12 mb-3">
+                  <div class="form-check">
+                    <input class="form-check-input" type="checkbox" id="selectAll" onchange="toggleAllMentors()">
+                    <label class="form-check-label fw-bold" for="selectAll">
+                      Select All Mentors
+                    </label>
+                  </div>
+                </div>
+                <?php foreach ((array)$mentors as $index => $mentor): ?>
+                  <div class="col-md-6 mb-2">
+                    <div class="form-check">
+                      <input class="form-check-input mentor-checkbox" type="checkbox" name="mentor_emails[]" 
+                             value="<?php echo htmlentities($mentor->email); ?>" 
+                             id="mentor_<?php echo $index; ?>"
+                             data-name="<?php echo htmlentities(trim($mentor->first_name . ' ' . $mentor->last_name)); ?>">
+                      <label class="form-check-label" for="mentor_<?php echo $index; ?>">
+                        <?php echo htmlentities(trim($mentor->first_name . ' ' . $mentor->last_name)); ?>
+                        <small class="text-muted d-block"><?php echo htmlentities($mentor->email); ?></small>
+                      </label>
+                    </div>
+                  </div>
+                <?php endforeach; ?>
+              </div>
+            <?php else: ?>
+              <div class="alert alert-info">
+                <i class="bi bi-info-circle me-2"></i>No mentors found for this team.
+              </div>
+            <?php endif; ?>
+          </div>
+          
+          <?php if ($mentors && count($mentors) > 0): ?>
+            <div class="mb-3">
+              <label for="emailSubject" class="form-label">Subject</label>
+              <input type="text" class="form-control" id="emailSubject" name="subject" required 
+                     placeholder="Enter email subject">
+            </div>
+            
+            <div class="mb-3">
+              <label for="emailMessage" class="form-label">Message</label>
+              <div class="d-flex justify-content-between align-items-center mb-2">
+                <small class="form-text text-muted">You can use HTML formatting in your message.</small>
+                <button type="button" class="btn btn-sm btn-outline-secondary" id="addMediaBtn">
+                  <i class="bi bi-image me-1"></i>Add Media
+                </button>
+              </div>
+              <div id="emailEditor" style="height: 300px;"></div>
+              <textarea name="message" id="emailMessage" style="display: none;"></textarea>
+            </div>
+            
+            <div class="mb-3">
+              <div class="form-check">
+                <input class="form-check-input" type="checkbox" id="sendCopy" name="send_copy" value="1">
+                <label class="form-check-label" for="sendCopy">
+                  Send a copy to myself
+                </label>
+              </div>
+            </div>
+            
+            <div class="d-flex justify-content-between align-items-center">
+              <div>
+                <span id="recipientCount" class="text-muted small">0 recipients selected</span>
+              </div>
+              <button type="submit" class="btn btn-primary" id="sendEmailBtn" disabled>
+                <i class="bi bi-send me-1"></i>Send Email
+              </button>
+            </div>
+          <?php endif; ?>
+        </form>
+        
+        <div id="emailStatus" class="mt-3" style="display: none;"></div>
+      </div>
+    </div>
   </div>
 </div>
 </div>
@@ -937,6 +1353,397 @@ function showUploadStatus(message, type) {
         }, 3000);
     }
 }
+
+// Useful Links Functions
+function showAddLinkModal() {
+    document.getElementById('linkModalTitle').textContent = 'Add Useful Link';
+    document.getElementById('linkForm').reset();
+    document.getElementById('linkIndex').value = '';
+    document.getElementById('linkModal').style.display = 'block';
+}
+
+function editLink(index) {
+    const links = <?php echo json_encode($useful_links ?? []); ?>;
+    const link = links[index];
+    
+    document.getElementById('linkModalTitle').textContent = 'Edit Useful Link';
+    document.getElementById('linkProgram').value = link.program;
+    document.getElementById('linkName').value = link.name;
+    document.getElementById('linkUrl').value = link.url;
+    document.getElementById('linkDescription').value = link.description;
+    document.getElementById('linkIndex').value = index;
+    document.getElementById('linkModal').style.display = 'block';
+}
+
+function closeModal() {
+    document.getElementById('linkModal').style.display = 'none';
+}
+
+function saveLinkData() {
+    const formData = new FormData(document.getElementById('linkForm'));
+    formData.append('action', 'save_useful_link');
+    formData.append('team_id', '<?php echo $team->customer_id; ?>');
+    
+    fetch(window.location.href, {
+        method: 'POST',
+        body: formData
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            location.reload(); // Reload to show updated links
+        } else {
+            alert('Error saving link: ' + (data.message || 'Unknown error'));
+        }
+    })
+    .catch(error => {
+        console.error('Error:', error);
+        alert('Error saving link');
+    });
+}
+
+function deleteLink(index) {
+    if (confirm('Are you sure you want to delete this link?')) {
+        const formData = new FormData();
+        formData.append('action', 'delete_useful_link');
+        formData.append('team_id', '<?php echo $team->customer_id; ?>');
+        formData.append('link_index', index);
+        
+        fetch(window.location.href, {
+            method: 'POST',
+            body: formData
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                location.reload(); // Reload to show updated links
+            } else {
+                alert('Error deleting link: ' + (data.message || 'Unknown error'));
+            }
+        })
+        .catch(error => {
+            console.error('Error:', error);
+            alert('Error deleting link');
+        });
+    }
+}
+
+// Close modal when clicking outside
+window.onclick = function(event) {
+    const modal = document.getElementById('linkModal');
+    if (event.target == modal) {
+        closeModal();
+    }
+}
+
+// Communication Tab Functions
+function toggleAllMentors() {
+    const selectAll = document.getElementById('selectAll');
+    const mentorCheckboxes = document.querySelectorAll('.mentor-checkbox');
+    
+    mentorCheckboxes.forEach(checkbox => {
+        checkbox.checked = selectAll.checked;
+    });
+    
+    updateRecipientCount();
+}
+
+function updateRecipientCount() {
+    const checkedBoxes = document.querySelectorAll('.mentor-checkbox:checked');
+    const count = checkedBoxes.length;
+    const countElement = document.getElementById('recipientCount');
+    const sendBtn = document.getElementById('sendEmailBtn');
+    
+    if (countElement) {
+        countElement.textContent = `${count} recipient${count !== 1 ? 's' : ''} selected`;
+    }
+    
+    if (sendBtn) {
+        sendBtn.disabled = count === 0;
+    }
+}
+
+// Initialize Quill editor for rich text email composition
+let quill;
+let mediaUploader;
+
+document.addEventListener('DOMContentLoaded', function() {
+    // Initialize rich text editor if communication tab exists
+    const editorElement = document.getElementById('emailEditor');
+    if (editorElement) {
+        // Load Quill CSS and JS
+        const quillCSS = document.createElement('link');
+        quillCSS.rel = 'stylesheet';
+        quillCSS.href = 'https://cdn.quilljs.com/1.3.6/quill.snow.css';
+        document.head.appendChild(quillCSS);
+        
+        const quillJS = document.createElement('script');
+        quillJS.src = 'https://cdn.quilljs.com/1.3.6/quill.min.js';
+        quillJS.onload = function() {
+            quill = new Quill('#emailEditor', {
+                theme: 'snow',
+                placeholder: 'Compose your message...',
+                modules: {
+                    toolbar: [
+                        [{'header': [1, 2, 3, false]}],
+                        ['bold', 'italic', 'underline', 'strike'],
+                        [{'color': []}, {'background': []}],
+                        [{'list': 'ordered'}, {'list': 'bullet'}],
+                        ['link', 'image'],
+                        ['clean']
+                    ]
+                }
+            });
+        };
+        document.head.appendChild(quillJS);
+        
+        // Initialize WordPress Media Uploader
+        initializeMediaUploader();
+    }
+    
+    // Add event listeners for mentor checkboxes
+    const mentorCheckboxes = document.querySelectorAll('.mentor-checkbox');
+    mentorCheckboxes.forEach(checkbox => {
+        checkbox.addEventListener('change', updateRecipientCount);
+    });
+    
+    // Handle email form submission
+    const emailForm = document.getElementById('emailForm');
+    if (emailForm) {
+        emailForm.addEventListener('submit', function(e) {
+            e.preventDefault();
+            sendEmail();
+        });
+    }
+    
+    // Initial count update
+    updateRecipientCount();
+});
+
+function sendEmail() {
+    const form = document.getElementById('emailForm');
+    const statusDiv = document.getElementById('emailStatus');
+    const sendBtn = document.getElementById('sendEmailBtn');
+    
+    // Get selected recipients
+    const selectedEmails = Array.from(document.querySelectorAll('.mentor-checkbox:checked'))
+        .map(cb => cb.value);
+    
+    if (selectedEmails.length === 0) {
+        showEmailStatus('Please select at least one recipient.', 'danger');
+        return;
+    }
+    
+    // Get form data
+    const subject = document.getElementById('emailSubject').value.trim();
+    if (!subject) {
+        showEmailStatus('Please enter a subject.', 'danger');
+        return;
+    }
+    
+    // Get message from Quill editor
+    let message = '';
+    if (quill) {
+        message = quill.root.innerHTML;
+        document.getElementById('emailMessage').value = message;
+    }
+    
+    if (!message || message.trim() === '<p><br></p>') {
+        showEmailStatus('Please enter a message.', 'danger');
+        return;
+    }
+    
+    // Show loading state
+    const originalBtnText = sendBtn.innerHTML;
+    sendBtn.innerHTML = '<i class="bi bi-spinner-border spinner-border-sm me-1"></i>Sending...';
+    sendBtn.disabled = true;
+    
+    // Prepare form data
+    const formData = new FormData(form);
+    
+    // Debug log the form data
+    console.log('QBO Email Debug: Sending email with data:');
+    for (let pair of formData.entries()) {
+        console.log(pair[0] + ': ' + pair[1]);
+    }
+    
+    // Send email via AJAX
+    fetch('/wp-admin/admin-ajax.php', {
+        method: 'POST',
+        body: formData
+    })
+    .then(response => {
+        console.log('QBO Email Debug: Response status:', response.status);
+        console.log('QBO Email Debug: Response headers:', response.headers);
+        return response.text().then(text => {
+            console.log('QBO Email Debug: Raw response:', text);
+            try {
+                return JSON.parse(text);
+            } catch (e) {
+                console.error('QBO Email Debug: Failed to parse JSON:', e);
+                throw new Error('Invalid JSON response');
+            }
+        });
+    })
+    .then(data => {
+        console.log('QBO Email Debug: Parsed response:', data);
+        if (data.success) {
+            showEmailStatus(data.message || 'Email sent successfully!', 'success');
+            // Reset form
+            form.reset();
+            if (quill) {
+                quill.setContents([]);
+            }
+            updateRecipientCount();
+        } else {
+            showEmailStatus(data.message || 'Failed to send email. Please try again.', 'danger');
+        }
+    })
+    .catch(error => {
+        console.error('Error:', error);
+        showEmailStatus('An error occurred while sending the email. Please try again.', 'danger');
+    })
+    .finally(() => {
+        sendBtn.innerHTML = originalBtnText;
+        sendBtn.disabled = false;
+    });
+}
+
+function showEmailStatus(message, type) {
+    const statusDiv = document.getElementById('emailStatus');
+    statusDiv.className = `alert alert-${type}`;
+    statusDiv.innerHTML = `<i class="bi bi-${type === 'success' ? 'check-circle' : 'exclamation-triangle'} me-2"></i>${message}`;
+    statusDiv.style.display = 'block';
+    
+    // Auto-hide success messages after 5 seconds
+    if (type === 'success') {
+        setTimeout(() => {
+            statusDiv.style.display = 'none';
+        }, 5000);
+    }
+}
+
+// Initialize WordPress Media Uploader with folder restriction
+function initializeMediaUploader() {
+    // Check if WordPress media library is available
+    if (typeof wp !== 'undefined' && wp.media) {
+        // Create the media uploader
+        mediaUploader = wp.media({
+            title: 'Select Media for Email',
+            button: {
+                text: 'Insert into Email'
+            },
+            multiple: false,
+            library: {
+                type: ['image', 'video', 'audio'],
+                uploadedTo: null
+            },
+            // Add context to restrict to email attachments folder
+            frame: 'select',
+            state: 'library'
+        });
+        
+        // Add context parameter for folder restriction
+        mediaUploader.on('open', function() {
+            // Set context for the AJAX query
+            if (mediaUploader.state().get('library')) {
+                mediaUploader.state().get('library').props.set('context', 'email_attachments');
+            }
+        });
+
+        // When a file is selected, insert it into the editor
+        mediaUploader.on('select', function() {
+            const attachment = mediaUploader.state().get('selection').first().toJSON();
+            insertMediaIntoEditor(attachment);
+        });
+        
+        // Add event listener to the "Add Media" button
+        const addMediaBtn = document.getElementById('addMediaBtn');
+        if (addMediaBtn) {
+            addMediaBtn.addEventListener('click', function(e) {
+                e.preventDefault();
+                if (mediaUploader) {
+                    mediaUploader.open();
+                } else {
+                    // Fallback for when WordPress media library isn't available
+                    showEmailStatus('Media library not available. Please upload images through WordPress admin first.', 'warning');
+                }
+            });
+        }
+    } else {
+        // Hide the add media button if WordPress media library isn't available
+        const addMediaBtn = document.getElementById('addMediaBtn');
+        if (addMediaBtn) {
+            addMediaBtn.style.display = 'none';
+        }
+    }
+}
+
+// Insert selected media into the Quill editor
+function insertMediaIntoEditor(attachment) {
+    if (!quill) return;
+    
+    const range = quill.getSelection(true);
+    const index = range ? range.index : quill.getLength();
+    
+    if (attachment.type === 'image') {
+        // Insert image
+        quill.insertEmbed(index, 'image', attachment.url);
+        quill.insertText(index + 1, '\n');
+        quill.setSelection(index + 2);
+    } else if (attachment.type === 'video') {
+        // Insert video as a link (since email clients don't support embedded video well)
+        quill.insertText(index, attachment.title || 'Video', 'link', attachment.url);
+        quill.insertText(index + (attachment.title || 'Video').length, '\n');
+    } else {
+        // Insert other media as a link
+        quill.insertText(index, attachment.title || attachment.filename || 'Media File', 'link', attachment.url);
+        quill.insertText(index + (attachment.title || attachment.filename || 'Media File').length, '\n');
+    }
+    
+    showEmailStatus('Media inserted successfully!', 'success');
+}
 </script>
+
+<!-- Useful Links Modal -->
+<div id="linkModal" class="modal" style="display: none; position: fixed; z-index: 1050; left: 0; top: 0; width: 100%; height: 100%; background-color: rgba(0,0,0,0.5);">
+    <div class="modal-dialog modal-lg" style="margin: 5% auto; position: relative;">
+        <div class="modal-content" style="background-color: #fff; border-radius: 0.5rem; box-shadow: 0 0.5rem 1rem rgba(0,0,0,0.15);">
+            <div class="modal-header" style="padding: 1rem; border-bottom: 1px solid #dee2e6;">
+                <h5 class="modal-title" id="linkModalTitle">Add Useful Link</h5>
+                <button type="button" class="btn-close" onclick="closeModal()" style="background: none; border: none; font-size: 1.5rem; line-height: 1; cursor: pointer;">&times;</button>
+            </div>
+            <div class="modal-body" style="padding: 1rem;">
+                <form id="linkForm">
+                    <input type="hidden" id="linkIndex" name="link_index">
+                    <div class="mb-3">
+                        <label for="linkProgram" class="form-label">Program</label>
+                        <select class="form-select" id="linkProgram" name="program" required>
+                            <option value="">Select Program</option>
+                            <option value="FLL">FLL (FIRST Lego League)</option>
+                            <option value="FTC">FTC (FIRST Tech Challenge)</option>
+                        </select>
+                    </div>
+                    <div class="mb-3">
+                        <label for="linkName" class="form-label">Link Name</label>
+                        <input type="text" class="form-control" id="linkName" name="name" required placeholder="e.g., Challenge Guide">
+                    </div>
+                    <div class="mb-3">
+                        <label for="linkUrl" class="form-label">URL</label>
+                        <input type="url" class="form-control" id="linkUrl" name="url" required placeholder="https://example.com">
+                    </div>
+                    <div class="mb-3">
+                        <label for="linkDescription" class="form-label">Description</label>
+                        <textarea class="form-control" id="linkDescription" name="description" rows="3" placeholder="Brief description of this link"></textarea>
+                    </div>
+                </form>
+            </div>
+            <div class="modal-footer" style="padding: 1rem; border-top: 1px solid #dee2e6;">
+                <button type="button" class="btn btn-secondary" onclick="closeModal()">Cancel</button>
+                <button type="button" class="btn btn-primary" onclick="saveLinkData()">Save Link</button>
+            </div>
+        </div>
+    </div>
+</div>
 
 </body></html>

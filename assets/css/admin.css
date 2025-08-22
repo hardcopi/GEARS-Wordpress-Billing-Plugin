@@ -1273,3 +1273,137 @@ nav.nav.nav-tabs#teamTabs .nav-link.active,
     font-family: 'dashicons';
     font-size: 16px;
 }
+
+/* Communication Tab Styles */
+.mentor-checkbox-list {
+    max-height: 300px;
+    overflow-y: auto;
+    border: 1px solid #ddd;
+    border-radius: 4px;
+    padding: 15px;
+    background: #f8f9fa;
+}
+
+.mentor-checkbox-item {
+    display: flex;
+    align-items: flex-start;
+    margin-bottom: 12px;
+    padding: 8px;
+    background: white;
+    border-radius: 6px;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+}
+
+.mentor-checkbox-item:last-child {
+    margin-bottom: 0;
+}
+
+.mentor-checkbox-item .form-check-input {
+    margin-top: 4px;
+    margin-right: 10px;
+}
+
+.mentor-checkbox-item .form-check-label {
+    flex: 1;
+    margin-bottom: 0;
+    cursor: pointer;
+}
+
+.mentor-checkbox-item .mentor-name {
+    font-weight: 500;
+    color: #333;
+    display: block;
+    margin-bottom: 2px;
+}
+
+.mentor-checkbox-item .mentor-email {
+    font-size: 0.875rem;
+    color: #6c757d;
+    display: block;
+}
+
+#selectAll + label {
+    font-weight: 600;
+    color: #495057;
+}
+
+.email-compose-section {
+    background: #fff;
+    border: 1px solid #e9ecef;
+    border-radius: 8px;
+    padding: 20px;
+    margin-top: 20px;
+}
+
+.email-compose-section .form-label {
+    font-weight: 600;
+    color: #495057;
+    margin-bottom: 8px;
+}
+
+#emailEditor {
+    border: 1px solid #ced4da;
+    border-radius: 4px;
+}
+
+.ql-toolbar {
+    border-top-left-radius: 4px;
+    border-top-right-radius: 4px;
+}
+
+.ql-container {
+    border-bottom-left-radius: 4px;
+    border-bottom-right-radius: 4px;
+}
+
+.recipient-counter {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-top: 15px;
+    padding-top: 15px;
+    border-top: 1px solid #e9ecef;
+}
+
+#recipientCount {
+    font-size: 0.875rem;
+    color: #6c757d;
+}
+
+#sendEmailBtn:disabled {
+    opacity: 0.6;
+    cursor: not-allowed;
+}
+
+#emailStatus {
+    border-radius: 6px;
+    border: none;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+}
+
+.spinner-border-sm {
+    width: 1rem;
+    height: 1rem;
+}
+
+/* Responsive adjustments for communication tab */
+@media (max-width: 768px) {
+    .mentor-checkbox-item {
+        flex-direction: column;
+        align-items: flex-start;
+    }
+    
+    .mentor-checkbox-item .form-check-input {
+        margin-bottom: 8px;
+    }
+    
+    .recipient-counter {
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 10px;
+    }
+    
+    #sendEmailBtn {
+        width: 100%;
+    }
+}
