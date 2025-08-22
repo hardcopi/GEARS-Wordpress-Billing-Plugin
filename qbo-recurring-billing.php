@@ -16,7 +16,38 @@ if (!defined('QBO_PLUGIN_URL')) {
 }
 
 add_action('init', function() {
-    add_rewrite_rule('^mentor-dashboard/?$', 'wp-content/plugins/qbo-recurring-billing/qbo-register.php', 'top');
+    // Add custom query var for mentor dashboard
+    add_rewrite_rule('^mentor-dashboard/?$', 'index.php?mentor_dashboard=1', 'top');
+});
+
+// Add query var support
+add_filter('query_vars', function($vars) {
+    $vars[] = 'mentor_dashboard';
+    return $vars;
+});
+
+// Handle mentor dashboard template
+add_action('template_redirect', function() {
+    if (get_query_var('mentor_dashboard')) {
+        // Set up the environment for the mentor dashboard
+        add_filter('show_admin_bar', '__return_false');
+        
+        // Check if this is an AJAX request and handle it properly
+        if (isset($_POST['action']) && $_POST['action'] === 'qbo_upload_team_image') {
+            // Handle AJAX upload within WordPress context
+            do_action('wp_ajax_nopriv_qbo_upload_team_image');
+            do_action('wp_ajax_qbo_upload_team_image');
+            return;
+        }
+        
+        // For normal page loads, include the mentor dashboard file
+        // Make sure WordPress globals are available
+        global $wpdb;
+        
+        // Include the mentor dashboard file
+        include(plugin_dir_path(__FILE__) . 'qbo-register.php');
+        exit;
+    }
 });
 
 // Include class files
@@ -66,6 +97,11 @@ class QBORecurringBilling {
         add_action('admin_init', array($this->core, 'handle_oauth_callback'));
         // Create database tables on activation
         register_activation_hook(__FILE__, array($this->core, 'create_database_tables'));
+        
+        // Flush rewrite rules on activation to ensure mentor-dashboard URL works
+        register_activation_hook(__FILE__, array($this, 'flush_rewrite_rules_on_activation'));
+        register_deactivation_hook(__FILE__, array($this, 'flush_rewrite_rules_on_deactivation'));
+        
         // Enqueue admin assets
         add_action('admin_enqueue_scripts', array($this, 'enqueue_admin_assets'));
     }
@@ -202,6 +238,22 @@ class QBORecurringBilling {
      */
     public function get_recurring_invoices_instance() {
         return $this->recurring_invoices;
+    }
+    
+    /**
+     * Flush rewrite rules on plugin activation
+     */
+    public function flush_rewrite_rules_on_activation() {
+        // Make sure our rewrite rules are added
+        add_rewrite_rule('^mentor-dashboard/?$', 'index.php?mentor_dashboard=1', 'top');
+        flush_rewrite_rules();
+    }
+    
+    /**
+     * Flush rewrite rules on plugin deactivation
+     */
+    public function flush_rewrite_rules_on_deactivation() {
+        flush_rewrite_rules();
     }
 }
 

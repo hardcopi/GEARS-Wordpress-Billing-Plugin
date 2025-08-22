@@ -24,10 +24,43 @@ add_action('init', function() {
 // Then, go to Settings > Permalinks in WordPress admin and click Save Changes to flush rewrite rules.
 
 // Start PHP session for Google login
-session_start();
+if (!session_id()) {
+    session_start();
+}
 
-// Load WordPress core early for wp_remote_post
-require_once('../../../wp-load.php');
+// Debug: Check if WordPress is already loaded
+error_log('QBO Debug: WordPress functions available: ' . (function_exists('wp_remote_post') ? 'YES' : 'NO'));
+error_log('QBO Debug: ABSPATH defined: ' . (defined('ABSPATH') ? 'YES' : 'NO'));
+
+// WordPress should already be loaded when called through template_redirect
+// Only attempt to load WordPress if functions aren't available and we're being accessed directly
+if (!function_exists('wp_remote_post') && !defined('ABSPATH')) {
+    error_log('QBO Debug: Attempting to load WordPress manually');
+    // Try different paths for direct access
+    $wp_load_paths = [
+        '../../../wp-load.php',      // Standard path from plugin directory
+        '../../../../wp-load.php',   // Some hosting configurations
+    ];
+    
+    foreach ($wp_load_paths as $path) {
+        if (file_exists($path)) {
+            error_log('QBO Debug: Loading WordPress from: ' . $path);
+            require_once($path);
+            break;
+        }
+    }
+    
+    // Final check
+    error_log('QBO Debug: After manual load - WordPress functions available: ' . (function_exists('wp_remote_post') ? 'YES' : 'NO'));
+} else {
+    error_log('QBO Debug: WordPress already available, no manual loading needed');
+}
+
+// Ensure WordPress is fully loaded before proceeding
+if (!function_exists('wp_remote_post') || !function_exists('sanitize_text_field') || !defined('ABSPATH')) {
+    error_log('QBO Debug: WordPress not properly loaded, showing error');
+    die('WordPress environment not available. This page requires WordPress to be loaded.');
+}
 
 // Handle AJAX image upload
 if (isset($_POST['action']) && $_POST['action'] === 'qbo_upload_team_image') {
@@ -235,6 +268,23 @@ $account_id = $team->bank_account_id;
 // Check if team has a bank account for financial data
 $has_bank_account = !empty($account_id);
 
+// Handle cache refresh request
+$force_refresh = isset($_GET['refresh']) && $_GET['refresh'] === '1';
+if ($force_refresh) {
+    // Clear cached data for this account
+    delete_transient('qbo_account_data_' . $account_id);
+    delete_transient('qbo_transactions_' . $account_id);
+    delete_transient('qbo_cache_time_' . $account_id);
+    
+    // Redirect to remove the refresh parameter from URL
+    $redirect_url = strtok($_SERVER["REQUEST_URI"], '?');
+    if (isset($_GET['account_id'])) {
+        $redirect_url .= '?account_id=' . urlencode($_GET['account_id']);
+    }
+    header('Location: ' . $redirect_url);
+    exit;
+}
+
 if ($has_bank_account) {
     // Get QBO credentials from plugin options
     $options = get_option('qbo_recurring_billing_options');
@@ -261,8 +311,23 @@ if ($has_bank_account) {
         return json_decode($body, true);
     }
 
-    // Fetch account info
-    $account_data = qbo_api_request('/account/' . urlencode($account_id), $access_token, $realm_id);
+    // Try to get cached account data first (cache for 24 hours)
+    $cache_key_account = 'qbo_account_data_' . $account_id;
+    $account_data = get_transient($cache_key_account);
+    $cache_timestamp_key = 'qbo_cache_time_' . $account_id;
+    $cache_time = get_transient($cache_timestamp_key);
+    
+    if ($account_data === false) {
+        // Cache miss - fetch from QuickBooks API
+        $account_data = qbo_api_request('/account/' . urlencode($account_id), $access_token, $realm_id);
+        if ($account_data && isset($account_data['Account'])) {
+            // Cache for 24 hours (86400 seconds)
+            set_transient($cache_key_account, $account_data, 86400);
+            set_transient($cache_timestamp_key, current_time('mysql'), 86400);
+            $cache_time = current_time('mysql');
+        }
+    }
+    
     if (!$account_data || !isset($account_data['Account'])) {
         echo '<h2>Error: Account not found in QuickBooks.</h2>';
         exit;
@@ -271,11 +336,16 @@ if ($has_bank_account) {
     $account_type = $account_data['Account']['AccountType'];
     $account_balance = isset($account_data['Account']['CurrentBalance']) ? $account_data['Account']['CurrentBalance'] : 0;
 
-    // Fetch transactions (register)
-    $types = array(
-        'Purchase', 'JournalEntry', 'Deposit', 'Transfer', 'BillPayment', 'VendorCredit', 'CreditCardPayment', 'Payment', 'SalesReceipt'
-    );
-    $entries = array();
+    // Try to get cached transactions data first (cache for 24 hours)
+    $cache_key_transactions = 'qbo_transactions_' . $account_id;
+    $entries = get_transient($cache_key_transactions);
+    
+    if ($entries === false) {
+        // Cache miss - fetch transactions from QuickBooks API
+        $types = array(
+            'Purchase', 'JournalEntry', 'Deposit', 'Transfer', 'BillPayment', 'VendorCredit', 'CreditCardPayment', 'Payment', 'SalesReceipt'
+        );
+        $entries = array();
 foreach ($types as $type) {
     $q = "SELECT * FROM $type ORDER BY TxnDate DESC MAXRESULTS 200";
     $endpoint = '/query?query=' . urlencode($q) . '&minorversion=65';
@@ -425,6 +495,10 @@ foreach ($types as $type) {
     }
 }
 
+        // Cache the transactions for 24 hours (86400 seconds)
+        set_transient($cache_key_transactions, $entries, 86400);
+    }
+
 // Sort by date descending
 usort($entries, function($a, $b) {
     return strtotime($b['date']) - strtotime($a['date']);
@@ -556,7 +630,22 @@ $alumni = $wpdb->get_results("SELECT * FROM {$wpdb->prefix}gears_students WHERE 
           <?php endif; ?>
         </h3>
         <?php if ($has_bank_account): ?>
-          <p class="card-text mb-0"><strong>Current Balance:</strong> <span class="fs-4 text-success">$<?php echo number_format($account_balance, 2); ?></span></p>
+          <p class="card-text mb-2"><strong>Current Balance:</strong> <span class="fs-4 text-success">$<?php echo number_format($account_balance, 2); ?></span></p>
+          <div class="d-flex justify-content-center align-items-center gap-3">
+            <small class="text-muted">
+              <i class="bi bi-clock me-1"></i>
+              <?php if ($cache_time): ?>
+                Last updated: <?php echo date('M j, Y g:i A', strtotime($cache_time)); ?>
+              <?php else: ?>
+                Data cached for faster loading
+              <?php endif; ?>
+            </small>
+            <a href="?refresh=1<?php echo isset($_GET['account_id']) ? '&account_id=' . urlencode($_GET['account_id']) : ''; ?>" 
+               class="btn btn-outline-primary btn-sm" 
+               title="Refresh account data from QuickBooks">
+              <i class="bi bi-arrow-clockwise me-1"></i>Refresh Account
+            </a>
+          </div>
         <?php else: ?>
           <p class="card-text mb-0 text-muted">This team does not have banking information configured.</p>
         <?php endif; ?>
@@ -779,7 +868,7 @@ $alumni = $wpdb->get_results("SELECT * FROM {$wpdb->prefix}gears_students WHERE 
   <div class="tab-pane fade" id="mentors" role="tabpanel" aria-labelledby="mentors-tab">
     <?php if ($mentors && count($mentors) > 0): ?>
 <table class="table table-striped table-bordered table-hover">
-      <thead><tr><th>Name</th><th>Email</th><th>Phone</th><th>Address</th><th>Notes</th></tr></thead>
+      <thead><tr><th>Name</th><th>Email</th><th>Phone</th><th>Address</th></tr></thead>
       <tbody>
       <?php foreach ((array)$mentors as $mentor): ?>
         <tr>
@@ -787,7 +876,6 @@ $alumni = $wpdb->get_results("SELECT * FROM {$wpdb->prefix}gears_students WHERE 
           <td><?php echo htmlentities($mentor->email); ?></td>
           <td><?php echo htmlentities($mentor->phone); ?></td>
           <td><?php echo htmlentities($mentor->address); ?></td>
-          <td><?php echo htmlentities($mentor->notes); ?></td>
         </tr>
       <?php endforeach; ?>
       </tbody>
