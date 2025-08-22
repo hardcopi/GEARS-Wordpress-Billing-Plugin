@@ -95,6 +95,13 @@ class QBORecurringBilling {
         add_action('admin_menu', array($this, 'add_admin_menu'));
         // Handle OAuth callback
         add_action('admin_init', array($this->core, 'handle_oauth_callback'));
+        
+        // Register email AJAX handlers
+        add_action('wp_ajax_send_mentor_email', 'qbo_handle_mentor_email');
+        add_action('wp_ajax_nopriv_send_mentor_email', 'qbo_handle_mentor_email');
+        
+        // Add media uploader restrictions for email attachments
+        add_filter('ajax_query_attachments_args', array($this, 'restrict_media_library_for_emails'), 10, 1);
         // Create database tables on activation
         register_activation_hook(__FILE__, array($this->core, 'create_database_tables'));
         
@@ -625,6 +632,166 @@ class QBORecurringBilling {
      */
     public function flush_rewrite_rules_on_deactivation() {
         flush_rewrite_rules();
+    }
+    
+    /**
+     * Restrict media library to email attachments folder
+     */
+    public function restrict_media_library_for_emails($query) {
+        // Only apply restriction when we're in the email context
+        if (isset($_REQUEST['context']) && $_REQUEST['context'] === 'email_attachments') {
+            // Create the email attachments folder if it doesn't exist
+            $upload_dir = wp_upload_dir();
+            $email_attachments_dir = $upload_dir['basedir'] . '/email-attachments';
+            
+            if (!file_exists($email_attachments_dir)) {
+                wp_mkdir_p($email_attachments_dir);
+            }
+            
+            // Restrict to files in the email-attachments folder
+            $query['meta_query'] = array(
+                array(
+                    'key' => '_wp_attached_file',
+                    'value' => 'email-attachments/',
+                    'compare' => 'LIKE'
+                )
+            );
+        }
+        
+        return $query;
+    }
+}
+
+/**
+ * Handle mentor email sending (standalone function)
+ */
+function qbo_handle_mentor_email() {
+    // Add debugging
+    error_log('QBO Email Debug: Function called');
+    error_log('QBO Email Debug: POST data - ' . print_r($_POST, true));
+    
+    // Verify nonce
+    if (!isset($_POST['email_nonce']) || !wp_verify_nonce($_POST['email_nonce'], 'qbo_send_email')) {
+        error_log('QBO Email Debug: Nonce verification failed');
+        wp_send_json(['success' => false, 'message' => 'Security check failed.']);
+    }
+    
+    error_log('QBO Email Debug: Nonce verified successfully');
+    
+    // Get form data
+    $team_id = intval($_POST['team_id'] ?? 0);
+    $subject = sanitize_text_field($_POST['subject'] ?? '');
+    $message = wp_kses_post($_POST['message'] ?? '');
+    $mentor_emails = $_POST['mentor_emails'] ?? [];
+    $send_copy = isset($_POST['send_copy']) && $_POST['send_copy'] === '1';
+    
+    // Validate required fields
+    if (empty($subject)) {
+        wp_send_json(['success' => false, 'message' => 'Subject is required.']);
+    }
+    
+    if (empty($message)) {
+        wp_send_json(['success' => false, 'message' => 'Message is required.']);
+    }
+    
+    if (empty($mentor_emails) || !is_array($mentor_emails)) {
+        wp_send_json(['success' => false, 'message' => 'Please select at least one recipient.']);
+    }
+    
+    // Sanitize email addresses
+    $sanitized_emails = [];
+    foreach ($mentor_emails as $email) {
+        $clean_email = sanitize_email($email);
+        if (is_email($clean_email)) {
+            $sanitized_emails[] = $clean_email;
+        }
+    }
+    
+    if (empty($sanitized_emails)) {
+        wp_send_json(['success' => false, 'message' => 'No valid email addresses found.']);
+    }
+    
+    // Get team information for context
+    global $wpdb;
+    $teams_table = $wpdb->prefix . 'gears_teams';
+    error_log('QBO Email Debug: Looking for team ID: ' . $team_id);
+    error_log('QBO Email Debug: Teams table: ' . $teams_table);
+    
+    $team = $wpdb->get_row($wpdb->prepare("SELECT * FROM $teams_table WHERE id = %d", $team_id));
+    error_log('QBO Email Debug: Team query result: ' . print_r($team, true));
+    error_log('QBO Email Debug: WordPress DB error: ' . $wpdb->last_error);
+    
+    if (!$team) {
+        wp_send_json(['success' => false, 'message' => 'Team not found.']);
+    }
+    
+    // Prepare email headers
+    $headers = [
+        'Content-Type: text/html; charset=UTF-8',
+        'From: ' . get_option('admin_email')
+    ];
+    
+    // Add sender's email to copy list if requested
+    if ($send_copy) {
+        $current_user = wp_get_current_user();
+        if ($current_user && is_email($current_user->user_email)) {
+            $sanitized_emails[] = $current_user->user_email;
+        }
+    }
+    
+    // Prepare email body with team context
+    $email_body = '<html><body>';
+    $email_body .= '<div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">';
+    $email_body .= '<div style="background-color: #f8f9fa; padding: 20px; border-radius: 5px; margin-bottom: 20px;">';
+    $email_body .= '<h3 style="margin: 0; color: #333;">Message from ' . esc_html($team->team_name) . ' (' . esc_html($team->program) . ')</h3>';
+    $email_body .= '</div>';
+    $email_body .= '<div style="padding: 20px; background-color: #ffffff; border: 1px solid #e9ecef; border-radius: 5px;">';
+    $email_body .= $message;
+    $email_body .= '</div>';
+    $email_body .= '<div style="margin-top: 20px; padding: 15px; background-color: #f8f9fa; border-radius: 5px; font-size: 12px; color: #6c757d;">';
+    $email_body .= '<p>This email was sent from the GEARS mentor dashboard for team: <strong>' . esc_html($team->team_name) . '</strong></p>';
+    $email_body .= '</div>';
+    $email_body .= '</div>';
+    $email_body .= '</body></html>';
+    
+    // Send emails
+    $sent_count = 0;
+    $failed_emails = [];
+    
+    error_log('QBO Email Debug: About to send ' . count($sanitized_emails) . ' emails');
+    error_log('QBO Email Debug: Recipients - ' . implode(', ', $sanitized_emails));
+    error_log('QBO Email Debug: Subject - ' . $subject);
+    
+    foreach ($sanitized_emails as $email) {
+        error_log('QBO Email Debug: Attempting to send to ' . $email);
+        $sent = wp_mail($email, $subject, $email_body, $headers);
+        error_log('QBO Email Debug: wp_mail result for ' . $email . ' - ' . ($sent ? 'SUCCESS' : 'FAILED'));
+        
+        if ($sent) {
+            $sent_count++;
+        } else {
+            $failed_emails[] = $email;
+        }
+    }
+    
+    error_log('QBO Email Debug: Final results - Sent: ' . $sent_count . ', Failed: ' . count($failed_emails));
+    
+    if ($sent_count === 0) {
+        $response = ['success' => false, 'message' => 'Failed to send any emails. Please check your email configuration.'];
+    } elseif (!empty($failed_emails)) {
+        $message = "Sent {$sent_count} email(s) successfully, but failed to send to: " . implode(', ', $failed_emails);
+        $response = ['success' => true, 'message' => $message];
+    } else {
+        $response = ['success' => true, 'message' => "Successfully sent email to {$sent_count} recipient(s)."];
+    }
+    
+    // For WordPress AJAX, we need to output JSON and die
+    if (function_exists('wp_send_json')) {
+        wp_send_json($response);
+    } else {
+        header('Content-Type: application/json');
+        echo json_encode($response);
+        exit;
     }
 }
 

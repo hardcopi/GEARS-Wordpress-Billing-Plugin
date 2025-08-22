@@ -701,6 +701,18 @@ $alumni = $wpdb->get_results("SELECT * FROM {$wpdb->prefix}gears_students WHERE 
 <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet" crossorigin="anonymous">
 <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.css" rel="stylesheet">
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js" crossorigin="anonymous"></script>
+
+<?php
+// Load WordPress media scripts for the media uploader
+if (function_exists('wp_enqueue_media')) {
+    wp_enqueue_media();
+}
+// Output any enqueued scripts/styles
+if (function_exists('wp_head')) {
+    wp_head();
+}
+?>
+
 <style>
   .animated-header {
     background: linear-gradient(90deg, #f8f9fa 0%, #e3e6ff 50%, #f8f9fa 100%);
@@ -841,6 +853,9 @@ $alumni = $wpdb->get_results("SELECT * FROM {$wpdb->prefix}gears_students WHERE 
   </li>
   <li class="nav-item" role="presentation">
     <button class="nav-link" id="useful-links-tab" data-bs-toggle="tab" data-bs-target="#useful-links" type="button" role="tab" aria-controls="useful-links" aria-selected="false">Useful Links</button>
+  </li>
+  <li class="nav-item" role="presentation">
+    <button class="nav-link" id="communication-tab" data-bs-toggle="tab" data-bs-target="#communication" type="button" role="tab" aria-controls="communication" aria-selected="false">Communication</button>
   </li>
 </ul>
 <div class="tab-content" id="registerTabsContent">
@@ -1145,6 +1160,95 @@ $alumni = $wpdb->get_results("SELECT * FROM {$wpdb->prefix}gears_students WHERE 
       </div>
     </div>
   </div>
+  
+  <div class="tab-pane fade" id="communication" role="tabpanel" aria-labelledby="communication-tab">
+    <div class="card shadow-sm">
+      <div class="card-header bg-primary text-white">
+        <h6 class="mb-0"><i class="bi bi-envelope me-2"></i>Send Email to Mentors</h6>
+      </div>
+      <div class="card-body">
+        <form id="emailForm" method="post">
+          <?php wp_nonce_field('qbo_send_email', 'email_nonce'); ?>
+          <input type="hidden" name="action" value="send_mentor_email">
+          <input type="hidden" name="team_id" value="<?php echo intval($team->id); ?>">
+          
+          <div class="mb-4">
+            <h6 class="mb-3">Select Recipients:</h6>
+            <?php if ($mentors && count($mentors) > 0): ?>
+              <div class="row">
+                <div class="col-md-12 mb-3">
+                  <div class="form-check">
+                    <input class="form-check-input" type="checkbox" id="selectAll" onchange="toggleAllMentors()">
+                    <label class="form-check-label fw-bold" for="selectAll">
+                      Select All Mentors
+                    </label>
+                  </div>
+                </div>
+                <?php foreach ((array)$mentors as $index => $mentor): ?>
+                  <div class="col-md-6 mb-2">
+                    <div class="form-check">
+                      <input class="form-check-input mentor-checkbox" type="checkbox" name="mentor_emails[]" 
+                             value="<?php echo htmlentities($mentor->email); ?>" 
+                             id="mentor_<?php echo $index; ?>"
+                             data-name="<?php echo htmlentities(trim($mentor->first_name . ' ' . $mentor->last_name)); ?>">
+                      <label class="form-check-label" for="mentor_<?php echo $index; ?>">
+                        <?php echo htmlentities(trim($mentor->first_name . ' ' . $mentor->last_name)); ?>
+                        <small class="text-muted d-block"><?php echo htmlentities($mentor->email); ?></small>
+                      </label>
+                    </div>
+                  </div>
+                <?php endforeach; ?>
+              </div>
+            <?php else: ?>
+              <div class="alert alert-info">
+                <i class="bi bi-info-circle me-2"></i>No mentors found for this team.
+              </div>
+            <?php endif; ?>
+          </div>
+          
+          <?php if ($mentors && count($mentors) > 0): ?>
+            <div class="mb-3">
+              <label for="emailSubject" class="form-label">Subject</label>
+              <input type="text" class="form-control" id="emailSubject" name="subject" required 
+                     placeholder="Enter email subject">
+            </div>
+            
+            <div class="mb-3">
+              <label for="emailMessage" class="form-label">Message</label>
+              <div class="d-flex justify-content-between align-items-center mb-2">
+                <small class="form-text text-muted">You can use HTML formatting in your message.</small>
+                <button type="button" class="btn btn-sm btn-outline-secondary" id="addMediaBtn">
+                  <i class="bi bi-image me-1"></i>Add Media
+                </button>
+              </div>
+              <div id="emailEditor" style="height: 300px;"></div>
+              <textarea name="message" id="emailMessage" style="display: none;"></textarea>
+            </div>
+            
+            <div class="mb-3">
+              <div class="form-check">
+                <input class="form-check-input" type="checkbox" id="sendCopy" name="send_copy" value="1">
+                <label class="form-check-label" for="sendCopy">
+                  Send a copy to myself
+                </label>
+              </div>
+            </div>
+            
+            <div class="d-flex justify-content-between align-items-center">
+              <div>
+                <span id="recipientCount" class="text-muted small">0 recipients selected</span>
+              </div>
+              <button type="submit" class="btn btn-primary" id="sendEmailBtn" disabled>
+                <i class="bi bi-send me-1"></i>Send Email
+              </button>
+            </div>
+          <?php endif; ?>
+        </form>
+        
+        <div id="emailStatus" class="mt-3" style="display: none;"></div>
+      </div>
+    </div>
+  </div>
 </div>
 </div>
 
@@ -1330,6 +1434,274 @@ window.onclick = function(event) {
     if (event.target == modal) {
         closeModal();
     }
+}
+
+// Communication Tab Functions
+function toggleAllMentors() {
+    const selectAll = document.getElementById('selectAll');
+    const mentorCheckboxes = document.querySelectorAll('.mentor-checkbox');
+    
+    mentorCheckboxes.forEach(checkbox => {
+        checkbox.checked = selectAll.checked;
+    });
+    
+    updateRecipientCount();
+}
+
+function updateRecipientCount() {
+    const checkedBoxes = document.querySelectorAll('.mentor-checkbox:checked');
+    const count = checkedBoxes.length;
+    const countElement = document.getElementById('recipientCount');
+    const sendBtn = document.getElementById('sendEmailBtn');
+    
+    if (countElement) {
+        countElement.textContent = `${count} recipient${count !== 1 ? 's' : ''} selected`;
+    }
+    
+    if (sendBtn) {
+        sendBtn.disabled = count === 0;
+    }
+}
+
+// Initialize Quill editor for rich text email composition
+let quill;
+let mediaUploader;
+
+document.addEventListener('DOMContentLoaded', function() {
+    // Initialize rich text editor if communication tab exists
+    const editorElement = document.getElementById('emailEditor');
+    if (editorElement) {
+        // Load Quill CSS and JS
+        const quillCSS = document.createElement('link');
+        quillCSS.rel = 'stylesheet';
+        quillCSS.href = 'https://cdn.quilljs.com/1.3.6/quill.snow.css';
+        document.head.appendChild(quillCSS);
+        
+        const quillJS = document.createElement('script');
+        quillJS.src = 'https://cdn.quilljs.com/1.3.6/quill.min.js';
+        quillJS.onload = function() {
+            quill = new Quill('#emailEditor', {
+                theme: 'snow',
+                placeholder: 'Compose your message...',
+                modules: {
+                    toolbar: [
+                        [{'header': [1, 2, 3, false]}],
+                        ['bold', 'italic', 'underline', 'strike'],
+                        [{'color': []}, {'background': []}],
+                        [{'list': 'ordered'}, {'list': 'bullet'}],
+                        ['link', 'image'],
+                        ['clean']
+                    ]
+                }
+            });
+        };
+        document.head.appendChild(quillJS);
+        
+        // Initialize WordPress Media Uploader
+        initializeMediaUploader();
+    }
+    
+    // Add event listeners for mentor checkboxes
+    const mentorCheckboxes = document.querySelectorAll('.mentor-checkbox');
+    mentorCheckboxes.forEach(checkbox => {
+        checkbox.addEventListener('change', updateRecipientCount);
+    });
+    
+    // Handle email form submission
+    const emailForm = document.getElementById('emailForm');
+    if (emailForm) {
+        emailForm.addEventListener('submit', function(e) {
+            e.preventDefault();
+            sendEmail();
+        });
+    }
+    
+    // Initial count update
+    updateRecipientCount();
+});
+
+function sendEmail() {
+    const form = document.getElementById('emailForm');
+    const statusDiv = document.getElementById('emailStatus');
+    const sendBtn = document.getElementById('sendEmailBtn');
+    
+    // Get selected recipients
+    const selectedEmails = Array.from(document.querySelectorAll('.mentor-checkbox:checked'))
+        .map(cb => cb.value);
+    
+    if (selectedEmails.length === 0) {
+        showEmailStatus('Please select at least one recipient.', 'danger');
+        return;
+    }
+    
+    // Get form data
+    const subject = document.getElementById('emailSubject').value.trim();
+    if (!subject) {
+        showEmailStatus('Please enter a subject.', 'danger');
+        return;
+    }
+    
+    // Get message from Quill editor
+    let message = '';
+    if (quill) {
+        message = quill.root.innerHTML;
+        document.getElementById('emailMessage').value = message;
+    }
+    
+    if (!message || message.trim() === '<p><br></p>') {
+        showEmailStatus('Please enter a message.', 'danger');
+        return;
+    }
+    
+    // Show loading state
+    const originalBtnText = sendBtn.innerHTML;
+    sendBtn.innerHTML = '<i class="bi bi-spinner-border spinner-border-sm me-1"></i>Sending...';
+    sendBtn.disabled = true;
+    
+    // Prepare form data
+    const formData = new FormData(form);
+    
+    // Debug log the form data
+    console.log('QBO Email Debug: Sending email with data:');
+    for (let pair of formData.entries()) {
+        console.log(pair[0] + ': ' + pair[1]);
+    }
+    
+    // Send email via AJAX
+    fetch('/wp-admin/admin-ajax.php', {
+        method: 'POST',
+        body: formData
+    })
+    .then(response => {
+        console.log('QBO Email Debug: Response status:', response.status);
+        console.log('QBO Email Debug: Response headers:', response.headers);
+        return response.text().then(text => {
+            console.log('QBO Email Debug: Raw response:', text);
+            try {
+                return JSON.parse(text);
+            } catch (e) {
+                console.error('QBO Email Debug: Failed to parse JSON:', e);
+                throw new Error('Invalid JSON response');
+            }
+        });
+    })
+    .then(data => {
+        console.log('QBO Email Debug: Parsed response:', data);
+        if (data.success) {
+            showEmailStatus(data.message || 'Email sent successfully!', 'success');
+            // Reset form
+            form.reset();
+            if (quill) {
+                quill.setContents([]);
+            }
+            updateRecipientCount();
+        } else {
+            showEmailStatus(data.message || 'Failed to send email. Please try again.', 'danger');
+        }
+    })
+    .catch(error => {
+        console.error('Error:', error);
+        showEmailStatus('An error occurred while sending the email. Please try again.', 'danger');
+    })
+    .finally(() => {
+        sendBtn.innerHTML = originalBtnText;
+        sendBtn.disabled = false;
+    });
+}
+
+function showEmailStatus(message, type) {
+    const statusDiv = document.getElementById('emailStatus');
+    statusDiv.className = `alert alert-${type}`;
+    statusDiv.innerHTML = `<i class="bi bi-${type === 'success' ? 'check-circle' : 'exclamation-triangle'} me-2"></i>${message}`;
+    statusDiv.style.display = 'block';
+    
+    // Auto-hide success messages after 5 seconds
+    if (type === 'success') {
+        setTimeout(() => {
+            statusDiv.style.display = 'none';
+        }, 5000);
+    }
+}
+
+// Initialize WordPress Media Uploader with folder restriction
+function initializeMediaUploader() {
+    // Check if WordPress media library is available
+    if (typeof wp !== 'undefined' && wp.media) {
+        // Create the media uploader
+        mediaUploader = wp.media({
+            title: 'Select Media for Email',
+            button: {
+                text: 'Insert into Email'
+            },
+            multiple: false,
+            library: {
+                type: ['image', 'video', 'audio'],
+                uploadedTo: null
+            },
+            // Add context to restrict to email attachments folder
+            frame: 'select',
+            state: 'library'
+        });
+        
+        // Add context parameter for folder restriction
+        mediaUploader.on('open', function() {
+            // Set context for the AJAX query
+            if (mediaUploader.state().get('library')) {
+                mediaUploader.state().get('library').props.set('context', 'email_attachments');
+            }
+        });
+
+        // When a file is selected, insert it into the editor
+        mediaUploader.on('select', function() {
+            const attachment = mediaUploader.state().get('selection').first().toJSON();
+            insertMediaIntoEditor(attachment);
+        });
+        
+        // Add event listener to the "Add Media" button
+        const addMediaBtn = document.getElementById('addMediaBtn');
+        if (addMediaBtn) {
+            addMediaBtn.addEventListener('click', function(e) {
+                e.preventDefault();
+                if (mediaUploader) {
+                    mediaUploader.open();
+                } else {
+                    // Fallback for when WordPress media library isn't available
+                    showEmailStatus('Media library not available. Please upload images through WordPress admin first.', 'warning');
+                }
+            });
+        }
+    } else {
+        // Hide the add media button if WordPress media library isn't available
+        const addMediaBtn = document.getElementById('addMediaBtn');
+        if (addMediaBtn) {
+            addMediaBtn.style.display = 'none';
+        }
+    }
+}
+
+// Insert selected media into the Quill editor
+function insertMediaIntoEditor(attachment) {
+    if (!quill) return;
+    
+    const range = quill.getSelection(true);
+    const index = range ? range.index : quill.getLength();
+    
+    if (attachment.type === 'image') {
+        // Insert image
+        quill.insertEmbed(index, 'image', attachment.url);
+        quill.insertText(index + 1, '\n');
+        quill.setSelection(index + 2);
+    } else if (attachment.type === 'video') {
+        // Insert video as a link (since email clients don't support embedded video well)
+        quill.insertText(index, attachment.title || 'Video', 'link', attachment.url);
+        quill.insertText(index + (attachment.title || 'Video').length, '\n');
+    } else {
+        // Insert other media as a link
+        quill.insertText(index, attachment.title || attachment.filename || 'Media File', 'link', attachment.url);
+        quill.insertText(index + (attachment.title || attachment.filename || 'Media File').length, '\n');
+    }
+    
+    showEmailStatus('Media inserted successfully!', 'success');
 }
 </script>
 
