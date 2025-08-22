@@ -159,6 +159,175 @@ if (isset($_POST['action']) && $_POST['action'] === 'qbo_upload_team_image') {
     exit;
 }
 
+// Handle useful links save
+if (isset($_POST['action']) && $_POST['action'] === 'save_useful_link') {
+    header('Content-Type: application/json');
+    
+    // Check if user is logged in via Google
+    if (!isset($_SESSION['google_logged_in']) || $_SESSION['google_logged_in'] !== true) {
+        http_response_code(401);
+        echo json_encode(['success' => false, 'message' => 'Authentication required.']);
+        exit;
+    }
+    
+    // Verify mentor permissions or board member access
+    global $wpdb;
+    $table_mentors = $wpdb->prefix . 'gears_mentors';
+    $table_teams = $wpdb->prefix . 'gears_teams';
+    $google_email = $_SESSION['google_user_email'] ?? '';
+    
+    // Check if user is a board member
+    $is_board_member = in_array($google_email, $board_members);
+    
+    if (!$is_board_member) {
+        // If not a board member, check mentor permissions
+        $mentor = $wpdb->get_row($wpdb->prepare("SELECT * FROM $table_mentors WHERE email = %s", $google_email));
+        
+        if (!$mentor || !$mentor->team_id || $mentor->team_id != intval($_POST['team_id'])) {
+            http_response_code(403);
+            echo json_encode(['success' => false, 'message' => 'Access denied.']);
+            exit;
+        }
+    }
+    
+    // Validate input
+    $program = sanitize_text_field($_POST['program']);
+    $name = sanitize_text_field($_POST['name']);
+    $url = esc_url_raw($_POST['url']);
+    $description = sanitize_textarea_field($_POST['description']);
+    $team_id = intval($_POST['team_id']);
+    $link_index = isset($_POST['link_index']) && $_POST['link_index'] !== '' ? intval($_POST['link_index']) : null;
+    
+    if (!in_array($program, ['FLL', 'FTC']) || empty($name) || empty($url)) {
+        http_response_code(400);
+        echo json_encode(['success' => false, 'message' => 'Invalid input data.']);
+        exit;
+    }
+    
+    // Get current team data
+    $team = $wpdb->get_row($wpdb->prepare("SELECT * FROM $table_teams WHERE id = %d", $team_id));
+    if (!$team) {
+        http_response_code(404);
+        echo json_encode(['success' => false, 'message' => 'Team not found.']);
+        exit;
+    }
+    
+    // Get existing links
+    $existing_links = $team->useful_links ? json_decode($team->useful_links, true) : [];
+    if (!is_array($existing_links)) {
+        $existing_links = [];
+    }
+    
+    // Create new link data
+    $link_data = [
+        'program' => $program,
+        'name' => $name,
+        'url' => $url,
+        'description' => $description
+    ];
+    
+    // Add or update link
+    if ($link_index !== null && isset($existing_links[$link_index])) {
+        // Update existing link
+        $existing_links[$link_index] = $link_data;
+    } else {
+        // Add new link
+        $existing_links[] = $link_data;
+    }
+    
+    // Save to database
+    $result = $wpdb->update(
+        $table_teams,
+        ['useful_links' => json_encode($existing_links)],
+        ['id' => $team_id],
+        ['%s'],
+        ['%d']
+    );
+    
+    if ($result === false) {
+        http_response_code(500);
+        echo json_encode(['success' => false, 'message' => 'Failed to save link.']);
+        exit;
+    }
+    
+    echo json_encode(['success' => true, 'message' => 'Link saved successfully.']);
+    exit;
+}
+
+// Handle useful links delete
+if (isset($_POST['action']) && $_POST['action'] === 'delete_useful_link') {
+    header('Content-Type: application/json');
+    
+    // Check if user is logged in via Google
+    if (!isset($_SESSION['google_logged_in']) || $_SESSION['google_logged_in'] !== true) {
+        http_response_code(401);
+        echo json_encode(['success' => false, 'message' => 'Authentication required.']);
+        exit;
+    }
+    
+    // Verify mentor permissions or board member access
+    global $wpdb;
+    $table_mentors = $wpdb->prefix . 'gears_mentors';
+    $table_teams = $wpdb->prefix . 'gears_teams';
+    $google_email = $_SESSION['google_user_email'] ?? '';
+    
+    // Check if user is a board member
+    $is_board_member = in_array($google_email, $board_members);
+    
+    if (!$is_board_member) {
+        // If not a board member, check mentor permissions
+        $mentor = $wpdb->get_row($wpdb->prepare("SELECT * FROM $table_mentors WHERE email = %s", $google_email));
+        
+        if (!$mentor || !$mentor->team_id || $mentor->team_id != intval($_POST['team_id'])) {
+            http_response_code(403);
+            echo json_encode(['success' => false, 'message' => 'Access denied.']);
+            exit;
+        }
+    }
+    
+    $team_id = intval($_POST['team_id']);
+    $link_index = intval($_POST['link_index']);
+    
+    // Get current team data
+    $team = $wpdb->get_row($wpdb->prepare("SELECT * FROM $table_teams WHERE id = %d", $team_id));
+    if (!$team) {
+        http_response_code(404);
+        echo json_encode(['success' => false, 'message' => 'Team not found.']);
+        exit;
+    }
+    
+    // Get existing links
+    $existing_links = $team->useful_links ? json_decode($team->useful_links, true) : [];
+    if (!is_array($existing_links)) {
+        $existing_links = [];
+    }
+    
+    // Remove the link
+    if (isset($existing_links[$link_index])) {
+        array_splice($existing_links, $link_index, 1);
+        
+        // Save to database
+        $result = $wpdb->update(
+            $table_teams,
+            ['useful_links' => json_encode($existing_links)],
+            ['id' => $team_id],
+            ['%s'],
+            ['%d']
+        );
+        
+        if ($result === false) {
+            http_response_code(500);
+            echo json_encode(['success' => false, 'message' => 'Failed to delete link.']);
+            exit;
+        }
+        
+        echo json_encode(['success' => true, 'message' => 'Link deleted successfully.']);
+    } else {
+        echo json_encode(['success' => false, 'message' => 'Link not found.']);
+    }
+    exit;
+}
+
 // Google OAuth credentials - REPLACE WITH YOUR OWN FROM GOOGLE CONSOLE
 $google_client_id = '44830820494-vtuothjvb74ms5bqbfihr3bn53l54f4u.apps.googleusercontent.com'; // e.g., 'xxxx.apps.googleusercontent.com'
 $google_client_secret = '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';
@@ -670,6 +839,9 @@ $alumni = $wpdb->get_results("SELECT * FROM {$wpdb->prefix}gears_students WHERE 
   <li class="nav-item" role="presentation">
     <button class="nav-link" id="alumni-tab" data-bs-toggle="tab" data-bs-target="#alumni" type="button" role="tab" aria-controls="alumni" aria-selected="false">Alumni</button>
   </li>
+  <li class="nav-item" role="presentation">
+    <button class="nav-link" id="useful-links-tab" data-bs-toggle="tab" data-bs-target="#useful-links" type="button" role="tab" aria-controls="useful-links" aria-selected="false">Useful Links</button>
+  </li>
 </ul>
 <div class="tab-content" id="registerTabsContent">
   <div class="tab-pane fade show active" id="team-info" role="tabpanel" aria-labelledby="team-info-tab">
@@ -921,6 +1093,58 @@ $alumni = $wpdb->get_results("SELECT * FROM {$wpdb->prefix}gears_students WHERE 
     <div class="alert alert-info mt-3">No alumni found for this team.</div>
     <?php endif; ?>
   </div>
+  <div class="tab-pane fade" id="useful-links" role="tabpanel" aria-labelledby="useful-links-tab">
+    <div class="card shadow-sm">
+      <div class="card-header bg-primary text-white">
+        <h6 class="mb-0"><i class="bi bi-link-45deg me-2"></i>Useful Links</h6>
+      </div>
+      <div class="card-body">
+        <div id="useful-links-container">
+          <?php 
+          // Get program-specific useful links from options
+          $team_program = strtoupper($team->program ?? '');
+          $program_links = [];
+          
+          if ($team_program === 'FLL') {
+            $program_links = get_option('qbo_useful_links_fll', []);
+          } elseif ($team_program === 'FTC') {
+            $program_links = get_option('qbo_useful_links_ftc', []);
+          }
+          
+          if (empty($program_links)): ?>
+            <div class="alert alert-info mb-0">
+              <i class="bi bi-info-circle me-2"></i>No useful links have been added for <?php echo htmlentities($team_program); ?> teams yet.
+            </div>
+          <?php else: ?>
+            <div class="row">
+              <?php foreach ($program_links as $link): ?>
+                <div class="col-md-6 mb-3">
+                  <div class="card h-100">
+                    <div class="card-body">
+                      <div class="d-flex justify-content-between align-items-start mb-2">
+                        <span class="badge bg-<?php echo $team_program === 'FLL' ? 'success' : 'warning'; ?> text-<?php echo $team_program === 'FLL' ? 'white' : 'dark'; ?>">
+                          <?php echo htmlentities($team_program); ?>
+                        </span>
+                      </div>
+                      <h6 class="card-title mb-2">
+                        <a href="<?php echo htmlentities($link['url']); ?>" target="_blank" class="text-decoration-none">
+                          <?php echo htmlentities($link['name']); ?>
+                          <i class="bi bi-box-arrow-up-right ms-1 small"></i>
+                        </a>
+                      </h6>
+                      <p class="card-text text-muted small mb-0">
+                        <?php echo htmlentities($link['description']); ?>
+                      </p>
+                    </div>
+                  </div>
+                </div>
+              <?php endforeach; ?>
+            </div>
+          <?php endif; ?>
+        </div>
+      </div>
+    </div>
+  </div>
 </div>
 </div>
 
@@ -1025,6 +1249,129 @@ function showUploadStatus(message, type) {
         }, 3000);
     }
 }
+
+// Useful Links Functions
+function showAddLinkModal() {
+    document.getElementById('linkModalTitle').textContent = 'Add Useful Link';
+    document.getElementById('linkForm').reset();
+    document.getElementById('linkIndex').value = '';
+    document.getElementById('linkModal').style.display = 'block';
+}
+
+function editLink(index) {
+    const links = <?php echo json_encode($useful_links ?? []); ?>;
+    const link = links[index];
+    
+    document.getElementById('linkModalTitle').textContent = 'Edit Useful Link';
+    document.getElementById('linkProgram').value = link.program;
+    document.getElementById('linkName').value = link.name;
+    document.getElementById('linkUrl').value = link.url;
+    document.getElementById('linkDescription').value = link.description;
+    document.getElementById('linkIndex').value = index;
+    document.getElementById('linkModal').style.display = 'block';
+}
+
+function closeModal() {
+    document.getElementById('linkModal').style.display = 'none';
+}
+
+function saveLinkData() {
+    const formData = new FormData(document.getElementById('linkForm'));
+    formData.append('action', 'save_useful_link');
+    formData.append('team_id', '<?php echo $team->customer_id; ?>');
+    
+    fetch(window.location.href, {
+        method: 'POST',
+        body: formData
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            location.reload(); // Reload to show updated links
+        } else {
+            alert('Error saving link: ' + (data.message || 'Unknown error'));
+        }
+    })
+    .catch(error => {
+        console.error('Error:', error);
+        alert('Error saving link');
+    });
+}
+
+function deleteLink(index) {
+    if (confirm('Are you sure you want to delete this link?')) {
+        const formData = new FormData();
+        formData.append('action', 'delete_useful_link');
+        formData.append('team_id', '<?php echo $team->customer_id; ?>');
+        formData.append('link_index', index);
+        
+        fetch(window.location.href, {
+            method: 'POST',
+            body: formData
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                location.reload(); // Reload to show updated links
+            } else {
+                alert('Error deleting link: ' + (data.message || 'Unknown error'));
+            }
+        })
+        .catch(error => {
+            console.error('Error:', error);
+            alert('Error deleting link');
+        });
+    }
+}
+
+// Close modal when clicking outside
+window.onclick = function(event) {
+    const modal = document.getElementById('linkModal');
+    if (event.target == modal) {
+        closeModal();
+    }
+}
 </script>
+
+<!-- Useful Links Modal -->
+<div id="linkModal" class="modal" style="display: none; position: fixed; z-index: 1050; left: 0; top: 0; width: 100%; height: 100%; background-color: rgba(0,0,0,0.5);">
+    <div class="modal-dialog modal-lg" style="margin: 5% auto; position: relative;">
+        <div class="modal-content" style="background-color: #fff; border-radius: 0.5rem; box-shadow: 0 0.5rem 1rem rgba(0,0,0,0.15);">
+            <div class="modal-header" style="padding: 1rem; border-bottom: 1px solid #dee2e6;">
+                <h5 class="modal-title" id="linkModalTitle">Add Useful Link</h5>
+                <button type="button" class="btn-close" onclick="closeModal()" style="background: none; border: none; font-size: 1.5rem; line-height: 1; cursor: pointer;">&times;</button>
+            </div>
+            <div class="modal-body" style="padding: 1rem;">
+                <form id="linkForm">
+                    <input type="hidden" id="linkIndex" name="link_index">
+                    <div class="mb-3">
+                        <label for="linkProgram" class="form-label">Program</label>
+                        <select class="form-select" id="linkProgram" name="program" required>
+                            <option value="">Select Program</option>
+                            <option value="FLL">FLL (FIRST Lego League)</option>
+                            <option value="FTC">FTC (FIRST Tech Challenge)</option>
+                        </select>
+                    </div>
+                    <div class="mb-3">
+                        <label for="linkName" class="form-label">Link Name</label>
+                        <input type="text" class="form-control" id="linkName" name="name" required placeholder="e.g., Challenge Guide">
+                    </div>
+                    <div class="mb-3">
+                        <label for="linkUrl" class="form-label">URL</label>
+                        <input type="url" class="form-control" id="linkUrl" name="url" required placeholder="https://example.com">
+                    </div>
+                    <div class="mb-3">
+                        <label for="linkDescription" class="form-label">Description</label>
+                        <textarea class="form-control" id="linkDescription" name="description" rows="3" placeholder="Brief description of this link"></textarea>
+                    </div>
+                </form>
+            </div>
+            <div class="modal-footer" style="padding: 1rem; border-top: 1px solid #dee2e6;">
+                <button type="button" class="btn btn-secondary" onclick="closeModal()">Cancel</button>
+                <button type="button" class="btn btn-primary" onclick="saveLinkData()">Save Link</button>
+            </div>
+        </div>
+    </div>
+</div>
 
 </body></html>

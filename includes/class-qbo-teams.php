@@ -53,6 +53,8 @@ class QBO_Teams {
         add_action('wp_ajax_qbo_archive_team', array($this, 'ajax_archive_team'));
         add_action('wp_ajax_qbo_restore_team', array($this, 'ajax_restore_team'));
         add_action('wp_ajax_qbo_get_team_data', array($this, 'ajax_get_team_data'));
+        add_action('wp_ajax_save_useful_link', array($this, 'ajax_save_useful_link'));
+        add_action('wp_ajax_delete_useful_link', array($this, 'ajax_delete_useful_link'));
         // Register the new invoices page
         add_action('admin_menu', array($this, 'register_invoices_page'));
     }
@@ -86,6 +88,13 @@ class QBO_Teams {
         if (empty($bank_account_id_exists)) {
             // Add the bank_account_id column (string, nullable)
             $wpdb->query("ALTER TABLE $table_teams ADD COLUMN bank_account_id VARCHAR(64) NULL");
+        }
+        
+        // Check if useful_links column exists, if not add it
+        $useful_links_exists = $wpdb->get_results("SHOW COLUMNS FROM $table_teams LIKE 'useful_links'");
+        if (empty($useful_links_exists)) {
+            // Add the useful_links column (JSON text field)
+            $wpdb->query("ALTER TABLE $table_teams ADD COLUMN useful_links TEXT NULL");
         }
     }
     
@@ -2496,6 +2505,10 @@ class QBO_Teams {
                                                 <i class="dashicons dashicons-money-alt"></i>
                                                 <span>Bank Account</span>
                                             </button>
+                                            <button type="button" class="action-btn links-btn" onclick="toggleLinksSection()">
+                                                <i class="dashicons dashicons-admin-links"></i>
+                                                <span>Useful Links</span>
+                                            </button>
                                         </div>
                                     </div>
                                 </div>
@@ -2735,6 +2748,66 @@ class QBO_Teams {
                                                 </div>
                                             </div>
                                         </form>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Collapsible Useful Links Section -->
+                        <div class="links-section" id="linksSection" style="display: none;">
+                            <div class="info-card links-card">
+                                <div class="card-header">
+                                    <h3><i class="dashicons dashicons-admin-links"></i> Useful Links Management</h3>
+                                    <button type="button" class="close-btn" onclick="toggleLinksSection()">
+                                        <i class="dashicons dashicons-no-alt"></i>
+                                    </button>
+                                </div>
+                                <div class="card-content">
+                                    <div class="links-header">
+                                        <button type="button" class="btn-primary" onclick="showAddLinkModal()">
+                                            <i class="dashicons dashicons-plus"></i>
+                                            Add New Link
+                                        </button>
+                                    </div>
+                                    
+                                    <div id="useful-links-container">
+                                        <?php 
+                                        // Get useful links from database
+                                        $useful_links = isset($team->useful_links) ? json_decode($team->useful_links, true) : [];
+                                        if (empty($useful_links)): ?>
+                                            <div class="no-links-message">
+                                                <p><i class="dashicons dashicons-info"></i> No useful links have been added yet. Click "Add New Link" to get started.</p>
+                                            </div>
+                                        <?php else: ?>
+                                            <div class="links-grid">
+                                                <?php foreach ($useful_links as $index => $link): ?>
+                                                    <div class="link-card" data-index="<?php echo $index; ?>">
+                                                        <div class="link-header">
+                                                            <span class="program-badge program-<?php echo strtolower($link['program']); ?>">
+                                                                <?php echo esc_html($link['program']); ?>
+                                                            </span>
+                                                            <div class="link-actions">
+                                                                <button type="button" class="action-btn-small edit-link" onclick="editLink(<?php echo $index; ?>)">
+                                                                    <i class="dashicons dashicons-edit"></i>
+                                                                </button>
+                                                                <button type="button" class="action-btn-small delete-link" onclick="deleteLink(<?php echo $index; ?>)">
+                                                                    <i class="dashicons dashicons-trash"></i>
+                                                                </button>
+                                                            </div>
+                                                        </div>
+                                                        <div class="link-content">
+                                                            <h4 class="link-title">
+                                                                <a href="<?php echo esc_url($link['url']); ?>" target="_blank">
+                                                                    <?php echo esc_html($link['name']); ?>
+                                                                    <i class="dashicons dashicons-external"></i>
+                                                                </a>
+                                                            </h4>
+                                                            <p class="link-description"><?php echo esc_html($link['description']); ?></p>
+                                                        </div>
+                                                    </div>
+                                                <?php endforeach; ?>
+                                            </div>
+                                        <?php endif; ?>
                                     </div>
                                 </div>
                             </div>
@@ -3130,11 +3203,22 @@ class QBO_Teams {
                 document.body.style.overflow = 'auto';
             }
         }
+        
+        function toggleLinksSection() {
+            var linksSection = document.getElementById('linksSection');
+            if (linksSection.style.display === 'none') {
+                linksSection.style.display = 'flex';
+                document.body.style.overflow = 'hidden';
+            } else {
+                linksSection.style.display = 'none';
+                document.body.style.overflow = 'auto';
+            }
+        }
 
         // Close modals when clicking on overlay
         document.addEventListener('DOMContentLoaded', function() {
             // Add click handlers for modal overlays
-            ['editSection', 'historySection', 'bankSection'].forEach(function(sectionId) {
+            ['editSection', 'historySection', 'bankSection', 'linksSection'].forEach(function(sectionId) {
                 var section = document.getElementById(sectionId);
                 if (section) {
                     section.addEventListener('click', function(e) {
@@ -3929,6 +4013,84 @@ class QBO_Teams {
                 });
             }
             
+            // Useful Links Management Functions
+            function showAddLinkModal() {
+                document.getElementById('linkModalTitle').textContent = 'Add Useful Link';
+                document.getElementById('linkForm').reset();
+                document.getElementById('linkIndex').value = '';
+                document.getElementById('linkModal').style.display = 'block';
+                document.body.style.overflow = 'hidden';
+            }
+
+            function editLink(index) {
+                var links = <?php echo json_encode($useful_links ?? []); ?>;
+                var link = links[index];
+                
+                document.getElementById('linkModalTitle').textContent = 'Edit Useful Link';
+                document.getElementById('linkProgram').value = link.program;
+                document.getElementById('linkName').value = link.name;
+                document.getElementById('linkUrl').value = link.url;
+                document.getElementById('linkDescription').value = link.description;
+                document.getElementById('linkIndex').value = index;
+                document.getElementById('linkModal').style.display = 'block';
+                document.body.style.overflow = 'hidden';
+            }
+
+            function closeLinkModal() {
+                document.getElementById('linkModal').style.display = 'none';
+                document.body.style.overflow = 'auto';
+            }
+
+            function saveLinkData() {
+                var formData = new FormData(document.getElementById('linkForm'));
+                formData.append('action', 'save_useful_link');
+                formData.append('team_id', '<?php echo $team_id; ?>');
+                
+                jQuery.ajax({
+                    url: ajaxurl,
+                    type: 'POST',
+                    data: formData,
+                    processData: false,
+                    contentType: false,
+                    success: function(response) {
+                        if (response.success) {
+                            alert('Link saved successfully!');
+                            location.reload();
+                        } else {
+                            alert('Error saving link: ' + (response.message || 'Unknown error'));
+                        }
+                    },
+                    error: function() {
+                        alert('Error saving link');
+                    }
+                });
+            }
+
+            function deleteLink(index) {
+                if (confirm('Are you sure you want to delete this link?')) {
+                    jQuery.ajax({
+                        url: ajaxurl,
+                        type: 'POST',
+                        data: {
+                            action: 'delete_useful_link',
+                            team_id: '<?php echo $team_id; ?>',
+                            link_index: index
+                        },
+                        success: function(response) {
+                            if (response.success) {
+                                alert('Link deleted successfully!');
+                                location.reload();
+                            } else {
+                                alert('Error deleting link: ' + (response.message || 'Unknown error'));
+                            }
+                        },
+                        error: function() {
+                            alert('Error deleting link');
+                        }
+                    });
+                }
+            }
+            
             function loadTeamMentors() {
                 var teamId = <?php echo intval($team_id); ?>;
                 
@@ -4310,6 +4472,45 @@ class QBO_Teams {
             </div>
         </div>
         
+        <!-- Useful Links Modal -->
+        <div id="linkModal" style="display: none; position: fixed; z-index: 1000; left: 0; top: 0; width: 100%; height: 100%; background-color: rgba(0,0,0,0.5);">
+            <div style="position: relative; margin: 10% auto; padding: 0; width: 90%; max-width: 600px; background-color: #fff; border-radius: 8px; box-shadow: 0 4px 20px rgba(0,0,0,0.1);">
+                <div style="padding: 20px; border-bottom: 1px solid #ddd; display: flex; justify-content: space-between; align-items: center;">
+                    <h3 id="linkModalTitle" style="margin: 0; color: #333;">Add Useful Link</h3>
+                    <button type="button" onclick="closeLinkModal()" style="background: none; border: none; font-size: 24px; cursor: pointer; color: #999;">&times;</button>
+                </div>
+                <div style="padding: 20px;">
+                    <form id="linkForm">
+                        <input type="hidden" id="linkIndex" name="link_index">
+                        <div style="margin-bottom: 15px;">
+                            <label for="linkProgram" style="display: block; margin-bottom: 5px; font-weight: 600;">Program</label>
+                            <select id="linkProgram" name="program" required style="width: 100%; padding: 8px; border: 1px solid #ddd; border-radius: 4px;">
+                                <option value="">Select Program</option>
+                                <option value="FLL">FLL (FIRST Lego League)</option>
+                                <option value="FTC">FTC (FIRST Tech Challenge)</option>
+                            </select>
+                        </div>
+                        <div style="margin-bottom: 15px;">
+                            <label for="linkName" style="display: block; margin-bottom: 5px; font-weight: 600;">Link Name</label>
+                            <input type="text" id="linkName" name="name" required placeholder="e.g., Challenge Guide" style="width: 100%; padding: 8px; border: 1px solid #ddd; border-radius: 4px;">
+                        </div>
+                        <div style="margin-bottom: 15px;">
+                            <label for="linkUrl" style="display: block; margin-bottom: 5px; font-weight: 600;">URL</label>
+                            <input type="url" id="linkUrl" name="url" required placeholder="https://example.com" style="width: 100%; padding: 8px; border: 1px solid #ddd; border-radius: 4px;">
+                        </div>
+                        <div style="margin-bottom: 15px;">
+                            <label for="linkDescription" style="display: block; margin-bottom: 5px; font-weight: 600;">Description</label>
+                            <textarea id="linkDescription" name="description" rows="3" placeholder="Brief description of this link" style="width: 100%; padding: 8px; border: 1px solid #ddd; border-radius: 4px; resize: vertical;"></textarea>
+                        </div>
+                    </form>
+                </div>
+                <div style="padding: 20px; border-top: 1px solid #ddd; text-align: right;">
+                    <button type="button" onclick="closeLinkModal()" style="margin-right: 10px; padding: 8px 16px; border: 1px solid #ddd; background: #f9f9f9; border-radius: 4px; cursor: pointer;">Cancel</button>
+                    <button type="button" onclick="saveLinkData()" style="padding: 8px 16px; border: none; background: #0073aa; color: white; border-radius: 4px; cursor: pointer;">Save Link</button>
+                </div>
+            </div>
+        </div>
+        
         </div> <!-- Close wrap -->
         <?php
     }
@@ -4607,6 +4808,132 @@ class QBO_Teams {
             preg_match('/<p>(.*?)<\/p>/', $output, $matches);
             $error_message = isset($matches[1]) ? $matches[1] : 'Unknown error occurred';
             wp_send_json_error($error_message);
+        }
+    }
+    
+    /**
+     * AJAX handler to save useful link
+     */
+    public function ajax_save_useful_link() {
+        global $wpdb;
+        
+        // Verify user permissions
+        if (!current_user_can('manage_options')) {
+            wp_send_json_error('Access denied.');
+            return;
+        }
+        
+        // Validate input
+        $program = sanitize_text_field($_POST['program']);
+        $name = sanitize_text_field($_POST['name']);
+        $url = esc_url_raw($_POST['url']);
+        $description = sanitize_textarea_field($_POST['description']);
+        $team_id = intval($_POST['team_id']);
+        $link_index = isset($_POST['link_index']) && $_POST['link_index'] !== '' ? intval($_POST['link_index']) : null;
+        
+        if (!in_array($program, ['FLL', 'FTC']) || empty($name) || empty($url)) {
+            wp_send_json_error('Invalid input data.');
+            return;
+        }
+        
+        // Get current team data
+        $table_teams = $wpdb->prefix . 'gears_teams';
+        $team = $wpdb->get_row($wpdb->prepare("SELECT * FROM $table_teams WHERE id = %d", $team_id));
+        if (!$team) {
+            wp_send_json_error('Team not found.');
+            return;
+        }
+        
+        // Get existing links
+        $existing_links = $team->useful_links ? json_decode($team->useful_links, true) : [];
+        if (!is_array($existing_links)) {
+            $existing_links = [];
+        }
+        
+        // Create new link data
+        $link_data = [
+            'program' => $program,
+            'name' => $name,
+            'url' => $url,
+            'description' => $description
+        ];
+        
+        // Add or update link
+        if ($link_index !== null && isset($existing_links[$link_index])) {
+            // Update existing link
+            $existing_links[$link_index] = $link_data;
+        } else {
+            // Add new link
+            $existing_links[] = $link_data;
+        }
+        
+        // Save to database
+        $result = $wpdb->update(
+            $table_teams,
+            ['useful_links' => json_encode($existing_links)],
+            ['id' => $team_id],
+            ['%s'],
+            ['%d']
+        );
+        
+        if ($result === false) {
+            wp_send_json_error('Failed to save link.');
+            return;
+        }
+        
+        wp_send_json_success('Link saved successfully.');
+    }
+    
+    /**
+     * AJAX handler to delete useful link
+     */
+    public function ajax_delete_useful_link() {
+        global $wpdb;
+        
+        // Verify user permissions
+        if (!current_user_can('manage_options')) {
+            wp_send_json_error('Access denied.');
+            return;
+        }
+        
+        $team_id = intval($_POST['team_id']);
+        $link_index = intval($_POST['link_index']);
+        
+        // Get current team data
+        $table_teams = $wpdb->prefix . 'gears_teams';
+        $team = $wpdb->get_row($wpdb->prepare("SELECT * FROM $table_teams WHERE id = %d", $team_id));
+        if (!$team) {
+            wp_send_json_error('Team not found.');
+            return;
+        }
+        
+        // Get existing links
+        $existing_links = $team->useful_links ? json_decode($team->useful_links, true) : [];
+        if (!is_array($existing_links)) {
+            $existing_links = [];
+        }
+        
+        // Remove the link
+        if (isset($existing_links[$link_index])) {
+            array_splice($existing_links, $link_index, 1);
+            
+            // Save to database
+            $result = $wpdb->update(
+                $table_teams,
+                ['useful_links' => json_encode($existing_links)],
+                ['id' => $team_id],
+                ['%s'],
+                ['%d']
+            );
+            
+            if ($result === false) {
+                wp_send_json_error('Failed to delete link.');
+                return;
+            }
+            
+            wp_send_json_success('Link deleted successfully.');
+        } else {
+            wp_send_json_error('Link not found.');
         }
     }
 }

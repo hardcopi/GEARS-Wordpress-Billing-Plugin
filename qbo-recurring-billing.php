@@ -188,6 +188,16 @@ class QBORecurringBilling {
             array($this->reports, 'reports_page')
         );
         
+        // Useful Links submenu under GEARS Dashboard
+        add_submenu_page(
+            'gears-dashboard',
+            'Useful Links',
+            'Useful Links',
+            'manage_options',
+            'qbo-useful-links',
+            array($this, 'useful_links_page')
+        );
+        
         // Settings submenu under GEARS Dashboard
         add_submenu_page(
             'gears-dashboard',
@@ -197,6 +207,366 @@ class QBORecurringBilling {
             'qbo-settings',
             array($this->settings, 'settings_page')
         );
+    }
+
+    /**
+     * Useful Links page handler
+     */
+    public function useful_links_page() {
+        // Handle form submissions
+        if ($_POST) {
+            $this->handle_useful_links_form();
+        }
+        
+        // Get current links from options
+        $fll_links = get_option('qbo_useful_links_fll', []);
+        $ftc_links = get_option('qbo_useful_links_ftc', []);
+        
+        ?>
+        <div class="wrap">
+            <h1>Useful Links Management</h1>
+            <p>Manage useful links that will be shown to all teams of each program type.</p>
+            
+            <div class="useful-links-admin-container">
+                <!-- FLL Links Section -->
+                <div class="program-section">
+                    <h2><span class="program-badge fll">FLL</span> FIRST Lego League Links</h2>
+                    <button type="button" class="button button-primary" onclick="showAddLinkModal('FLL')">Add FLL Link</button>
+                    
+                    <div class="links-list" id="fll-links">
+                        <?php if (empty($fll_links)): ?>
+                            <p class="no-links">No FLL links added yet.</p>
+                        <?php else: ?>
+                            <?php foreach ($fll_links as $index => $link): ?>
+                                <div class="link-item">
+                                    <div class="link-content">
+                                        <h4><a href="<?php echo esc_url($link['url']); ?>" target="_blank"><?php echo esc_html($link['name']); ?></a></h4>
+                                        <p><?php echo esc_html($link['description']); ?></p>
+                                    </div>
+                                    <div class="link-actions">
+                                        <button type="button" class="button" onclick="editLink('FLL', <?php echo $index; ?>)">Edit</button>
+                                        <button type="button" class="button button-link-delete" onclick="deleteLink('FLL', <?php echo $index; ?>)">Delete</button>
+                                    </div>
+                                </div>
+                            <?php endforeach; ?>
+                        <?php endif; ?>
+                    </div>
+                </div>
+                
+                <!-- FTC Links Section -->
+                <div class="program-section">
+                    <h2><span class="program-badge ftc">FTC</span> FIRST Tech Challenge Links</h2>
+                    <button type="button" class="button button-primary" onclick="showAddLinkModal('FTC')">Add FTC Link</button>
+                    
+                    <div class="links-list" id="ftc-links">
+                        <?php if (empty($ftc_links)): ?>
+                            <p class="no-links">No FTC links added yet.</p>
+                        <?php else: ?>
+                            <?php foreach ($ftc_links as $index => $link): ?>
+                                <div class="link-item">
+                                    <div class="link-content">
+                                        <h4><a href="<?php echo esc_url($link['url']); ?>" target="_blank"><?php echo esc_html($link['name']); ?></a></h4>
+                                        <p><?php echo esc_html($link['description']); ?></p>
+                                    </div>
+                                    <div class="link-actions">
+                                        <button type="button" class="button" onclick="editLink('FTC', <?php echo $index; ?>)">Edit</button>
+                                        <button type="button" class="button button-link-delete" onclick="deleteLink('FTC', <?php echo $index; ?>)">Delete</button>
+                                    </div>
+                                </div>
+                            <?php endforeach; ?>
+                        <?php endif; ?>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Add/Edit Link Modal -->
+        <div id="linkModal" class="useful-links-modal" style="display: none;">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h3 id="modalTitle">Add Link</h3>
+                    <button type="button" class="modal-close" onclick="closeLinkModal()">&times;</button>
+                </div>
+                <form id="linkForm" method="post">
+                    <input type="hidden" name="action" value="save_link">
+                    <input type="hidden" id="linkProgram" name="program">
+                    <input type="hidden" id="linkIndex" name="index">
+                    
+                    <div class="form-field">
+                        <label for="linkName">Link Name</label>
+                        <input type="text" id="linkName" name="name" required>
+                    </div>
+                    
+                    <div class="form-field">
+                        <label for="linkUrl">URL</label>
+                        <input type="url" id="linkUrl" name="url" required>
+                    </div>
+                    
+                    <div class="form-field">
+                        <label for="linkDescription">Description</label>
+                        <textarea id="linkDescription" name="description" rows="3"></textarea>
+                    </div>
+                    
+                    <div class="modal-footer">
+                        <button type="button" class="button" onclick="closeLinkModal()">Cancel</button>
+                        <button type="submit" class="button button-primary">Save Link</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+        
+        <style>
+        .useful-links-admin-container {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 30px;
+            margin-top: 20px;
+        }
+        
+        .program-section {
+            background: #fff;
+            padding: 20px;
+            border: 1px solid #ccd0d4;
+            border-radius: 4px;
+        }
+        
+        .program-badge {
+            display: inline-block;
+            padding: 4px 8px;
+            border-radius: 3px;
+            color: white;
+            font-weight: bold;
+            font-size: 12px;
+        }
+        
+        .program-badge.fll {
+            background-color: #28a745;
+        }
+        
+        .program-badge.ftc {
+            background-color: #ffc107;
+            color: #000;
+        }
+        
+        .links-list {
+            margin-top: 15px;
+        }
+        
+        .link-item {
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+            padding: 15px;
+            border: 1px solid #e1e1e1;
+            border-radius: 4px;
+            margin-bottom: 10px;
+            background: #f9f9f9;
+        }
+        
+        .link-content {
+            flex: 1;
+        }
+        
+        .link-content h4 {
+            margin: 0 0 5px 0;
+        }
+        
+        .link-content p {
+            margin: 0;
+            color: #666;
+        }
+        
+        .link-actions {
+            display: flex;
+            gap: 10px;
+        }
+        
+        .button-link-delete {
+            color: #a00;
+        }
+        
+        .useful-links-modal {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0,0,0,0.5);
+            z-index: 100000;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        
+        .modal-content {
+            background: white;
+            padding: 0;
+            border-radius: 4px;
+            width: 90%;
+            max-width: 500px;
+        }
+        
+        .modal-header {
+            padding: 20px;
+            border-bottom: 1px solid #ddd;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        
+        .modal-header h3 {
+            margin: 0;
+        }
+        
+        .modal-close {
+            background: none;
+            border: none;
+            font-size: 24px;
+            cursor: pointer;
+        }
+        
+        .modal-footer {
+            padding: 20px;
+            border-top: 1px solid #ddd;
+            text-align: right;
+        }
+        
+        .form-field {
+            padding: 0 20px 15px;
+        }
+        
+        .form-field label {
+            display: block;
+            margin-bottom: 5px;
+            font-weight: 600;
+        }
+        
+        .form-field input,
+        .form-field textarea {
+            width: 100%;
+            padding: 8px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+        }
+        
+        .no-links {
+            color: #666;
+            font-style: italic;
+            padding: 20px;
+            text-align: center;
+        }
+        
+        @media (max-width: 768px) {
+            .useful-links-admin-container {
+                grid-template-columns: 1fr;
+            }
+        }
+        </style>
+        
+        <script>
+        function showAddLinkModal(program) {
+            document.getElementById('modalTitle').textContent = 'Add ' + program + ' Link';
+            document.getElementById('linkProgram').value = program;
+            document.getElementById('linkIndex').value = '';
+            document.getElementById('linkForm').reset();
+            document.getElementById('linkProgram').value = program; // Reset after form reset
+            document.getElementById('linkModal').style.display = 'flex';
+        }
+        
+        function editLink(program, index) {
+            var links = <?php echo json_encode(['FLL' => $fll_links, 'FTC' => $ftc_links]); ?>;
+            var link = links[program][index];
+            
+            document.getElementById('modalTitle').textContent = 'Edit ' + program + ' Link';
+            document.getElementById('linkProgram').value = program;
+            document.getElementById('linkIndex').value = index;
+            document.getElementById('linkName').value = link.name;
+            document.getElementById('linkUrl').value = link.url;
+            document.getElementById('linkDescription').value = link.description;
+            document.getElementById('linkModal').style.display = 'flex';
+        }
+        
+        function deleteLink(program, index) {
+            if (confirm('Are you sure you want to delete this link?')) {
+                var form = document.createElement('form');
+                form.method = 'post';
+                form.innerHTML = '<input type="hidden" name="action" value="delete_link">' +
+                               '<input type="hidden" name="program" value="' + program + '">' +
+                               '<input type="hidden" name="index" value="' + index + '">';
+                document.body.appendChild(form);
+                form.submit();
+            }
+        }
+        
+        function closeLinkModal() {
+            document.getElementById('linkModal').style.display = 'none';
+        }
+        
+        // Close modal when clicking outside
+        document.getElementById('linkModal').addEventListener('click', function(e) {
+            if (e.target === this) {
+                closeLinkModal();
+            }
+        });
+        </script>
+        <?php
+    }
+    
+    /**
+     * Handle useful links form submissions
+     */
+    private function handle_useful_links_form() {
+        if (!current_user_can('manage_options')) {
+            wp_die('Access denied');
+        }
+        
+        $action = sanitize_text_field($_POST['action']);
+        $program = sanitize_text_field($_POST['program']);
+        
+        if (!in_array($program, ['FLL', 'FTC'])) {
+            wp_die('Invalid program');
+        }
+        
+        $option_name = 'qbo_useful_links_' . strtolower($program);
+        $links = get_option($option_name, []);
+        
+        if ($action === 'save_link') {
+            $name = sanitize_text_field($_POST['name']);
+            $url = esc_url_raw($_POST['url']);
+            $description = sanitize_textarea_field($_POST['description']);
+            $index = isset($_POST['index']) && $_POST['index'] !== '' ? intval($_POST['index']) : null;
+            
+            if (empty($name) || empty($url)) {
+                add_settings_error('useful_links', 'missing_fields', 'Name and URL are required.');
+                return;
+            }
+            
+            $link_data = [
+                'name' => $name,
+                'url' => $url,
+                'description' => $description
+            ];
+            
+            if ($index !== null && isset($links[$index])) {
+                $links[$index] = $link_data;
+                $message = 'Link updated successfully.';
+            } else {
+                $links[] = $link_data;
+                $message = 'Link added successfully.';
+            }
+            
+            update_option($option_name, $links);
+            add_settings_error('useful_links', 'link_saved', $message, 'updated');
+            
+        } elseif ($action === 'delete_link') {
+            $index = intval($_POST['index']);
+            
+            if (isset($links[$index])) {
+                array_splice($links, $index, 1);
+                update_option($option_name, $links);
+                add_settings_error('useful_links', 'link_deleted', 'Link deleted successfully.', 'updated');
+            }
+        }
     }
 
     /**
@@ -214,6 +584,7 @@ class QBORecurringBilling {
             'gears-dashboard_page_qbo-settings',
             'gears-dashboard_page_qbo-recurring-invoices',
             'gears-dashboard_page_qbo-reports',
+            'gears-dashboard_page_qbo-useful-links',
             'admin_page_qbo-view-invoices' // for the hidden invoices page
         );
         
