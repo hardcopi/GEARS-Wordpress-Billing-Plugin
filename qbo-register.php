@@ -697,6 +697,8 @@ $alumni = $wpdb->get_results("SELECT * FROM {$wpdb->prefix}gears_students WHERE 
 // Output HTML as Bootstrap tabbed page
 ?><!DOCTYPE html>
 <html><head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no">
 <title>QuickBooks Account Register: <?php echo htmlentities($account_name); ?></title>
 <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet" crossorigin="anonymous">
 <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.css" rel="stylesheet">
@@ -764,6 +766,100 @@ if (function_exists('wp_head')) {
   .btn-upload:hover {
     transform: translateY(-1px);
     box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+  }
+  
+  /* Mobile-specific improvements for Quill editor */
+  @media (max-width: 768px) {
+    .ql-toolbar {
+      flex-wrap: wrap !important;
+      border-radius: 8px 8px 0 0 !important;
+    }
+    
+    .ql-toolbar .ql-formats {
+      margin-right: 8px !important;
+      margin-bottom: 4px !important;
+    }
+    
+    .ql-editor {
+      min-height: 150px !important;
+      font-size: 16px !important; /* Prevents zoom on iOS */
+      padding: 12px !important;
+    }
+    
+    .ql-container {
+      border-radius: 0 0 8px 8px !important;
+    }
+    
+    /* Make toolbar buttons more touch-friendly */
+    .ql-toolbar button {
+      min-width: 32px !important;
+      min-height: 32px !important;
+      padding: 6px !important;
+    }
+    
+    .ql-picker {
+      min-width: 80px !important;
+    }
+    
+    /* Improve tab navigation on mobile */
+    .nav-tabs {
+      flex-wrap: wrap !important;
+    }
+    
+    .nav-tabs .nav-link {
+      font-size: 14px !important;
+      padding: 8px 12px !important;
+    }
+    
+    /* Make upload buttons more touch-friendly */
+    .btn {
+      min-height: 44px !important;
+      padding: 10px 16px !important;
+    }
+    
+    /* Improve modal sizing on mobile */
+    .modal-dialog {
+      margin: 10px !important;
+    }
+    
+    /* Better spacing for mobile */
+    .container {
+      padding-left: 10px !important;
+      padding-right: 10px !important;
+    }
+    
+    /* Improve form controls on mobile */
+    .form-control, .form-select {
+      font-size: 16px !important; /* Prevents zoom on iOS */
+      min-height: 44px !important;
+    }
+    
+    /* Hide Communications tab on mobile devices */
+    #communication-tab {
+      display: none !important;
+    }
+  }
+  
+  /* Additional mobile optimizations */
+  @media (max-width: 576px) {
+    .animated-header {
+      flex-direction: column !important;
+      text-align: center !important;
+      padding: 15px !important;
+    }
+    
+    .animated-header img {
+      margin-bottom: 10px !important;
+    }
+    
+    .ql-toolbar {
+      padding: 8px !important;
+    }
+    
+    .ql-editor {
+      min-height: 120px !important;
+      font-size: 16px !important;
+    }
   }
 </style>
 </head><body class="bg-light">
@@ -1501,9 +1597,54 @@ let mediaUploader;
 document.addEventListener('DOMContentLoaded', function() {
     console.log('DOM Content Loaded - Starting initialization');
     
+    // Fallback editor function for when Quill fails to load
+    function createFallbackEditor() {
+        console.log('Creating fallback textarea editor');
+        const editorElement = document.getElementById('emailEditor');
+        if (editorElement) {
+            // Replace the editor div with a textarea
+            const textarea = document.createElement('textarea');
+            textarea.id = 'emailEditor';
+            textarea.name = 'email_content';
+            textarea.className = 'form-control';
+            textarea.placeholder = 'Compose your message...';
+            textarea.rows = 10;
+            textarea.style.minHeight = '200px';
+            textarea.style.fontSize = '16px'; // Prevent zoom on iOS
+            textarea.style.padding = '12px';
+            textarea.style.border = '1px solid #ced4da';
+            textarea.style.borderRadius = '8px';
+            
+            // Replace the element
+            editorElement.parentNode.replaceChild(textarea, editorElement);
+            
+            // Update the global quill variable to have basic methods
+            window.quill = {
+                getContents: function() {
+                    return [{ insert: textarea.value + '\n' }];
+                },
+                getText: function() {
+                    return textarea.value;
+                },
+                setContents: function(contents) {
+                    textarea.value = '';
+                },
+                root: textarea
+            };
+            
+            console.log('Fallback editor created successfully');
+        }
+    }
+    
     // Initialize rich text editor if communication tab exists
     const editorElement = document.getElementById('emailEditor');
     if (editorElement) {
+        console.log('Editor element found, initializing Quill');
+        
+        // Detect if device is mobile
+        const isMobile = window.innerWidth <= 768 || /Android|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
+        console.log('Mobile device detected:', isMobile);
+        
         // Load Quill CSS and JS
         const quillCSS = document.createElement('link');
         quillCSS.rel = 'stylesheet';
@@ -1512,22 +1653,80 @@ document.addEventListener('DOMContentLoaded', function() {
         
         const quillJS = document.createElement('script');
         quillJS.src = 'https://cdn.quilljs.com/1.3.6/quill.min.js';
+        
+        // Set a timeout for loading Quill - if it takes too long, use fallback
+        const loadTimeout = setTimeout(function() {
+            console.log('Quill loading timeout, using fallback editor');
+            createFallbackEditor();
+        }, 10000); // 10 second timeout
+        
+        // Add error handling for script loading
+        quillJS.onerror = function() {
+            console.error('Failed to load Quill.js, falling back to textarea');
+            clearTimeout(loadTimeout);
+            createFallbackEditor();
+        };
+        
         quillJS.onload = function() {
+            clearTimeout(loadTimeout); // Cancel timeout since Quill loaded
+            console.log('Quill.js loaded successfully');
+            try {
+            
+            // Configure toolbar based on device type
+            const toolbarConfig = isMobile ? [
+                // Simplified mobile toolbar
+                ['bold', 'italic'],
+                [{'list': 'ordered'}, {'list': 'bullet'}],
+                [{'align': []}],
+                ['clean']
+            ] : [
+                // Full desktop toolbar
+                [{'header': [1, 2, 3, false]}],
+                ['bold', 'italic', 'underline', 'strike'],
+                [{'color': []}, {'background': []}],
+                [{'align': []}],
+                [{'list': 'ordered'}, {'list': 'bullet'}],
+                ['link', 'image'],
+                ['clean']
+            ];
+            
             quill = new Quill('#emailEditor', {
                 theme: 'snow',
                 placeholder: 'Compose your message...',
                 modules: {
-                    toolbar: [
-                        [{'header': [1, 2, 3, false]}],
-                        ['bold', 'italic', 'underline', 'strike'],
-                        [{'color': []}, {'background': []}],
-                        [{'align': []}],
-                        [{'list': 'ordered'}, {'list': 'bullet'}],
-                        ['link', 'image'],
-                        ['clean']
-                    ]
-                }
+                    toolbar: toolbarConfig
+                },
+                bounds: '#emailEditor' // Constrain editor within its container
             });
+            
+            console.log('Quill editor initialized successfully');
+            
+            // Add mobile-specific event handlers
+            if (isMobile) {
+                // Prevent zoom on focus for iOS
+                const editor = document.querySelector('.ql-editor');
+                if (editor) {
+                    editor.addEventListener('focus', function() {
+                        // Add viewport meta tag modification for iOS
+                        const viewport = document.querySelector('meta[name=viewport]');
+                        if (viewport) {
+                            viewport.setAttribute('content', 'width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no');
+                        }
+                    });
+                    
+                    editor.addEventListener('blur', function() {
+                        // Restore normal viewport behavior
+                        const viewport = document.querySelector('meta[name=viewport]');
+                        if (viewport) {
+                            viewport.setAttribute('content', 'width=device-width, initial-scale=1, shrink-to-fit=no');
+                        }
+                    });
+                }
+            }
+            } catch (error) {
+                console.error('Error initializing Quill editor:', error);
+                createFallbackEditor();
+            }
         };
         document.head.appendChild(quillJS);
         
