@@ -565,7 +565,7 @@ class QBO_Communications {
      */
     private function format_email_content($mentor, $message, $team_info, $from_name) {
         $email_content = '<html><body>';
-        $email_content .= '<div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px;">';
+        $email_content .= '<div style="font-family: \'Zain\', Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px;">';
         $email_content .= '<div style="background: #f8f9fa; padding: 20px; border-radius: 8px; margin-bottom: 20px;">';
         $email_content .= '<h2 style="color: #333; margin: 0 0 10px 0;">Hello ' . esc_html($mentor->full_name) . ',</h2>';
         

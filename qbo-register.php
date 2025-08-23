@@ -372,7 +372,41 @@ if (isset($_GET['code'])) {
 if (!isset($_SESSION['google_logged_in']) || $_SESSION['google_logged_in'] !== true) {
     // Show login button
     $login_url = 'https://accounts.google.com/o/oauth2/v2/auth?scope=email&access_type=offline&include_granted_scopes=true&response_type=code&redirect_uri=' . urlencode($google_redirect_uri) . '&client_id=' . $google_client_id;
-    echo '<!DOCTYPE html><html><head><title>Login Required</title><link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet" integrity="sha384-QWTKZyjpPEjISv5WaRU9OFeRpok6YctnYmDr5pNlyT2bRjXh0JMhjY6hW+ALEwIH" crossorigin="anonymous"></head><body class="bg-light"><div class="container my-5 text-center"><h2>Login Required</h2><p>Please log in with Google to view the account register.</p><a href="' . $login_url . '" class="btn btn-primary">Login with Google</a></div></body></html>';
+    echo '<!DOCTYPE html>
+    <html>
+      <head>
+        <title>GEARS :: Login Required</title>
+        <meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no">
+        
+        <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet" integrity="sha384-QWTKZyjpPEjISv5WaRU9OFeRpok6YctnYmDr5pNlyT2bRjXh0JMhjY6hW+ALEwIH" crossorigin="anonymous">
+        <style>
+          body{font-family:"Zain",-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif!important}
+        </style>
+        </head>
+        <body class="bg-light">
+        <div class="container-fluid px-3 py-5">
+        <div class="row justify-content-center">
+        <div class="col-12 col-sm-10 col-md-8 col-lg-6 col-xl-4">
+        
+        <div class="text-center mb-4">
+        
+        <h2 class="h3 mb-3">Login Required</h2>
+        
+        <p class="text-muted">Please log in with Google to view the account register.</p>
+    <a href="' . $login_url . '" class="btn btn-primary btn-lg mb-4 w-100">Login with Google</a></div></div></div><div class="row justify-content-center">
+    <div class="col-12 col-sm-10 col-md-8 col-lg-6">
+    <div class="col-12">
+    <div class="card shadow-lg border-0 animate__animated animate__fadeInDown" style="min-height: 150px;">
+      <div class="card-body text-center">
+        If you have billing questions or website questions or comments<br>
+        please email: <a href="mailto:gearsosceola@gmail.com">gearsosceola@gmail.com</a><br>
+        <br>
+        If you have GEARS program-related questions,<br>
+        please contact <a href="mailto:scott@gears.org.in">scott@gears.org.in</a>
+      </div>
+    </div>
+  </div>
+  </body></html>';
     exit;
 }
 
@@ -399,7 +433,7 @@ if ($is_board_member) {
         // Show team selection page for board members (exclude archived teams)
         $all_teams = $wpdb->get_results("SELECT * FROM $table_teams WHERE (archived = 0 OR archived IS NULL) ORDER BY team_name");
         
-        echo '<!DOCTYPE html><html><head><title>Select Team - Board Access</title><link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet"><link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.css" rel="stylesheet"></head><body class="bg-light"><div class="container my-5"><div class="row justify-content-center"><div class="col-md-8"><div class="card shadow-lg"><div class="card-header bg-primary text-white text-center"><h3><i class="bi bi-shield-check me-2"></i>Board Member Access</h3><p class="mb-0">Select a team to view their information</p></div><div class="card-body"><div class="mb-3"><label class="form-label fw-bold">Available Teams:</label><div class="list-group">';
+        echo '<!DOCTYPE html><html><head><title>Select Team - Board Access</title><meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no"><link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet"><link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.css" rel="stylesheet"><style>body{font-family:"Zain",-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif!important}</style></head><body class="bg-light"><div class="container-fluid px-3 py-4"><div class="row justify-content-center"><div class="col-12 col-md-10 col-lg-8 col-xl-6"><div class="card shadow-lg"><div class="card-header bg-primary text-white text-center"><h3 class="mb-2"><i class="bi bi-shield-check me-2"></i>Board Member Access</h3><p class="mb-0">Select a team to view their information</p></div><div class="card-body"><div class="mb-3"><label class="form-label fw-bold">Available Teams:</label><div class="list-group">';
         
         foreach ($all_teams as $team_option) {
             $team_url = $_SERVER['REQUEST_URI'] . (strpos($_SERVER['REQUEST_URI'], '?') !== false ? '&' : '?') . 'team_id=' . $team_option->id;
@@ -422,7 +456,7 @@ if ($is_board_member) {
     // Regular mentor access - check if they belong to a team
     $mentor = $wpdb->get_row($wpdb->prepare("SELECT * FROM $table_mentors WHERE email = %s", $google_email));
     if (!$mentor || !$mentor->team_id) {
-        echo '<!DOCTYPE html><html><head><title>Access Denied</title><link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet"></head><body class="bg-dark text-light"><div class="container my-5 text-center"><div class="alert alert-danger shadow-lg p-4" style="font-size:2rem;border-width:3px;border-color:#dc3545;"><span class="display-3 fw-bold text-danger">&#9888;</span><h2 class="fw-bold mt-3">ACCESS DENIED</h2><p class="lead">You must be a <span class="fw-bold text-danger">GEARS mentor</span> to access team information.<br><span class="text-danger">This incident will be reported.</span></p></div></div></body></html>';
+        echo '<!DOCTYPE html><html><head><title>Access Denied</title><meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no"><link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet"><style>body{font-family:"Zain",-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif!important}</style></head><body class="bg-dark text-light"><div class="container-fluid px-3 py-5"><div class="row justify-content-center"><div class="col-12 col-sm-10 col-md-8 col-lg-6 col-xl-5"><div class="alert alert-danger shadow-lg p-4 text-center" style="border-width:3px;border-color:#dc3545;"><span class="display-3 fw-bold text-danger">&#9888;</span><h2 class="fw-bold mt-3">ACCESS DENIED</h2><p class="lead">You must be a <span class="fw-bold text-danger">GEARS mentor</span> to access team information.<br><span class="text-danger">This incident will be reported.</span></p></div></div></div></div></body></html>';
         exit;
     }
     $team = $wpdb->get_row($wpdb->prepare("SELECT * FROM $table_teams WHERE id = %d", $mentor->team_id));
@@ -704,6 +738,10 @@ $alumni = $wpdb->get_results("SELECT * FROM {$wpdb->prefix}gears_students WHERE 
 <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.css" rel="stylesheet">
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js" crossorigin="anonymous"></script>
 
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Zain:ital,wght@0,200;0,300;0,400;0,700;0,800;0,900;1,300;1,400&display=swap" rel="stylesheet">
+
 <?php
 // Load WordPress media scripts for the media uploader
 if (function_exists('wp_enqueue_media')) {
@@ -716,6 +754,21 @@ if (function_exists('wp_head')) {
 ?>
 
 <style>
+  /* Global Zain font application */
+  *, body, html {
+    font-family: "Zain", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif !important;
+    font-weight: 400;
+    font-style: normal;
+  }
+  
+  h1, h2, h3, h4, h5, h6 {
+    font-family: "Zain", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif !important;
+  }
+  
+  input, select, textarea, button, .btn {
+    font-family: "Zain", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif !important;
+  }
+  
   .animated-header {
     background: linear-gradient(90deg, #f8f9fa 0%, #e3e6ff 50%, #f8f9fa 100%);
     background-size: 200% 200%;

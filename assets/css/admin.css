@@ -2,6 +2,24 @@
  * Admin CSS for QBO Recurring Billing Plugin
  */
 
+/* Global Font Family - Apply Zain font to all elements */
+* {
+    font-family: "Zain", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif !important;
+}
+
+body, html {
+    font-family: "Zain", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif !important;
+}
+
+/* Ensure WordPress admin elements also use Zain */
+.wrap h1, .wrap h2, .wrap h3, .wrap h4, .wrap h5, .wrap h6 {
+    font-family: "Zain", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif !important;
+}
+
+input, select, textarea, button {
+    font-family: "Zain", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif !important;
+}
+
 /* Enhanced Team Info Page Styles */
 .team-info-container {
     max-width: 1200px;

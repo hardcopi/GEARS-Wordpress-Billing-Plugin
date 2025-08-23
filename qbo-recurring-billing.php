@@ -600,9 +600,12 @@ class QBORecurringBilling {
         );
         
         if (in_array($hook, $qbo_pages)) {
+            // Enqueue Google Fonts
+            wp_enqueue_style('google-fonts-zain', 'https://fonts.googleapis.com/css2?family=Zain:ital,wght@0,200;0,300;0,400;0,700;0,800;0,900;1,300;1,400&display=swap', array(), null);
+            
             // Enqueue CSS
-            wp_enqueue_style('qbo-admin-css', QBO_PLUGIN_URL . 'assets/css/admin.css', array(), '1.0.0');
-            wp_enqueue_style('qbo-modals-css', QBO_PLUGIN_URL . 'assets/css/modals.css', array(), '1.0.0');
+            wp_enqueue_style('qbo-admin-css', QBO_PLUGIN_URL . 'assets/css/admin.css', array('google-fonts-zain'), '1.0.0');
+            wp_enqueue_style('qbo-modals-css', QBO_PLUGIN_URL . 'assets/css/modals.css', array('google-fonts-zain'), '1.0.0');
             
             // Enqueue JS
             wp_enqueue_script('qbo-admin-js', QBO_PLUGIN_URL . 'assets/js/admin.js', array('jquery'), '1.0.0', true);
@@ -765,7 +768,7 @@ function qbo_handle_mentor_email() {
     
     // Prepare email body with team context
     $email_body = '<html><body>';
-    $email_body .= '<div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">';
+    $email_body .= '<div style="font-family: \'Zain\', Arial, sans-serif; max-width: 600px; margin: 0 auto;">';
     $email_body .= '<div style="background-color: #f8f9fa; padding: 20px; border-radius: 5px; margin-bottom: 20px;">';
     $email_body .= '<h3 style="margin: 0; color: #333;">Message from ' . esc_html($team->team_name) . ' (' . esc_html($team->program) . ')</h3>';
     $email_body .= '</div>';
